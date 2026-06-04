@@ -22,11 +22,11 @@ export default defineConfig({
       exclude: ['**/*.test.ts', '**/index.ts', '**/*.d.ts', '**/testing/**'],
       reporter: ['text', 'html'],
       thresholds: {
-        // Engine pillars must be exhaustively covered (raised as modules land).
-        lines: 70,
-        functions: 70,
+        // Engine pillars (combat/spirit/verse/rng/scaling) sit ≥90%; these guard regressions.
+        lines: 88,
+        functions: 88,
         branches: 70,
-        statements: 70,
+        statements: 88,
       },
     },
   },
