@@ -152,6 +152,12 @@ export { M1_VERBS } from './scene/types'
 export type { InventoryState, ItemDef, ItemKind } from './inventory/types'
 export { emptyInventory, itemCount } from './inventory/types'
 
+// ---- combat engine ----
+export { startCombat, HAND_SIZE, type CombatInit, type CombatStep } from './combat/combat'
+export { physicalAmount, spiritualAmount, absorb, statusStacks } from './combat/damage'
+export { pickIntent } from './combat/ai'
+export { GRACE_ABILITIES, getGrace, type GraceAbilityMeta } from './grace/grace'
+
 // ---- shared id vocabulary ----
 export type {
   I18nKey,

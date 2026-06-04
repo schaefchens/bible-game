@@ -1,7 +1,7 @@
-import type { CardInstance, StatusId } from '../cards/types'
+import type { CardDef, CardInstance, StatusId } from '../cards/types'
 import type { CombatStats } from '../state/stats'
 import type { RngState } from '../rng/rng'
-import type { CombatantId, EncounterId, GraceAbilityId, MemberId, NodeId } from '../types'
+import type { CardDefId, CombatantId, EncounterId, GraceAbilityId, MemberId, NodeId } from '../types'
 
 export type Faction = 'party' | 'enemy'
 export type Row = 'front' | 'back'
@@ -54,14 +54,19 @@ export interface Combatant {
   // --- enemies ---
   intent?: Intent
   aiProfileId?: string
+  isDemon?: boolean
   /** demon hidden until revealed by Sight (not targetable / not in enemyOrder until revealed) */
   hidden?: boolean
   /** a human's bound demon id; revealed by Sight */
   revealsId?: CombatantId
+  /** a demon's host human id; when the host dies the demon flees */
+  boundToId?: CombatantId
   /** caps incoming FLESH damage (the late-game wall; demons cap flesh to ~1) */
   fleshDamageCap?: number
   /** reduces incoming spiritual damage by a flat amount */
   spiritualArmor?: number
+  /** spirit-layer attack value (unblockable by flesh block; mitigated only by ward) */
+  dread?: number
 }
 
 export type Phase =
@@ -145,6 +150,11 @@ export interface CombatState {
   nextIid: number
 
   reward?: RewardChoice
+  /** run-supplied reward inputs, materialized into a RewardChoice when combat is won */
+  rewardSpec: { options: RewardOption[]; xp: number }
+
+  /** card defs needed to resolve this combat, embedded so combat is self-contained + serializable */
+  cardDefs: Record<CardDefId, CardDef>
 
   // the encounter→run handoff context
   nodeId: NodeId
