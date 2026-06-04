@@ -81,6 +81,31 @@ export {
   type SpiritState,
   type PotencyTier,
 } from './spirit/types'
+export {
+  applySpiritEvent,
+  potencyMult,
+  potencyTier,
+  scaleSpiritValue,
+  SPIRIT_DELTAS,
+  type SpiritEvent,
+  type SpiritOutcome,
+} from './spirit/spirit'
+
+// ---- verse gap-fill ----
+export {
+  tokenize,
+  normalizeAnswer,
+  normalizeAnswerDe,
+  normalizeFor,
+  levenshtein,
+  fuzzThreshold,
+  checkBlank,
+  checkVerseAnswers,
+  gappedDisplay,
+  blankCount,
+  getLocaleData,
+} from './verse/verseGapFill'
+export type { VerseChallenge, VerseLocaleData, VerseRef, VerseCheckResult } from './verse/types'
 
 // ---- domain types (cards / combat / map / scene / inventory) ----
 export type {
