@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`rng — seeding & determinism > output is a regression-locked vector (golden) 1`] = `
+[
+  4026680819,
+  562262855,
+  4086204668,
+  3537283304,
+  3077603607,
+  179549525,
+  40694283,
+  2726124202,
+]
+`;
