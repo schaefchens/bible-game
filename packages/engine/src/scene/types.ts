@@ -16,6 +16,10 @@ export type Verb = 'observe' | 'talk' | 'take' | 'pull' | 'push' | 'use' | 'open
 
 export const M1_VERBS: readonly Verb[] = ['observe', 'take', 'use']
 
+/** Every verb, for the radial verb coin — the player may try any action (unsupported ones simply
+ *  return a refusal line). Order is the fan layout, clockwise from the top. */
+export const VERBS: readonly Verb[] = ['observe', 'talk', 'take', 'use', 'open', 'close', 'push', 'pull']
+
 export type HotspotShape =
   | { x: number; y: number; w: number; h: number }
   | { polygon: Array<[number, number]> }

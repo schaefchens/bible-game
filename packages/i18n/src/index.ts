@@ -164,8 +164,13 @@ export const en: Messages = {
 
   // -- verb labels --
   'verb.observe': 'Observe',
+  'verb.talk': 'Talk to',
   'verb.take': 'Take',
   'verb.use': 'Use',
+  'verb.open': 'Open',
+  'verb.close': 'Close',
+  'verb.push': 'Push',
+  'verb.pull': 'Pull',
 
   // -- verb refusals (generic point-and-click) --
   'verb.refusal.observe': 'Nothing more to see here.',
@@ -324,8 +329,13 @@ export const de: Messages = {
   'world.nextComing': 'Der Boss ist überwunden. Die nächste Welt wird vorbereitet…',
 
   'verb.observe': 'Betrachten',
+  'verb.talk': 'Reden mit',
   'verb.take': 'Nehmen',
   'verb.use': 'Benutzen',
+  'verb.open': 'Öffnen',
+  'verb.close': 'Schließen',
+  'verb.push': 'Drücken',
+  'verb.pull': 'Ziehen',
 
   'verb.refusal.observe': 'Hier gibt es nichts weiter zu sehen.',
   'verb.refusal.take': 'Das kannst du nicht nehmen.',
