@@ -91,7 +91,10 @@ export interface MapNodeView {
   visited: boolean
   cleared: boolean
   current: boolean
+  /** an adjacent node the figure can travel to right now */
   movable: boolean
+  /** the node the figure stands on, and it still has something to resolve (click to enter) */
+  enterable: boolean
   visit?: Visit
   bgAsset?: string
 }
@@ -121,15 +124,20 @@ export function selectMap(state: GameState): MapView | null {
     .filter((n) => nodeVisible(map, run.world, ctx, n.id))
     .map((n) => {
       const chk = canMove(map, run.world, ctx, n.id)
+      const isCurrent = run.world.current === n.id
+      const cleared = run.world.cleared.includes(n.id)
+      // combat/event nodes are one-shot; rest/scene nodes can always be re-entered
+      const oneShot = n.type === 'combat' || n.type === 'elite' || n.type === 'boss' || n.type === 'event'
       return {
         id: n.id,
         type: n.type,
         nameKey: n.nameKey,
         pos: n.pos,
         visited: run.world.visited.includes(n.id),
-        cleared: run.world.cleared.includes(n.id),
-        current: run.world.current === n.id,
+        cleared,
+        current: isCurrent,
         movable: chk.ok,
+        enterable: isCurrent && !(oneShot && cleared),
         visit: chk.ok ? chk.visit : undefined,
         bgAsset: n.bgAsset,
       }

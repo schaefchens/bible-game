@@ -34,6 +34,7 @@ export type Command =
   | { type: 'allocateStat'; memberId: MemberId; stat: StatId }
   // ---- world / adventure ----
   | { type: 'world/move'; target: NodeId }
+  | { type: 'world/enter' }
   | { type: 'world/sceneInteract'; sceneId: SceneId; hotspotId: HotspotId; verb: Verb; itemId?: ItemId }
   | { type: 'world/leaveScene' }
   | { type: 'world/eventChoice'; eventId: EventId; choiceId: string }

@@ -1,5 +1,7 @@
-// World/adventure sub-reducer: movement (forward fixed-event / backward random roll), the
-// encounter→combat handoff, point-and-click scene interactions, moral events, and the fireplace.
+// World/adventure sub-reducer. Travel is now a two-step, board-game motion: `world/move` only
+// RELOCATES the hero one edge (no consequence), and `world/enter` RESOLVES the node you stand on
+// (its fixed event the first time; quiet if a combat/event there is already dealt with). The UI
+// walks the figure along the trail, then enters. Also: scene interactions, moral events, fireplace.
 // Threads Spirit intents onto run.spirit (single-writer) and sets screens. Pure.
 
 import { buildEncounter, encounterExists } from '../combat/encounterBuilder'
@@ -8,11 +10,11 @@ import type { GameEvent, ReduceResult } from '../events/event'
 import { memberMaxHp, type PartyMember } from '../state/character'
 import { applySpiritEvent, type SpiritEvent } from '../spirit/spirit'
 import type { GameState, RunState } from '../state/gameState'
-import { fork, nextFloat } from '../rng/rng'
+import { fork } from '../rng/rng'
 import { resolveInteraction, runScript, type SceneTransition } from '../scene/resolve'
 import type { NodeId } from '../types'
-import { REST_TYPES, type MapNode, type WorldMap } from './types'
-import { canMove, isQuiet } from './movement'
+import { COMBAT_TYPES, type MapNode, type WorldMap } from './types'
+import { canMove } from './movement'
 import { evalGate } from './gate'
 
 const reject = (state: GameState, reason: string): ReduceResult => ({ state, events: [{ type: 'rejected', reason }] })
@@ -47,6 +49,8 @@ export function reduceWorld(state: GameState, cmd: Command): ReduceResult {
   switch (cmd.type) {
     case 'world/move':
       return move(state, cmd.target)
+    case 'world/enter':
+      return enter(state)
     case 'world/sceneInteract':
       return sceneInteract(state, cmd)
     case 'world/leaveScene':
@@ -62,19 +66,11 @@ export function reduceWorld(state: GameState, cmd: Command): ReduceResult {
   }
 }
 
-// ---- entrance ---------------------------------------------------------------------------
+// ---- movement (relocate) + enter (resolve) ----------------------------------------------
 
-/** Fire the current node's fixed event — used at run start so the entrance (e.g. an intro combat) triggers. */
-export function triggerEntrance(state: GameState): ReduceResult {
-  const run = state.run
-  if (!run) return { state, events: [] }
-  const node = mapOf(run).nodes[run.world.current]
-  if (!node) return { state, events: [] }
-  return triggerFixed(state, run, node, [])
-}
-
-// ---- movement ---------------------------------------------------------------------------
-
+/** Step one edge to an adjacent node. Pure relocation — NO event fires here. The UI animates the
+ *  figure along the trail, then dispatches `world/enter` (immediately, on a first visit; on the
+ *  next click, on a revisit) to actually resolve the node. */
 function move(state: GameState, target: NodeId): ReduceResult {
   const run = state.run!
   const map = mapOf(run)
@@ -89,20 +85,23 @@ function move(state: GameState, target: NodeId): ReduceResult {
   const depth = Math.max(run.depth, node.depth)
   const run2: RunState = { ...run, depth, world: { ...run.world, current: target, visited } }
 
-  const moved: GameEvent = { type: 'moved', from: fromId, to: target, visit: chk.visit }
+  return ok({ ...state, run: run2 }, [{ type: 'moved', from: fromId, to: target, visit: chk.visit }])
+}
 
-  // First visit fires the node's fixed event.
-  if (firstVisit) return triggerFixed(state, run2, node, [moved])
-
-  // Revisit: quiet nodes are safe (rest re-opens its screen; cleared combats are free passage);
-  // everything else risks an ambush.
-  if (isQuiet(node, run2.world)) {
-    if (REST_TYPES.includes(node.type)) {
-      return ok({ ...state, run: run2, screen: 'fireplace' }, [moved, { type: 'screenChanged', screen: 'fireplace' }])
-    }
-    return ok({ ...state, run: run2 }, [moved])
+/** Resolve the node the hero is standing on. First time fires its fixed event (combat/scene/event/
+ *  fireplace); a combat or event already dealt with here is "quiet" (free passage). Rest and scene
+ *  nodes always re-open, so the hero can rest again or re-investigate. Also used for the entrance at
+ *  run start (click the starting node to begin). */
+function enter(state: GameState): ReduceResult {
+  const run = state.run!
+  if (run.world.movement.kind !== 'idle') return reject(state, 'enter:busy')
+  const node = mapOf(run).nodes[run.world.current]
+  if (!node) return reject(state, 'enter:no-node')
+  const oneShot = COMBAT_TYPES.includes(node.type) || node.type === 'event'
+  if (oneShot && run.world.cleared.includes(node.id)) {
+    return ok(state, [{ type: 'notice', messageKey: 'map.quiet' }])
   }
-  return rollAmbush(state, run2, node, [moved])
+  return triggerFixed(state, run, node, [])
 }
 
 function triggerFixed(state: GameState, run: RunState, node: MapNode, pre: GameEvent[]): ReduceResult {
@@ -131,31 +130,6 @@ function triggerFixed(state: GameState, run: RunState, node: MapNode, pre: GameE
       // shop deferred for M1 — treat as a benign cleared node
       return ok({ ...state, run: clearNode(run, node.id) }, pre)
   }
-}
-
-/** Revisiting a non-quiet node rolls the ambush table (the road may turn against you). */
-function rollAmbush(state: GameState, run: RunState, node: MapNode, pre: GameEvent[]): ReduceResult {
-  const table = run.content.worlds[run.worldId]!.ambushTable
-  const [f] = nextFloat(fork(run.rng, `ambush:${run.world.ambushCursor}`))
-  const run2: RunState = { ...run, world: { ...run.world, ambushCursor: run.world.ambushCursor + 1 } }
-
-  let kind: 'nothing' | 'combat' | 'event' = 'nothing'
-  if (f < table.combat) kind = 'combat'
-  else if (f < table.combat + table.event) kind = 'event'
-
-  const events: GameEvent[] = [...pre, { type: 'ambush', kind }]
-
-  if (kind === 'combat' && table.combatEncounterId && encounterExists(run.content, table.combatEncounterId)) {
-    return startCombatNode(state, run2, node.id, table.combatEncounterId, true, events)
-  }
-  if (kind === 'event' && table.eventId && run.content.events[table.eventId]) {
-    const run3 = {
-      ...run2,
-      world: { ...run2.world, movement: { kind: 'inEvent' as const, eventId: table.eventId, node: node.id, backward: true } },
-    }
-    return ok({ ...state, run: run3, screen: 'event' }, [...events, { type: 'screenChanged', screen: 'event' }])
-  }
-  return ok({ ...state, run: run2 }, events)
 }
 
 // ---- encounter handoff ------------------------------------------------------------------

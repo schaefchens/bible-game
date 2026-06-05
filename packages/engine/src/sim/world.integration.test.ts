@@ -16,21 +16,26 @@ const bootstrap = (seed = 'run-1'): Command[] => [
   { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed, content },
 ]
 
-// The full vertical slice: scene (take key) → beast combat → fireplace (pray) → gated edge →
+// The full vertical slice with the board-game travel model: each step is move (walk the trail) then
+// enter (resolve the node). scene (take key) → beast combat → fireplace (pray) → gated edge →
 // thief mini-boss completed RIGHTEOUSLY (Sight → spiritual kill; the human is freed).
 const fullPeacefulRun = (seed = 'run-1'): Command[] => [
   ...bootstrap(seed),
-  { type: 'world/move', target: 'n1' }, // → forest-house scene
+  { type: 'world/move', target: 'n1' }, // walk to the forest house…
+  { type: 'world/enter' }, // …and enter it (scene)
   { type: 'world/sceneInteract', sceneId: 'forestHouse', hotspotId: 'drawer', verb: 'take' }, // get the key
   { type: 'world/leaveScene' },
-  { type: 'world/move', target: 'n2' }, // → beast combat
+  { type: 'world/move', target: 'n2' },
+  { type: 'world/enter' }, // → beast combat
   { type: 'combat/playCard', iid: strikeA, targetId: 'wolf' },
   { type: 'combat/playCard', iid: strikeB, targetId: 'wolf' }, // 16 dmg kills the 10-HP wolf
   { type: 'combat/chooseReward', optionId: 'money' },
-  { type: 'world/move', target: 'n3' }, // → fireplace
+  { type: 'world/move', target: 'n3' },
+  { type: 'world/enter' }, // → fireplace
   { type: 'world/fireplace', action: 'pray' }, // recover Spirit
   { type: 'world/fireplace', action: 'leave' },
-  { type: 'world/move', target: 'n4' }, // gated by "key" → thief mini-boss
+  { type: 'world/move', target: 'n4' }, // gated by "key"
+  { type: 'world/enter' }, // → thief mini-boss
   { type: 'combat/useGrace', ability: 'sight' }, // reveal the bound demon
   { type: 'combat/playCard', iid: lightCard, targetId: 'demon' }, // spiritual kill
   { type: 'combat/chooseReward', optionId: 'money' },
@@ -65,17 +70,18 @@ describe('vertical slice — full peaceful run (DoD tripwire)', () => {
 
 describe('the cross-node gate', () => {
   it('blocks the boss edge until the key is taken', () => {
-    // walk to n3 WITHOUT visiting the scene to grab the key, then try the gated edge
+    // walk to n3 WITHOUT taking the key, then try the gated edge
     const noKey = simulate(newGame(), [
       ...bootstrap(),
       { type: 'world/move', target: 'n1' },
+      { type: 'world/enter' },
       { type: 'world/leaveScene' }, // leave without taking the key
       { type: 'world/move', target: 'n2' },
+      { type: 'world/enter' },
       { type: 'combat/playCard', iid: strikeA, targetId: 'wolf' },
       { type: 'combat/playCard', iid: strikeB, targetId: 'wolf' },
       { type: 'combat/chooseReward', optionId: 'money' },
       { type: 'world/move', target: 'n3' },
-      { type: 'world/fireplace', action: 'leave' },
       { type: 'world/move', target: 'n4' }, // should be rejected — no key
     ])
     expect(noKey.log.at(-1)!.events).toContainEqual({ type: 'rejected', reason: 'move:gated' })
@@ -83,23 +89,53 @@ describe('the cross-node gate', () => {
   })
 })
 
-describe('revisit movement', () => {
-  it('revisiting a non-quiet node rolls the ambush table → moral event, which a choice resolves', () => {
+describe('board-game travel (move = relocate, enter = resolve)', () => {
+  const throughBeast: Command[] = [
+    ...bootstrap(),
+    { type: 'world/move', target: 'n1' },
+    { type: 'world/enter' },
+    { type: 'world/sceneInteract', sceneId: 'forestHouse', hotspotId: 'drawer', verb: 'take' },
+    { type: 'world/leaveScene' },
+    { type: 'world/move', target: 'n2' },
+    { type: 'world/enter' },
+    { type: 'combat/playCard', iid: strikeA, targetId: 'wolf' },
+    { type: 'combat/playCard', iid: strikeB, targetId: 'wolf' },
+    { type: 'combat/chooseReward', optionId: 'money' },
+  ]
+
+  it('a first-visit move only relocates — the node does not resolve until enter', () => {
+    const res = simulate(newGame(), [...bootstrap(), { type: 'world/move', target: 'n1' }])
+    const last = res.log.at(-1)!
+    expect(last.events).toContainEqual({ type: 'moved', from: 'n0', to: 'n1', visit: 'first' })
+    expect(last.events.some((e) => e.type === 'sceneEntered')).toBe(false)
+    expect(res.state.screen).toBe('map') // still on the map, standing on n1
+    expect(res.state.run!.world.current).toBe('n1')
+  })
+
+  it('travel is calm: revisiting a seen node just relocates (no ambush)', () => {
+    const res = simulate(newGame(), [...throughBeast, { type: 'world/move', target: 'n1' }])
+    expect(res.events.some((e) => e.type === 'ambush')).toBe(false)
+    expect(res.state.screen).toBe('map')
+    expect(res.state.run!.world.current).toBe('n1')
+  })
+
+  it('re-entering a cleared combat node is quiet — no re-fight', () => {
+    const res = simulate(newGame(), [...throughBeast, { type: 'world/enter' }]) // stand on cleared n2, click again
+    expect(res.log.at(-1)!.events).toContainEqual({ type: 'notice', messageKey: 'map.quiet' })
+    expect(res.state.combat).toBeNull()
+    expect(res.state.screen).toBe('map')
+  })
+
+  it('re-entering a scene node re-opens it', () => {
     const res = simulate(newGame(), [
       ...bootstrap(),
       { type: 'world/move', target: 'n1' },
-      { type: 'world/sceneInteract', sceneId: 'forestHouse', hotspotId: 'drawer', verb: 'take' },
-      { type: 'world/leaveScene' },
-      { type: 'world/move', target: 'n2' },
-      { type: 'combat/playCard', iid: strikeA, targetId: 'wolf' },
-      { type: 'combat/playCard', iid: strikeB, targetId: 'wolf' },
-      { type: 'combat/chooseReward', optionId: 'money' },
-      { type: 'world/move', target: 'n1' }, // revisit a seen (non-quiet) node → ambush event
-      { type: 'world/eventChoice', eventId: 'traveler', choiceId: 'give' },
+      { type: 'world/enter' }, // first open
+      { type: 'world/leaveScene' }, // clears n1
+      { type: 'world/enter' }, // standing on n1, click again → re-opens the scene
     ])
-    expect(res.events).toContainEqual({ type: 'ambush', kind: 'event' })
-    expect(res.events.some((e) => e.type === 'spiritShifted' && e.reason === 'gaveToTraveler')).toBe(true)
-    expect(res.state.screen).toBe('map')
+    expect(res.log.at(-1)!.events).toContainEqual({ type: 'sceneEntered', sceneId: 'forestHouse' })
+    expect(res.state.screen).toBe('scene')
   })
 })
 

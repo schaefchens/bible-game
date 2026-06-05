@@ -52,7 +52,9 @@ function resolveStop(s: GameState, opts: { eventChoice?: string } = {}): GameSta
   }
 }
 
-const step = (s: GameState, target: string, opts: { eventChoice?: string } = {}) => resolveStop(dispatch(s, { type: 'world/move', target }), opts)
+// board-game travel: walk to the node (move), enter it, then resolve whatever screen it opened
+const step = (s: GameState, target: string, opts: { eventChoice?: string } = {}) =>
+  resolveStop(dispatch(dispatch(s, { type: 'world/move', target }), { type: 'world/enter' }), opts)
 
 describe('Jericho Road — content & integration', () => {
   it('is referentially valid (createContent did not throw) with 22 nodes', () => {
@@ -60,15 +62,19 @@ describe('Jericho Road — content & integration', () => {
     expect(content.worlds['world-01']!.map.entrance).toBe('road')
   })
 
-  it('fires the intro combat on the road the moment the run starts', () => {
+  it('begins on the map; entering the road starts the intro combat', () => {
     const s = boot()
-    expect(s.screen).toBe('combat')
-    expect(s.combat?.encounterId).toBe('roadRobbers')
+    expect(s.screen).toBe('map')
+    expect(s.combat).toBeNull()
+    expect(s.run!.world.current).toBe('road')
+    const fought = dispatch(s, { type: 'world/enter' }) // click the entrance
+    expect(fought.screen).toBe('combat')
+    expect(fought.combat?.encounterId).toBe('roadRobbers')
   })
 
   it('plays a long route to the Narrow Gate (mercy → hidden route → inn → boss)', () => {
     let s = boot()
-    s = resolveStop(s) // win the road robbers (subdued) → choose reward → map
+    s = resolveStop(dispatch(s, { type: 'world/enter' })) // enter the road, win the robbers → map
     expect(s.screen).toBe('map')
     expect(s.run!.spirit.killedHumans).toBe(0) // subdued, not killed
     expect(s.run!.world.cleared).toContain('road')
@@ -87,7 +93,10 @@ describe('Jericho Road — content & integration', () => {
     expect(s.run!.world.cleared).toContain('inn')
 
     s = step(s, 'narrowSteps')
-    s = dispatch(s, { type: 'world/move', target: 'boss' }) // gate opens once the inn is cleared
+    // gate opens once the inn is cleared: walk onto the Narrow Gate, then enter it
+    s = dispatch(s, { type: 'world/move', target: 'boss' })
+    expect(s.run!.world.current).toBe('boss')
+    s = dispatch(s, { type: 'world/enter' })
     expect(s.screen).toBe('combat')
     expect(s.combat?.encounterId).toBe('accuser')
     // the late-game wall: flesh barely scratches the Accuser; only Spirit (grace/spiritual/verse) can win
@@ -97,7 +106,7 @@ describe('Jericho Road — content & integration', () => {
 
   it('blocks the hidden prayer route until the traveler is helped', () => {
     let s = boot()
-    s = resolveStop(s) // map at road
+    s = resolveStop(dispatch(s, { type: 'world/enter' })) // fight the road → map
     s = step(s, 'oliveGrove')
     s = step(s, 'cistern')
     // from cistern, the hidden prayer node is not adjacent — but reaching it via marketFork is blocked

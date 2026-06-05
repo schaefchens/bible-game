@@ -17,7 +17,8 @@ function profileWithHeroes(...names: string[]): GameState {
   return s
 }
 
-// The Jericho road opens with an intro combat; win it (subdue the robbers) to reach a map boundary.
+// The Jericho road begins on the map; you click the entrance to start the intro combat. Win it
+// (subdue the robbers) to reach a map boundary.
 function winCombat(start: GameState): GameState {
   let s = start
   let guard = 0
@@ -38,7 +39,8 @@ function winCombat(start: GameState): GameState {
 function startedRun(): GameState {
   let s = apply(newGame(), { type: 'createHero', id: 'h0', name: 'Gideon' })
   s = apply(s, { type: 'startRun', characterId: 'h0', worldId: 'world-01', seed: 'persist-seed', content })
-  s = winCombat(s) // road robbers → reward → map boundary (combat null)
+  s = apply(s, { type: 'world/enter' }) // click the entrance → road robbers combat
+  s = winCombat(s) // → reward → map boundary (combat null)
   return s
 }
 
@@ -65,8 +67,8 @@ describe('SaveStore', () => {
     const store = freshStore()
     const onMap = startedRun()
     await store.persist(onMap)
-    // walk into a combat node (the dry wash ambush), then try to persist mid-combat
-    const s = apply(onMap, { type: 'world/move', target: 'dryWash' })
+    // walk into a combat node (the dry wash), enter it, then try to persist mid-combat
+    const s = apply(apply(onMap, { type: 'world/move', target: 'dryWash' }), { type: 'world/enter' })
     expect(s.combat).not.toBeNull()
     await store.persist(s)
     const loaded = await store.loadRun('h0')

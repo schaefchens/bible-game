@@ -25,6 +25,9 @@ body {
 }
 .app { height: 100vh; width: 100vw; position: relative; }
 
+/* cross-dissolve layer for screen↔screen transitions (map → combat/scene/rest and back) */
+.screen-layer { position: absolute; inset: 0; will-change: opacity, transform; }
+
 /* ---------- screens ---------- */
 .screen {
   position: absolute; inset: 0;
@@ -146,6 +149,13 @@ body {
 .map-node.current .node-disc { filter: none; }
 .map-node.current .node-label { background: rgba(54,42,12,0.9); color: var(--gold-bright); }
 .map-footer { position: absolute; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1.1rem; background: linear-gradient(0deg, rgba(20,22,14,0.78), transparent); }
+
+/* the pilgrim's figure — a board-game pawn standing on the current node, walking the trail on travel */
+.player-token { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; z-index: 6; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.player-token::after { content: ''; position: absolute; bottom: -3px; width: 20px; height: 6px; border-radius: 50%; background: radial-gradient(ellipse, rgba(30,24,10,0.5), transparent 70%); }
+.player-pawn { font-size: 1.85rem; line-height: 1; color: var(--gold-bright); text-shadow: 0 0 6px rgba(0,0,0,0.7), 0 2px 3px rgba(0,0,0,0.9); }
+.map-canvas.traveling .map-node { pointer-events: none; }
+.map-canvas.traveling .node-label { opacity: 0.55; transition: opacity 0.2s; }
 .reflect { font-style: italic; }
 
 /* ---------- combat ---------- */
