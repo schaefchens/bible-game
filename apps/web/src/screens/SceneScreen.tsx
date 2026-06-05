@@ -61,7 +61,9 @@ export function SceneScreen() {
     e.stopPropagation()
     window.clearTimeout(dwellTimer.current)
     setBloom(id)
-    setFan({ hotspotId: id, x: e.clientX, y: e.clientY })
+    const { clientX, clientY } = e
+    // toggle: clicking the same zone again (without choosing an action) closes the coin
+    setFan((cur) => (cur && cur.hotspotId === id ? null : { hotspotId: id, x: clientX, y: clientY }))
   }
   const pick = (verb: Verb) => {
     if (fan) {
