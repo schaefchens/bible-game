@@ -169,7 +169,8 @@ body {
 .verb-coin:hover { border-color: var(--gold-bright); box-shadow: 0 0 16px rgba(244,231,161,0.55); z-index: 1; }
 .verb-icon { font-size: 1.35rem; line-height: 1; }
 .verb-text { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.02em; }
-.scene-dialog { position: absolute; z-index: 3; bottom: 5rem; left: 50%; transform: translateX(-50%); width: min(640px, 90vw); text-align: center; background: rgba(0,0,0,0.7); border: 1px solid var(--panel-edge); border-radius: 10px; padding: 0.8rem 1rem; min-height: 1.5rem; }
+.scene-dialog { position: absolute; z-index: 3; bottom: 5rem; left: 0; right: 0; margin: 0 auto; width: min(640px, 90vw); text-align: center; background: rgba(0,0,0,0.72); border: 1px solid var(--panel-edge); border-radius: 10px; padding: 0.8rem 1rem; }
+.zone-label { position: absolute; left: 50%; bottom: -1.7rem; white-space: nowrap; pointer-events: none; background: rgba(0,0,0,0.72); border: 1px solid var(--panel-edge); color: var(--gold-bright); padding: 2px 9px; border-radius: 6px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
 .verb-bar { position: absolute; z-index: 4; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; align-items: center; background: rgba(0,0,0,0.6); padding: 0.5rem 0.8rem; border-radius: 10px; width: min(640px, 92vw); }
 .event-panel .event-body { line-height: 1.5; }
 .choices { margin-top: 1rem; }
