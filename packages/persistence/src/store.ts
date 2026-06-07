@@ -51,6 +51,15 @@ export class SaveStore {
     await set(this.key, next)
   }
 
+  /** Remove a hero's saved run (on death / abandon) so it is no longer resumable. Keeps the hero. */
+  async clearRun(characterId: string): Promise<void> {
+    const file = await this.load()
+    if (!file || !(characterId in file.runs)) return
+    const runs = { ...file.runs }
+    delete runs[characterId]
+    await set(this.key, { ...file, runs })
+  }
+
   async deleteHero(characterId: string): Promise<void> {
     const file = await this.load()
     if (!file) return

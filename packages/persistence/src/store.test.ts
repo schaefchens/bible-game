@@ -75,6 +75,15 @@ describe('SaveStore', () => {
     expect(loaded!.world.current).toBe('road') // still the pre-combat boundary
   })
 
+  it('clearRun removes only that hero’s saved run, keeping the hero + profile', async () => {
+    const store = freshStore()
+    await store.persist(startedRun())
+    expect(await store.loadRun('h0')).not.toBeNull()
+    await store.clearRun('h0')
+    expect(await store.loadRun('h0')).toBeNull() // run gone (no longer resumable)
+    expect((await store.loadProfile())?.slots.map((s) => s.id)).toContain('h0') // hero kept
+  })
+
   it('deletes a hero and its run', async () => {
     const store = freshStore()
     await store.persist(startedRun())

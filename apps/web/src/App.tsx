@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import type { ScreenId } from '@bible/engine'
 import { useGame } from './store/gameStore'
 import { StartScreen } from './screens/StartScreen'
+import { HeroSelectScreen } from './screens/HeroSelectScreen'
 import { HeroCreation } from './screens/HeroCreation'
 import { WorldSelect } from './screens/WorldSelect'
 import { MapScreen } from './screens/MapScreen'
@@ -16,6 +17,7 @@ import { VerseModal } from './components/VerseModal'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
+  heroSelect: HeroSelectScreen,
   heroCreation: HeroCreation,
   worldSelect: WorldSelect,
   map: MapScreen,

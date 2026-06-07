@@ -3,7 +3,7 @@ import { useGame } from '../store/gameStore'
 
 export function GameOverScreen() {
   const { t } = useTranslation()
-  const dispatch = useGame((s) => s.dispatch)
+  const abandon = useGame((s) => s.abandon)
 
   return (
     <div className="screen gameover centered">
@@ -11,7 +11,7 @@ export function GameOverScreen() {
       <div className="panel narrow">
         <h2>{t('ui.gameOver.title')}</h2>
         <p className="muted">{t('ui.gameOver.flavor')}</p>
-        <button className="btn primary block" onClick={() => dispatch({ type: 'abandonRun' })}>
+        <button className="btn primary block" onClick={() => void abandon()}>
           {t('ui.gameOver.restart')}
         </button>
       </div>

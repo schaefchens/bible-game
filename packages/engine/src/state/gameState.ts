@@ -11,6 +11,7 @@ export const GAME_STATE_VERSION = 1
 
 export type ScreenId =
   | 'start'
+  | 'heroSelect'
   | 'heroCreation'
   | 'worldSelect'
   | 'map'

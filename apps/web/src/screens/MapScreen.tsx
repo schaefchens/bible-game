@@ -60,8 +60,10 @@ export function MapScreen() {
   const state = useGame((s) => s.state)
   const view = useMemo(() => selectMap(state), [state])
   const dispatch = useGame((s) => s.dispatch)
+  const abandon = useGame((s) => s.abandon)
   const currentRef = useRef<HTMLButtonElement | null>(null)
   const [travel, setTravel] = useState<Travel | null>(null)
+  const [confirmAbandon, setConfirmAbandon] = useState(false)
 
   // center the current node when the map opens / the hero arrives somewhere new
   const currentId = view?.nodes.find((n) => n.current)?.id
@@ -175,9 +177,17 @@ export function MapScreen() {
 
       <footer className="map-footer">
         <span className="muted small">{t('ui.map.legend')}</span>
-        <button className="btn danger small" onClick={() => dispatch({ type: 'abandonRun' })}>
-          {t('ui.map.abandon')}
-        </button>
+        {confirmAbandon ? (
+          <span className="row gap">
+            <span className="muted small">{t('ui.map.abandonConfirm')}</span>
+            <button className="btn danger small" onClick={() => void abandon()}>{t('ui.common.yes')}</button>
+            <button className="btn small" onClick={() => setConfirmAbandon(false)}>{t('ui.common.no')}</button>
+          </span>
+        ) : (
+          <button className="btn danger small" onClick={() => setConfirmAbandon(true)}>
+            {t('ui.map.abandon')}
+          </button>
+        )}
       </footer>
     </div>
   )

@@ -19,7 +19,7 @@ export function WorldSelect() {
           </div>
         </div>
         <div className="row gap">
-          <button className="btn" onClick={() => dispatch({ type: 'navigate', screen: 'start' })}>
+          <button className="btn" onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
             {t('ui.common.back')}
           </button>
           <button className="btn primary" disabled={!lastSelectedId} onClick={() => lastSelectedId && startRun(lastSelectedId)}>

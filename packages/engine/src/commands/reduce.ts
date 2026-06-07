@@ -1,6 +1,7 @@
 import { reduceCombat } from '../combat/reduce'
 import type { ContentBundle } from '../content/bundle'
 import type { GameEvent, ReduceResult } from '../events/event'
+import { totalXpForLevel } from '../leveling/scaling'
 import { reduceWorld } from '../map/reduce'
 import { createCharacter, partyMemberFromCharacter } from '../state/character'
 import {
@@ -59,12 +60,7 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     case 'startRun':
       return startRun(state, cmd.characterId, cmd.worldId, cmd.seed, cmd.content)
     case 'abandonRun':
-      return state.run
-        ? ok({ ...state, run: null, combat: null, prompt: null, screen: 'start' }, [
-            { type: 'runAbandoned' },
-            { type: 'screenChanged', screen: 'start' },
-          ])
-        : reject(state, 'no-run')
+      return abandonRun(state)
     case 'allocateStat':
       return allocateStat(state, cmd.memberId, cmd.stat)
 
@@ -97,6 +93,29 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
   }
 }
 
+/**
+ * Losing or abandoning a run discards the RUN (map progress, gold, run-only cards, spirit) but
+ * KEEPS the permanent hero — level, stat allocations + unspent points, and earned verse cards.
+ * The only permanent change is resetting progress toward the next level (xp → the level's floor).
+ * Returns to the fire (hero selection) to choose a hero + adventure and begin anew.
+ */
+function abandonRun(state: GameState): ReduceResult {
+  if (!state.run) return reject(state, 'no-run')
+  const heroCharId = state.run.party.find((m) => m.memberId === state.run!.heroMemberId)?.characterId
+  const profile: ProfileState = heroCharId
+    ? {
+        ...state.profile,
+        slots: state.profile.slots.map((s) =>
+          s.id === heroCharId ? { ...s, character: { ...s.character, xp: totalXpForLevel(s.character.level) } } : s,
+        ),
+      }
+    : state.profile
+  return ok({ ...state, profile, run: null, combat: null, prompt: null, screen: 'heroSelect' }, [
+    { type: 'runAbandoned' },
+    { type: 'screenChanged', screen: 'heroSelect' },
+  ])
+}
+
 function createHero(state: GameState, id: string, name: string): ReduceResult {
   const trimmed = name.trim()
   if (!trimmed) return reject(state, 'empty-name')
@@ -122,7 +141,7 @@ function deleteHero(state: GameState, id: string): ReduceResult {
   // If the active run belongs to this hero, abandon it.
   const runBelongs = state.run?.party.some((m) => m.characterId === id) ?? false
   const next: GameState = runBelongs
-    ? { ...state, profile, run: null, combat: null, prompt: null, screen: 'start' }
+    ? { ...state, profile, run: null, combat: null, prompt: null, screen: 'heroSelect' }
     : { ...state, profile }
   return ok(next, [{ type: 'heroDeleted', id }])
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Command } from './command'
 import { newGame, reduce } from './reduce'
+import { totalXpForLevel } from '../leveling/scaling'
 import type { GameState } from '../state/gameState'
 import { testContent } from '../testing/fixtures'
 
@@ -93,19 +94,42 @@ describe('run lifecycle', () => {
     ])
   })
 
-  it('abandons a run back to the start screen', () => {
+  it('abandoning a run returns to the fire (hero selection) and keeps the leveled hero', () => {
     const started = run(withHero(), { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed: 's', content: CONTENT }).state
     const { state, events } = run(started, { type: 'abandonRun' })
     expect(state.run).toBeNull()
-    expect(state.screen).toBe('start')
+    expect(state.screen).toBe('heroSelect')
+    expect(state.profile.slots[0]!.character.id).toBe('h1') // hero kept
     expect(events.map((e) => e.type)).toContain('runAbandoned')
   })
 
-  it('deleting the active hero abandons the run', () => {
+  it('abandon keeps level / stats / unspent points / earned verses but resets xp to the level floor', () => {
+    let started = run(withHero(), { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed: 's', content: CONTENT }).state
+    // simulate a hero that gained progression mid-run: level 3, partway to 4, with stats + a verse
+    started = {
+      ...started,
+      profile: {
+        ...started.profile,
+        slots: started.profile.slots.map((s) =>
+          s.id === 'h1'
+            ? { ...s, character: { ...s.character, level: 3, xp: totalXpForLevel(3) + 5, allocated: { ...s.character.allocated, maxHp: 2 }, unspentPoints: 1, ownedVerseCardIds: ['v1'] } }
+            : s,
+        ),
+      },
+    }
+    const char = run(started, { type: 'abandonRun' }).state.profile.slots[0]!.character
+    expect(char.level).toBe(3)
+    expect(char.xp).toBe(totalXpForLevel(3)) // progress-to-next wiped, level floor kept
+    expect(char.allocated.maxHp).toBe(2) // stats kept
+    expect(char.unspentPoints).toBe(1) // points kept
+    expect(char.ownedVerseCardIds).toEqual(['v1']) // earned verses kept
+  })
+
+  it('deleting the active hero abandons the run and returns to the fire', () => {
     const started = run(withHero(), { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed: 's', content: CONTENT }).state
     const { state } = run(started, { type: 'deleteHero', id: 'h1' })
     expect(state.run).toBeNull()
-    expect(state.screen).toBe('start')
+    expect(state.screen).toBe('heroSelect')
   })
 })
 

@@ -30,7 +30,7 @@ export function HeroCreation() {
           onKeyDown={(e) => e.key === 'Enter' && begin()}
         />
         <div className="row gap">
-          <button className="btn" onClick={() => dispatch({ type: 'navigate', screen: 'start' })}>
+          <button className="btn" onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
             {t('ui.common.back')}
           </button>
           <button className="btn primary" disabled={!name.trim()} onClick={begin}>
