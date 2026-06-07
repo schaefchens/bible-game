@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 
 // The fire: created pilgrims sit in a ring around a campfire (Diablo-II-style character select,
@@ -32,7 +33,7 @@ export function HeroSelectScreen() {
   }
 
   return (
-    <div className="screen hero-fire centered" style={{ backgroundImage: 'url(/assets/bg-menu-fireplace.png)' }}>
+    <div className="screen hero-fire centered" style={{ backgroundImage: bgUrl('bg-menu-fireplace.png') }}>
       <div className="scrim" />
       <h2 className="fire-title">{t('ui.heroSelect.title')}</h2>
       <p className="fire-flavor muted">{t('ui.heroSelect.flavor')}</p>

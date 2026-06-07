@@ -38,23 +38,33 @@ const JERICHO_BG = [
   'bg-boss-narrow-gate-sideview',
 ]
 
-const REGISTRY: Record<string, string> = {
-  // Milestone-1 art (kept for fallback / older content)
-  'scene/forest-house-inside': '/assets/002-2-forest-house-inside.jpg',
-  'scene/forest-house-outside': '/assets/002-1-forest-house-outside.jpg',
-  'scene/merchant-place': '/assets/001-merchant-place.jpg',
-  'battlefield/forest': '/assets/004-battlefield-forest.png',
-  'battlefield/enchanted-forest': '/assets/004-battlefield-enchanted-forest.png',
-  'battlefield/hill': '/assets/004-battlefield-on-hill.png',
-  'battlefield/crossroads': '/assets/004-battlefield-open-crossroads.png',
-  'battlefield/seaside': '/assets/004-battlefield-seaside.png',
-  'battlefield/open-road': '/assets/005-battlefield-open-road.png',
-  // Jericho road — every bg by stem
-  ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `/assets/${stem}.png`])),
+// Deployment base, so asset URLs resolve under a subpath (e.g. served at "/game/"). The host app
+// sets this once at startup from its bundler base (Vite: import.meta.env.BASE_URL). Default "/".
+let assetBase = '/'
+export function setAssetBase(base: string): void {
+  assetBase = base || '/'
 }
 
+// Registry values are file names relative to the public "assets/" folder; resolveAsset prefixes the base.
+const REGISTRY: Record<string, string> = {
+  // Milestone-1 art (kept for fallback / older content)
+  'scene/forest-house-inside': '002-2-forest-house-inside.jpg',
+  'scene/forest-house-outside': '002-1-forest-house-outside.jpg',
+  'scene/merchant-place': '001-merchant-place.jpg',
+  'battlefield/forest': '004-battlefield-forest.png',
+  'battlefield/enchanted-forest': '004-battlefield-enchanted-forest.png',
+  'battlefield/hill': '004-battlefield-on-hill.png',
+  'battlefield/crossroads': '004-battlefield-open-crossroads.png',
+  'battlefield/seaside': '004-battlefield-seaside.png',
+  'battlefield/open-road': '005-battlefield-open-road.png',
+  // Jericho road — every bg by stem
+  ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `${stem}.png`])),
+}
+
+/** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.png" or "/game/assets/x.png"). */
 export function resolveAsset(ref: string | undefined): string | undefined {
-  return ref ? REGISTRY[ref] : undefined
+  const file = ref ? REGISTRY[ref] : undefined
+  return file ? `${assetBase}assets/${file}` : undefined
 }
 
 /** CSS `background-image` value for an AssetRef, or undefined (caller applies a placeholder). */

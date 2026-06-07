@@ -142,7 +142,7 @@ body {
   background-image:
     radial-gradient(ellipse 65% 55% at 28% 18%, rgba(222,210,160,0.45), transparent 60%),
     radial-gradient(ellipse 60% 60% at 82% 84%, rgba(104,112,74,0.42), transparent 62%),
-    url(/assets/bg-map-parchment.png);
+    var(--map-tile, none);
   background-repeat: no-repeat, no-repeat, repeat;
   background-size: 100% 100%, 100% 100%, 480px 480px;
 }

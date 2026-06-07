@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 
 export function WorldSelect() {
@@ -12,7 +13,7 @@ export function WorldSelect() {
       <div className="vignette" />
       <div className="panel narrow">
         <h2>{t('ui.worldSelect.title')}</h2>
-        <div className="world-card" style={{ backgroundImage: 'url(/assets/bg-road-dusty-road.png)' }}>
+        <div className="world-card" style={{ backgroundImage: bgUrl('bg-road-dusty-road.png') }}>
           <div className="world-card-body">
             <h3>{t('ui.worldSelect.world01.title')}</h3>
             <p className="muted">{t('ui.worldSelect.world01.subtitle')}</p>

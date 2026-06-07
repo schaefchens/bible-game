@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 
 export function StartScreen() {
@@ -10,7 +11,7 @@ export function StartScreen() {
   const canContinue = useGame((s) => s.resumableIds.length > 0)
 
   return (
-    <div className="screen start centered" style={{ backgroundImage: 'url(/assets/bg-menu-startscreen.png)' }}>
+    <div className="screen start centered" style={{ backgroundImage: bgUrl('bg-menu-startscreen.png') }}>
       <div className="scrim" />
       <h1 className="title">{t('ui.appTitle')}</h1>
       <p className="subtitle">{t('ui.appSubtitle')}</p>

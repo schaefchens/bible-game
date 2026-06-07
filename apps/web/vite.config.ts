@@ -6,7 +6,9 @@ const pkg = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 // Internal @bible/* packages ship TypeScript source; alias them so Vite transpiles them as app
 // source (rather than serving raw .ts from a node_modules symlink).
-export default defineConfig({
+// The production build is served under "/game/" (override via VITE_BASE); the dev server stays at "/".
+export default defineConfig(({ command }) => ({
+  base: process.env.VITE_BASE ?? (command === 'build' ? '/game/' : '/'),
   plugins: [react()],
   resolve: {
     alias: {
@@ -18,4 +20,4 @@ export default defineConfig({
     },
   },
   server: { port: 5173 },
-})
+}))
