@@ -385,8 +385,6 @@ body {
 .dialogue-caption { position: absolute; top: 7%; left: 50%; width: min(680px, 88vw); text-align: left; background: rgba(12, 14, 9, 0.92); border: 1px solid var(--gold); border-radius: 12px; padding: 0.9rem 1.4rem; box-shadow: 0 10px 36px rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
 .dialogue-caption .dialogue-speaker { display: block; color: var(--gold-bright); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; margin-bottom: 0.35rem; }
 .dialogue-caption .dialogue-line { margin: 0; color: var(--ink); font-size: 1.08rem; line-height: 1.5; min-height: 1.5em; }
-.type-caret { display: inline-block; margin-left: 1px; color: var(--gold-bright); animation: caretBlink 0.85s steps(1) infinite; }
-@keyframes caretBlink { 50% { opacity: 0; } }
 .dialogue-continue-hint { display: inline-block; margin-top: 0.55rem; color: var(--gold); font-size: 0.82rem; opacity: 0.85; }
 
 /* the wheel — wide enough that radial options never get width-clipped by the container edge */

@@ -74,8 +74,9 @@ export const useGame = create<GameStore>((set, get) => ({
     const run = await saveStore.loadRun(characterId)
     get().dispatch({ type: 'selectHero', id: characterId })
     if (run) {
-      // Always resume on the map: reset any open scene/event so screen and movement stay consistent.
-      const resumed = { ...run, world: { ...run.world, movement: { kind: 'idle' as const } } }
+      // Always resume on the map: reset any open scene/event/conversation so screen, movement, and
+      // the dialogue overlay stay consistent (a saved-mid-conversation run must not reopen over the map).
+      const resumed = { ...run, world: { ...run.world, movement: { kind: 'idle' as const }, dialogue: null } }
       set((s) => ({ state: { ...s.state, run: resumed, combat: null, prompt: null, screen: 'map' } }))
     } else {
       // no saved run for this hero → let them choose an adventure

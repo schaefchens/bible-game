@@ -5,14 +5,18 @@ import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
 import { selectDialogue, type DialogueChoiceView } from '../selectors'
 
-// A Dark-Pictures-style conversation overlay with a deliberate FLOW: the NPC's line types out so the
-// player reads it first; only once the final line is finished does the radial answer wheel animate
-// in (options stagger). A central pointer rotates toward the focused answer; hover or arrow keys to
-// aim, click/Enter to choose, Escape to leave. Only answers the player qualifies for are shown.
-// Multi-line nodes advance on click (which also skips the typewriter to the full line).
+// A Dark-Pictures-style conversation overlay with a deliberate FLOW:
+//  1. the NPC's line reveals one character at a time, each letter FADING in place (calm — no
+//     cursor, no re-centering) so the player reads it;
+//  2. once the final line is read, the radial answer wheel animates in (options stagger), with a
+//     central pointer that rotates toward the focused answer;
+//  3. choosing an answer animates the wheel OUT, and only then does the next line begin.
+// Only answers the player currently qualifies for are shown. Hover/arrow keys aim, click/Enter
+// chooses, Escape leaves.
 
-const TYPE_MS = 22 // per-character reveal speed
+const TYPE_MS = 26 // per-character reveal cadence
 const WHEEL_BEAT_MS = 380 // pause after the last line is read, before the answers appear
+const WHEEL_EXIT_MS = 260 // wheel fade-out before the next line begins
 
 export function DialogueOverlay() {
   const { t } = useTranslation()
@@ -24,9 +28,10 @@ export function DialogueOverlay() {
   const [lineIdx, setLineIdx] = useState(0)
   const [typed, setTyped] = useState(0)
   const [wheelIn, setWheelIn] = useState(false)
+  const [picking, setPicking] = useState<string | null>(null) // a chosen answer, while the wheel exits
 
   // restart from the first line whenever the conversation node changes
-  useEffect(() => { setLineIdx(0); setTyped(0); setWheelIn(false) }, [nodeKey])
+  useEffect(() => { setLineIdx(0); setTyped(0); setWheelIn(false); setPicking(null) }, [nodeKey])
   useEffect(() => { setTyped(0) }, [lineIdx])
 
   const lines = view && view.lines.length ? view.lines : ['']
@@ -34,7 +39,7 @@ export function DialogueOverlay() {
   const lineDone = typed >= text.length
   const onLastLine = lineIdx >= lines.length - 1
 
-  // typewriter reveal of the current line
+  // reveal the current line one character at a time
   useEffect(() => {
     if (typed >= text.length) return
     const id = window.setTimeout(() => setTyped((n) => n + 1), TYPE_MS)
@@ -48,11 +53,20 @@ export function DialogueOverlay() {
     return () => window.clearTimeout(id)
   }, [onLastLine, lineDone])
 
+  // after an answer is chosen, let the wheel animate out, then advance the conversation
+  useEffect(() => {
+    if (!picking || !view) return
+    const choiceId = picking
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'world/dialogueChoice', dialogueId: view.dialogueId, nodeId: view.nodeId, choiceId })
+    }, WHEEL_EXIT_MS)
+    return () => window.clearTimeout(id)
+  }, [picking, view, dispatch])
+
   if (!view) return null
 
-  const pick = (choiceId: string) =>
-    dispatch({ type: 'world/dialogueChoice', dialogueId: view.dialogueId, nodeId: view.nodeId, choiceId })
   const leave = () => dispatch({ type: 'world/leaveDialogue' })
+  const choose = (id: string) => setPicking((p) => p ?? id) // first pick wins; ignore further input
 
   // click while reading: first finish the line, then step to the next; the wheel auto-appears last
   const advance = () => {
@@ -68,18 +82,21 @@ export function DialogueOverlay() {
       <motion.div className="dialogue-caption" initial={{ x: '-50%', y: -16, opacity: 0 }} animate={{ x: '-50%', y: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
         {view.speaker && <span className="dialogue-speaker">{t(view.speaker)}</span>}
         <p className="dialogue-line">
-          {text.slice(0, typed)}
-          {!lineDone && <span className="type-caret">▌</span>}
+          {text.slice(0, typed).split('').map((ch, i) => (
+            <motion.span key={`${lineIdx}:${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+              {ch}
+            </motion.span>
+          ))}
         </p>
         {lineDone && !onLastLine && <span className="dialogue-continue-hint">{t('ui.dialogue.continue')} ▸</span>}
       </motion.div>
 
-      {wheelIn && <DialogueWheel key={nodeKey} choices={view.choices} onPick={pick} onLeave={leave} />}
+      {wheelIn && <DialogueWheel key={nodeKey} choices={view.choices} exiting={picking != null} onPick={choose} onLeave={leave} />}
     </div>
   )
 }
 
-function DialogueWheel({ choices, onPick, onLeave }: { choices: DialogueChoiceView[]; onPick: (id: string) => void; onLeave: () => void }) {
+function DialogueWheel({ choices, exiting, onPick, onLeave }: { choices: DialogueChoiceView[]; exiting: boolean; onPick: (id: string) => void; onLeave: () => void }) {
   const { t } = useTranslation()
   const n = choices.length
   const [focus, setFocus] = useState(0)
@@ -88,6 +105,7 @@ function DialogueWheel({ choices, onPick, onLeave }: { choices: DialogueChoiceVi
   const pickFocused = useCallback(() => { const c = choices[focus]; if (c) onPick(c.id) }, [choices, focus, onPick])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (exiting) return
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { setFocus((f) => (f + 1) % n); e.preventDefault() }
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { setFocus((f) => (f - 1 + n) % n); e.preventDefault() }
       else if (e.key === 'Enter' || e.key === ' ') { pickFocused(); e.preventDefault() }
@@ -95,13 +113,19 @@ function DialogueWheel({ choices, onPick, onLeave }: { choices: DialogueChoiceVi
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [n, pickFocused, onLeave])
+  }, [n, exiting, pickFocused, onLeave])
 
   const R = 152
   const degFor = (i: number) => (360 / n) * i - 90 // spread evenly, first answer at the top
 
   return (
-    <div className="dialogue-wheel" onClick={(e) => e.stopPropagation()}>
+    <motion.div
+      className="dialogue-wheel"
+      onClick={(e) => e.stopPropagation()}
+      animate={{ opacity: exiting ? 0 : 1, scale: exiting ? 0.92 : 1 }}
+      transition={{ duration: WHEEL_EXIT_MS / 1000, ease: 'easeIn' }}
+      style={{ pointerEvents: exiting ? 'none' : 'auto' }}
+    >
       <motion.div className="wheel-rim" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3 }} />
       <motion.div className="wheel-hub" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.05, type: 'spring', stiffness: 420, damping: 22 }}>
         <motion.div className="wheel-needle" animate={{ rotate: degFor(focus) }} transition={{ type: 'spring', stiffness: 420, damping: 26 }} />
@@ -112,21 +136,22 @@ function DialogueWheel({ choices, onPick, onLeave }: { choices: DialogueChoiceVi
         const y = Math.sin(rad) * R
         const side = x > 30 ? 'right' : x < -30 ? 'left' : 'center'
         const tx = side === 'right' ? '0%' : side === 'left' ? '-100%' : '-50%'
+        const chosen = exiting && i === focus
         return (
           <div key={c.id} className="wheel-slot" style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: `translate(${tx}, -50%)` }}>
             <motion.button
               className={`wheel-option side-${side}${i === focus ? ' focused' : ''}`}
               initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.12 + i * 0.06, type: 'spring', stiffness: 400, damping: 24 }}
-              onMouseEnter={() => setFocus(i)}
-              onClick={() => onPick(c.id)}
+              animate={{ opacity: 1, scale: chosen ? 1.06 : 1 }}
+              transition={{ delay: exiting ? 0 : 0.12 + i * 0.06, type: 'spring', stiffness: 400, damping: 24 }}
+              onMouseEnter={() => !exiting && setFocus(i)}
+              onClick={() => { setFocus(i); onPick(c.id) }}
             >
               {t(c.textKey)}
             </motion.button>
           </div>
         )
       })}
-    </div>
+    </motion.div>
   )
 }
