@@ -381,9 +381,12 @@ body {
 /* while a conversation is open, hide the scene's own Leave button so there's only one exit */
 .app.dialogue-open .scene-leave { display: none; }
 
-.dialogue-caption { position: absolute; top: 7%; left: 50%; width: min(680px, 88vw); text-align: center; background: rgba(12, 14, 9, 0.92); border: 1px solid var(--gold); border-radius: 12px; padding: 0.85rem 1.3rem; box-shadow: 0 10px 36px rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+/* text-align: left so the typewriter appends to the right from a fixed left edge (no re-centering jitter) */
+.dialogue-caption { position: absolute; top: 7%; left: 50%; width: min(680px, 88vw); text-align: left; background: rgba(12, 14, 9, 0.92); border: 1px solid var(--gold); border-radius: 12px; padding: 0.9rem 1.4rem; box-shadow: 0 10px 36px rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
 .dialogue-caption .dialogue-speaker { display: block; color: var(--gold-bright); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; margin-bottom: 0.35rem; }
-.dialogue-caption .dialogue-line { margin: 0; color: var(--ink); font-size: 1.08rem; line-height: 1.5; }
+.dialogue-caption .dialogue-line { margin: 0; color: var(--ink); font-size: 1.08rem; line-height: 1.5; min-height: 1.5em; }
+.type-caret { display: inline-block; margin-left: 1px; color: var(--gold-bright); animation: caretBlink 0.85s steps(1) infinite; }
+@keyframes caretBlink { 50% { opacity: 0; } }
 .dialogue-continue-hint { display: inline-block; margin-top: 0.55rem; color: var(--gold); font-size: 0.82rem; opacity: 0.85; }
 
 /* the wheel — wide enough that radial options never get width-clipped by the container edge */
@@ -392,7 +395,8 @@ body {
 .wheel-hub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(64,54,26,0.96), rgba(18,16,9,0.96)); border: 1px solid var(--gold); box-shadow: 0 0 16px rgba(0,0,0,0.6); z-index: 2; }
 .wheel-needle { position: absolute; left: 50%; top: 50%; width: 62px; height: 4px; margin-top: -2px; transform-origin: 0 50%; background: linear-gradient(90deg, rgba(244,231,161,0.15), var(--gold-bright)); border-radius: 0 2px 2px 0; }
 .wheel-needle::after { content: ''; position: absolute; right: -11px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 13px solid var(--gold-bright); filter: drop-shadow(0 0 5px rgba(216,185,98,0.7)); }
-.wheel-option { position: absolute; max-width: 188px; padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.9rem; line-height: 1.25; color: var(--ink); background: linear-gradient(180deg, rgba(36,42,30,0.92), rgba(18,22,14,0.92)); border: 1px solid var(--panel-edge); border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.45); transition: border-color 0.16s, box-shadow 0.16s, background 0.16s, color 0.16s; }
+.wheel-slot { position: absolute; }
+.wheel-option { max-width: 188px; padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.9rem; line-height: 1.25; color: var(--ink); background: linear-gradient(180deg, rgba(36,42,30,0.92), rgba(18,22,14,0.92)); border: 1px solid var(--panel-edge); border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.45); transition: border-color 0.16s, box-shadow 0.16s, background 0.16s, color 0.16s; }
 .wheel-option.side-right { text-align: left; }
 .wheel-option.side-left { text-align: right; }
 .wheel-option.side-center { text-align: center; }
