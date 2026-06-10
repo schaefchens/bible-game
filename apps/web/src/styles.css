@@ -372,20 +372,28 @@ body {
 .verse-text { font-style: italic; line-height: 1.6; background: rgba(0,0,0,0.3); border-left: 3px solid var(--gold); padding: 0.8rem 1rem; border-radius: 4px; }
 .verse-inputs { display: flex; flex-wrap: wrap; justify-content: center; }
 
-/* ---------- dialogue overlay (Monkey-Island-style conversations) ---------- */
-/* Additive overlay: a soft bottom gradient keeps the scene visible; the panel is bottom-anchored.
-   The whole layer captures clicks (advancing lines), which also blocks the scene underneath. */
-.dialogue-overlay { position: absolute; inset: 0; z-index: 22; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 1.6rem; background: linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0.12) 34%, transparent 56%); cursor: pointer; }
+/* ---------- dialogue overlay (Dark-Pictures-style answer wheel) ---------- */
+/* Additive overlay over the live scene: the NPC line shows in a caption up top; the player's
+   responses sit on a radial wheel with a central pointer that rotates toward the focused answer. */
+.dialogue-overlay { position: absolute; inset: 0; z-index: 22; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 56%, rgba(0,0,0,0.34), rgba(0,0,0,0.66)); cursor: default; }
+.dialogue-overlay.stepping { cursor: pointer; }
 .dialogue-bg { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: -1; }
-.dialogue-panel { display: flex; gap: 1rem; align-items: flex-start; width: min(720px, 94vw); background: rgba(12, 14, 9, 0.95); border: 1px solid var(--gold); border-radius: 14px; padding: 1.1rem 1.3rem; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0,0,0,0.4); backdrop-filter: blur(4px); cursor: default; }
 /* while a conversation is open, hide the scene's own Leave button so there's only one exit */
 .app.dialogue-open .scene-leave { display: none; }
-.dialogue-portrait { flex: 0 0 auto; width: 84px; height: 84px; border-radius: 10px; border: 1px solid var(--panel-edge); background: rgba(0,0,0,0.35); display: grid; place-items: center; overflow: hidden; }
-.dialogue-portrait-img { display: block; width: 100%; height: 100%; background-size: cover; background-position: center; }
-.dialogue-silhouette { font-size: 2.6rem; filter: grayscale(0.4) opacity(0.85); }
-.dialogue-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
-.dialogue-speaker { color: var(--gold-bright); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; }
-.dialogue-line { margin: 0; color: var(--ink); font-size: 1.05rem; line-height: 1.5; min-height: 3em; }
-.dialogue-next { align-self: flex-end; }
-.dialogue-choices { margin-top: 0.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
-.dialogue-leave { align-self: center; width: auto; margin-top: 0.15rem; opacity: 0.82; }
+
+.dialogue-caption { position: absolute; top: 7%; left: 50%; width: min(680px, 88vw); text-align: center; background: rgba(12, 14, 9, 0.92); border: 1px solid var(--gold); border-radius: 12px; padding: 0.85rem 1.3rem; box-shadow: 0 10px 36px rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+.dialogue-caption .dialogue-speaker { display: block; color: var(--gold-bright); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em; margin-bottom: 0.35rem; }
+.dialogue-caption .dialogue-line { margin: 0; color: var(--ink); font-size: 1.08rem; line-height: 1.5; }
+.dialogue-continue-hint { display: inline-block; margin-top: 0.55rem; color: var(--gold); font-size: 0.82rem; opacity: 0.85; }
+
+/* the wheel — wide enough that radial options never get width-clipped by the container edge */
+.dialogue-wheel { position: relative; width: min(760px, 96vw); height: 400px; }
+.wheel-rim { position: absolute; left: 50%; top: 50%; width: 304px; height: 304px; transform: translate(-50%, -50%); border-radius: 50%; border: 1px dashed rgba(216,185,98,0.3); box-shadow: inset 0 0 70px rgba(0,0,0,0.55); }
+.wheel-hub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(64,54,26,0.96), rgba(18,16,9,0.96)); border: 1px solid var(--gold); box-shadow: 0 0 16px rgba(0,0,0,0.6); z-index: 2; }
+.wheel-needle { position: absolute; left: 50%; top: 50%; width: 62px; height: 4px; margin-top: -2px; transform-origin: 0 50%; background: linear-gradient(90deg, rgba(244,231,161,0.15), var(--gold-bright)); border-radius: 0 2px 2px 0; }
+.wheel-needle::after { content: ''; position: absolute; right: -11px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 13px solid var(--gold-bright); filter: drop-shadow(0 0 5px rgba(216,185,98,0.7)); }
+.wheel-option { position: absolute; max-width: 188px; padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.9rem; line-height: 1.25; color: var(--ink); background: linear-gradient(180deg, rgba(36,42,30,0.92), rgba(18,22,14,0.92)); border: 1px solid var(--panel-edge); border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.45); transition: border-color 0.16s, box-shadow 0.16s, background 0.16s, color 0.16s; }
+.wheel-option.side-right { text-align: left; }
+.wheel-option.side-left { text-align: right; }
+.wheel-option.side-center { text-align: center; }
+.wheel-option.focused { border-color: var(--gold-bright); background: linear-gradient(180deg, rgba(84,68,28,0.96), rgba(42,33,14,0.96)); color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold-bright), 0 6px 22px rgba(0,0,0,0.55); z-index: 3; }

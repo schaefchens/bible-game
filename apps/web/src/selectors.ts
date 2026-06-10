@@ -56,7 +56,7 @@ export function selectEvent(state: GameState): EventView | null {
   }
 }
 
-export interface DialogueChoiceView { id: string; textKey: string; enabled: boolean }
+export interface DialogueChoiceView { id: string; textKey: string }
 export interface DialogueView {
   dialogueId: string
   nodeId: string
@@ -67,8 +67,9 @@ export interface DialogueView {
   choices: DialogueChoiceView[]
 }
 
-/** The active conversation overlay (null when no dialogue is running). Choices are filtered: a spent
- *  `once` choice and a `hideWhenLocked` choice whose gate fails are dropped; others carry `enabled`. */
+/** The active conversation overlay (null when no dialogue is running). Only choices the player
+ *  currently QUALIFIES for are returned — a spent `once` choice or one whose `requires` gate fails
+ *  is dropped entirely (the wheel shows only pickable answers). */
 export function selectDialogue(state: GameState): DialogueView | null {
   const run = state.run
   const active = run?.world.dialogue
@@ -80,9 +81,8 @@ export function selectDialogue(state: GameState): DialogueView | null {
   const spent = (choiceId: string) => Boolean(run.world.flags[`dlg:${active.dialogueId}:${choiceId}`])
   const choices: DialogueChoiceView[] = node.choices
     .filter((c) => !(c.once && spent(c.id)))
-    .map((c) => ({ c, enabled: c.requires ? evalGate(c.requires, ctx) : true }))
-    .filter(({ c, enabled }) => enabled || !c.hideWhenLocked)
-    .map(({ c, enabled }) => ({ id: c.id, textKey: c.textKey, enabled }))
+    .filter((c) => !c.requires || evalGate(c.requires, ctx))
+    .map((c) => ({ id: c.id, textKey: c.textKey }))
   return {
     dialogueId: dlg.id,
     nodeId: node.id,
