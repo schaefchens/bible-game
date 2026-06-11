@@ -7,11 +7,11 @@ import { useGame } from '../store/gameStore'
 import { selectScene } from '../selectors'
 import { VerbFan } from '../components/VerbFan'
 
-// Discovery-first point-and-click. Hotspots are invisible: rest the cursor still over a zone for
-// ~0.9s and a soft highlight BLOOMS (and STAYS — until you click empty space). Clicking a zone
-// opens a radial verb coin of EVERY action; pick one to act (unsupported ones give a refusal
-// line that animates in and fades away on its own). Once you've investigated a zone, selecting it
-// again shows its name. The cursor is a soft gold eye.
+// Discovery-first point-and-click. Hotspots are invisible: rest the cursor (hover) OR press-and-hold
+// (mouse/touch) still over a zone for ~0.9s and a soft highlight BLOOMS and its radial verb coin
+// opens (pick an action; unsupported ones give a refusal line that fades on its own). A quick
+// tap/click does NOTHING — so you can't spoil the scene by tapping wildly; finding a zone takes the
+// same deliberate dwell whether you hover or hold. Known zones open at once. Cursor is a soft gold eye.
 
 export function SceneScreen() {
   const { t } = useTranslation()
@@ -26,6 +26,7 @@ export function SceneScreen() {
   const [lineKey, setLineKey] = useState<string | null>(null)
   const [lineShown, setLineShown] = useState(false)
   const dwellTimer = useRef<number | undefined>(undefined)
+  const holdTimer = useRef<number | undefined>(undefined)
 
   // Reset discovery + transient text whenever the scene changes.
   const sceneId = view?.sceneId
@@ -45,7 +46,7 @@ export function SceneScreen() {
     return () => window.clearTimeout(id)
   }, [lastEvents])
 
-  useEffect(() => () => window.clearTimeout(dwellTimer.current), [])
+  useEffect(() => () => { window.clearTimeout(dwellTimer.current); window.clearTimeout(holdTimer.current) }, [])
 
   if (!view) return null
 
@@ -62,13 +63,29 @@ export function SceneScreen() {
     setBloom(null)
     setFan(null)
   }
-  const openFan = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const openFan = (id: string, x: number, y: number) => {
     window.clearTimeout(dwellTimer.current)
     setBloom(id)
+    // toggle: selecting the same zone again (without choosing an action) closes the coin
+    setFan((cur) => (cur && cur.hotspotId === id ? null : { hotspotId: id, x, y }))
+  }
+  // Press-and-hold to DISCOVER: holding on an undiscovered zone for the dwell time blooms it and
+  // opens its coin — the touch/mouse analog of resting the cursor (hover). A quick tap does nothing,
+  // so the scene can't be spoiled by tapping wildly. (Already-observed zones skip this — see onTap.)
+  const startHold = (id: string, e: React.PointerEvent) => {
+    if (observed.has(id)) return
+    e.stopPropagation()
     const { clientX, clientY } = e
-    // toggle: clicking the same zone again (without choosing an action) closes the coin
-    setFan((cur) => (cur && cur.hotspotId === id ? null : { hotspotId: id, x: clientX, y: clientY }))
+    window.clearTimeout(holdTimer.current)
+    holdTimer.current = window.setTimeout(() => openFan(id, clientX, clientY), 900)
+  }
+  const endHold = () => { window.clearTimeout(holdTimer.current); window.clearTimeout(dwellTimer.current) }
+  // A tap/click acts on a zone once it's REVEALED — i.e. currently bloomed (from a hover/hold dwell)
+  // or already investigated. A zone can only bloom via the deliberate dwell, never a quick tap, so an
+  // unrevealed zone still ignores taps — that's what stops wild tapping from spoiling the scene.
+  const onTap = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (bloom === id || observed.has(id)) openFan(id, e.clientX, e.clientY)
   }
   const pick = (verb: Verb) => {
     if (fan) {
@@ -79,7 +96,12 @@ export function SceneScreen() {
   }
 
   return (
-    <div className="screen scene eye-cursor" style={{ backgroundImage: assetBg(view.bgAsset) }} onClick={clearSelection}>
+    <div
+      className="screen scene eye-cursor"
+      style={{ backgroundImage: assetBg(view.bgAsset) }}
+      onClick={clearSelection}
+      onContextMenu={(e) => e.preventDefault()} // long-press is our discover gesture, not a context menu
+    >
       <div className="scrim soft" />
       <div className="scene-hotspots">
         {view.hotspots.map((h) =>
@@ -90,7 +112,11 @@ export function SceneScreen() {
               style={{ left: `${h.rect.x * 100}%`, top: `${h.rect.y * 100}%`, width: `${h.rect.w * 100}%`, height: `${h.rect.h * 100}%` }}
               onMouseEnter={() => dwell(h.id)}
               onMouseMove={() => dwell(h.id)}
-              onClick={(e) => openFan(h.id, e)}
+              onPointerDown={(e) => startHold(h.id, e)}
+              onPointerUp={endHold}
+              onPointerLeave={endHold}
+              onPointerCancel={endHold}
+              onClick={(e) => onTap(h.id, e)}
             >
               {bloom === h.id && (
                 <motion.span className="bloom" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.55, ease: 'easeOut' }} />

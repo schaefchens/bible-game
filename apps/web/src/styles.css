@@ -14,8 +14,12 @@
   font-synthesis: none;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; margin: 0; }
+/* It's a game, not a document: suppress the mobile long-press callout + content selection that
+   briefly highlights backgrounds/zones on touch. Text inputs opt back in. */
+.app { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -354,7 +358,10 @@ body {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><ellipse cx='13' cy='13' rx='11' ry='6.5' fill='none' stroke='rgb(216,185,98)' stroke-width='2'/><circle cx='13' cy='13' r='4' fill='rgb(216,185,98)'/><circle cx='13' cy='13' r='1.6' fill='rgb(248,240,200)'/></svg>") 13 13, pointer;
 }
 .scene-hotspots { position: absolute; inset: 0; z-index: 2; }
-.hotspot { position: absolute; background: transparent; border: none; padding: 0; }
+/* on touch, a long-press is our DISCOVER gesture — so suppress the browser's native long-press
+   callout / context menu / text-selection that would otherwise fire on top of it */
+.screen.scene, .hotspot { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.hotspot { position: absolute; background: transparent; border: none; padding: 0; touch-action: none; }
 .bloom { position: absolute; inset: -18%; border-radius: 50%; pointer-events: none; filter: blur(3px); background: radial-gradient(ellipse at center, rgba(244,231,161,0.5), rgba(244,231,161,0.18) 45%, transparent 72%); }
 .scene-leave { position: absolute; z-index: 6; bottom: 1.1rem; right: 1.4rem; }
 
@@ -461,3 +468,7 @@ input[type='range']::-moz-range-thumb:hover { background: var(--gold-bright); }
   .world-cards { flex-direction: column; overflow-x: visible; }
   .world-cards .world-card { flex: 0 0 auto; width: 100%; }
 }
+
+/* ---- sleep cinematic veil (slow fade to/from black over everything) ---- */
+.sleep-veil { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.4s ease; }
+.sleep-veil.active { opacity: 1; pointer-events: auto; }

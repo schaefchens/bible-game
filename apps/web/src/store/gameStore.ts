@@ -24,6 +24,9 @@ interface GameStore {
   content: typeof content
   /** hero ids that currently have an in-progress (resumable) run in storage */
   resumableIds: string[]
+  /** transient UI flag: the sleep cinematic (fade-to-black + cue) is playing */
+  sleeping: boolean
+  setSleeping: (sleeping: boolean) => void
   dispatch: (cmd: Command) => void
   createHero: (name: string) => void
   startRun: (characterId: string, worldId?: string) => void
@@ -48,6 +51,9 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: 0,
   content,
   resumableIds: [],
+  sleeping: false,
+
+  setSleeping: (sleeping) => set({ sleeping }),
 
   dispatch: (cmd) => {
     const { state, tick } = get()

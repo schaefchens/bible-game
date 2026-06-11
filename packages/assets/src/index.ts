@@ -62,6 +62,7 @@ const REGISTRY: Record<string, string> = {
   'music/map': 'bg-music-map.mp3',
   'music/map-tutorial': 'bg-music-map-tutorial.mp3',
   'music/inn': 'bg-music-inn.mp3',
+  'music/sleep': 'bg-music-sleep.mp3', // one-shot cue (~10s) for the sleep cinematic
   // Registered + available; not yet assigned to any node/encounter (wire later as needed).
   'music/battle-intense': 'bg-music-battle-intense.mp3',
   'music/battle-calm': 'bg-music-battle-calm.mp3',

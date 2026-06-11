@@ -9,8 +9,15 @@ export function FireplaceScreen() {
   const state = useGame((s) => s.state)
   const view = useMemo(() => selectFireplace(state), [state])
   const dispatch = useGame((s) => s.dispatch)
+  const setSleeping = useGame((s) => s.setSleeping)
   const lastEvents = useGame((s) => s.lastEvents)
   if (!view) return null
+
+  // Resting = sleeping: heal, and play the fade-to-black sleep cinematic (cue + music dip).
+  const rest = () => {
+    setSleeping(true)
+    dispatch({ type: 'world/fireplace', action: 'rest' })
+  }
 
   const notice = lastEvents.flatMap((e) => (e.type === 'notice' ? [e.messageKey] : [])).at(-1)
 
@@ -23,7 +30,7 @@ export function FireplaceScreen() {
         <p className="muted reflect">{t(view.reflectKey)}</p>
         {notice && <p className="muted">{t(notice)}</p>}
         <div className="choices">
-          <button className="btn block" disabled={view.rested} onClick={() => dispatch({ type: 'world/fireplace', action: 'rest' })}>
+          <button className="btn block" disabled={view.rested} onClick={rest}>
             {t('ui.fireplace.rest')}
           </button>
           <button className="btn block" disabled={view.prayed} onClick={() => dispatch({ type: 'world/fireplace', action: 'pray' })}>

@@ -18,6 +18,7 @@ import { VerseModal } from './components/VerseModal'
 import { DialogueOverlay } from './components/DialogueOverlay'
 import { StoryScroll } from './components/StoryScroll'
 import { MusicController } from './components/MusicController'
+import { SleepOverlay } from './components/SleepOverlay'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
@@ -59,6 +60,7 @@ export function App() {
       {prompt?.kind === 'verseChallenge' && <VerseModal challengeId={prompt.challengeId} />}
       {dialogueActive && <DialogueOverlay />}
       {storyActive && <StoryScroll />}
+      <SleepOverlay />
     </div>
   )
 }
