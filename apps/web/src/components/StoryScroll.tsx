@@ -4,17 +4,15 @@ import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
 import { selectStory } from '../selectors'
 
-// A Diablo-style long-form narration: a big, FIXED-SIZE centered panel. The passage reveals one
-// character at a time (each letter fading in place) and the text crawls from the BOTTOM upward — it
-// begins one screenful down (a measured top spacer), so each new line enters at the bottom edge and
-// older lines rise out the top. Used when the game tells a longer tale: reading a wayside shrine, a
-// teller's full story from a dialogue choice, or the closing narration after the boss falls. Click
-// the text to reveal it all at once; "Continue" dismisses it (running the story's onEnd script).
-//
-// NOTE: the reveal re-renders this component every ~16ms, so the panel/attribution entrances use CSS
-// animations (immune to re-render) rather than Framer, which would otherwise freeze mid-animation.
+// A Diablo-style long-form narration in a big, FIXED-SIZE centered panel. The whole passage is laid
+// out up front (so the scroll height never changes) and crawls upward at a STEADY, constant velocity
+// — a single time-linear rAF, no easing — so the motion is smooth and easy on the eyes. Each
+// character fades in via a pure-CSS staggered animation (animation-delay), independent of React
+// re-renders, in step with the crawl. Click the text to reveal it all at once; "Continue" dismisses
+// it (running the story's onEnd script). Triggered by reading an object, a dialogue choice, or a
+// game event such as the boss-victory outro.
 
-const STORY_TYPE_MS = 16 // per-character cadence (faster than dialogue — passages are long)
+const STORY_TYPE_MS = 36 // per-character cadence; also paces the crawl (duration = chars × this) — slow & steady
 
 export function StoryScroll() {
   const { t } = useTranslation()
@@ -26,55 +24,65 @@ export function StoryScroll() {
   // join paragraphs with blank lines; white-space:pre-wrap turns the breaks into paragraphs
   const full = view ? view.paragraphs.map((p) => t(p)).join('\n\n') : ''
   const storyKey = view?.storyId ?? ''
-  const [typed, setTyped] = useState(0)
+  const durationMs = Math.max(1, full.length * STORY_TYPE_MS)
   const [pad, setPad] = useState(0) // top spacer = one box-height, so text starts at the bottom edge
-  useEffect(() => setTyped(0), [storyKey])
+  const [done, setDone] = useState(false)
+  const [skipped, setSkipped] = useState(false)
+
   useLayoutEffect(() => {
     if (bodyRef.current) setPad(bodyRef.current.clientHeight)
+    setDone(false)
+    setSkipped(false)
   }, [storyKey])
 
-  const done = typed >= full.length
-
-  // reveal one character at a time
+  // steady crawl: scrollTop advances linearly with elapsed time (constant velocity, no easing).
+  // The passage is fully laid out, so scrollHeight is constant — nothing jumps, so nothing waves.
   useEffect(() => {
-    if (typed >= full.length) return
-    const id = window.setTimeout(() => setTyped((n) => Math.min(n + 1, full.length)), STORY_TYPE_MS)
-    return () => window.clearTimeout(id)
-  }, [typed, full])
-
-  // crawl upward: ease the scroll toward the bottom so newly-revealed text rises from the bottom
-  // edge to the top (stops once fully revealed, leaving the reader free to scroll back up)
-  useEffect(() => {
-    if (done) return
-    let raf = 0
-    const step = () => {
+    if (skipped) {
       const el = bodyRef.current
-      if (el) {
-        const target = el.scrollHeight - el.clientHeight
-        el.scrollTop += (target - el.scrollTop) * 0.05
+      if (el) el.scrollTop = el.scrollHeight - el.clientHeight
+      setDone(true)
+      return
+    }
+    let raf = 0
+    let start = 0
+    const step = (ts: number) => {
+      if (!start) start = ts
+      const el = bodyRef.current
+      const progress = Math.min(1, (ts - start) / durationMs)
+      if (el) el.scrollTop = progress * (el.scrollHeight - el.clientHeight)
+      if (progress >= 1) {
+        setDone(true)
+        return
       }
       raf = requestAnimationFrame(step)
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [done, storyKey])
+  }, [storyKey, durationMs, skipped, pad])
 
   if (!view) return null
-  const shown = full.slice(0, typed)
 
   return (
     <div className="story-overlay">
       {view.bgAsset && <div className="story-bg" style={{ backgroundImage: assetBg(view.bgAsset) }} />}
       <div className="story-panel">
         {view.titleKey && <h2 className="story-title">{t(view.titleKey)}</h2>}
-        <div className="story-body" ref={bodyRef} style={{ overflowY: done ? 'auto' : 'hidden' }} onClick={() => !done && setTyped(full.length)}>
+        <div
+          className={`story-body${skipped ? ' skipped' : ''}`}
+          ref={bodyRef}
+          style={{ overflowY: done ? 'auto' : 'hidden' }}
+          onClick={() => !done && setSkipped(true)}
+        >
           <div className="story-spacer" style={{ height: pad }} aria-hidden />
           <p className="story-text">
-            {shown.split('').map((ch, i) => (
-              <span key={i} className="story-char">{ch}</span>
+            {full.split('').map((ch, i) => (
+              <span key={i} className="story-char" style={{ animationDelay: `${i * STORY_TYPE_MS}ms` }}>
+                {ch}
+              </span>
             ))}
           </p>
-          {done && view.attributionKey && <p className="story-attribution">{t(view.attributionKey)}</p>}
+          {view.attributionKey && <p className="story-attribution">{t(view.attributionKey)}</p>}
           <div className="story-spacer" style={{ height: Math.round(pad * 0.4) }} aria-hidden />
         </div>
         <div className="story-actions">
