@@ -51,6 +51,11 @@ export function SceneScreen() {
 
   const dwell = (id: string) => {
     window.clearTimeout(dwellTimer.current)
+    // already identified → bloom at once (we know this zone); unknown zones still need the dwell
+    if (observed.has(id)) {
+      setBloom(id)
+      return
+    }
     dwellTimer.current = window.setTimeout(() => setBloom(id), 900)
   }
   const clearSelection = () => {
