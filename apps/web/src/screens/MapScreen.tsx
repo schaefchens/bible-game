@@ -208,9 +208,13 @@ export function MapScreen() {
 
   const onNodeClick = (n: (typeof view.nodes)[number]) => {
     if (travel) return
-    // before placement, the only legal action is choosing one of the marked entry points
+    // before placement, the only legal action is choosing one of the marked entry points —
+    // choosing one places the pilgrim AND enters it straight away (no extra click), like a first arrival
     if (view.unplaced) {
-      if (n.entry) dispatch({ type: 'world/chooseEntry', nodeId: n.id })
+      if (n.entry) {
+        dispatch({ type: 'world/chooseEntry', nodeId: n.id })
+        dispatch({ type: 'world/enter' })
+      }
       return
     }
     if (n.current) {
