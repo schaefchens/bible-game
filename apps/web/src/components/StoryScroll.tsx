@@ -12,7 +12,9 @@ import { selectStory } from '../selectors'
 // it (running the story's onEnd script). Triggered by reading an object, a dialogue choice, or a
 // game event such as the boss-victory outro.
 
-const STORY_TYPE_MS = 36 // per-character cadence; also paces the crawl (duration = chars × this) — slow & steady
+// Per-character cadence; also paces the crawl (total duration = chars × this). Tuned to a measured
+// read-aloud pace (~120 wpm ≈ 90ms/char) so it never outruns spoken narration / future voiceover.
+const STORY_TYPE_MS = 90
 
 export function StoryScroll() {
   const { t } = useTranslation()
