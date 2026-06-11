@@ -19,6 +19,7 @@ import { DialogueOverlay } from './components/DialogueOverlay'
 import { StoryScroll } from './components/StoryScroll'
 import { MusicController } from './components/MusicController'
 import { SleepOverlay } from './components/SleepOverlay'
+import { PrayOverlay } from './components/PrayOverlay'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
@@ -40,10 +41,11 @@ export function App() {
   const prompt = useGame((s) => s.state.prompt)
   const dialogueActive = useGame((s) => Boolean(s.state.run?.world.dialogue))
   const storyActive = useGame((s) => Boolean(s.state.run?.world.story))
+  const praying = useGame((s) => s.praying)
   const Screen = SCREENS[screen] ?? StartScreen
 
   return (
-    <div className={`app${dialogueActive ? ' dialogue-open' : ''}${storyActive ? ' story-open' : ''}`}>
+    <div className={`app${dialogueActive ? ' dialogue-open' : ''}${storyActive ? ' story-open' : ''}${praying ? ' praying' : ''}`}>
       {/* Persistent, screen-agnostic background-music driver (renders nothing). Outside the keyed
           screen layer so it never remounts on a screen change. */}
       <MusicController />
@@ -61,6 +63,7 @@ export function App() {
       {dialogueActive && <DialogueOverlay />}
       {storyActive && <StoryScroll />}
       <SleepOverlay />
+      <PrayOverlay />
     </div>
   )
 }

@@ -10,6 +10,7 @@ export function FireplaceScreen() {
   const view = useMemo(() => selectFireplace(state), [state])
   const dispatch = useGame((s) => s.dispatch)
   const setSleeping = useGame((s) => s.setSleeping)
+  const setPraying = useGame((s) => s.setPraying)
   const lastEvents = useGame((s) => s.lastEvents)
   if (!view) return null
 
@@ -17,6 +18,11 @@ export function FireplaceScreen() {
   const rest = () => {
     setSleeping(true)
     dispatch({ type: 'world/fireplace', action: 'rest' })
+  }
+  // Praying: lift the Spirit, and open the golden prayer cinematic (psalms crawl until "Amen").
+  const pray = () => {
+    setPraying(true)
+    dispatch({ type: 'world/fireplace', action: 'pray' })
   }
 
   const notice = lastEvents.flatMap((e) => (e.type === 'notice' ? [e.messageKey] : [])).at(-1)
@@ -33,7 +39,7 @@ export function FireplaceScreen() {
           <button className="btn block" disabled={view.rested} onClick={rest}>
             {t('ui.fireplace.rest')}
           </button>
-          <button className="btn block" disabled={view.prayed} onClick={() => dispatch({ type: 'world/fireplace', action: 'pray' })}>
+          <button className="btn block" disabled={view.prayed} onClick={pray}>
             {t('ui.fireplace.pray')}
           </button>
           <button className="btn block" disabled={!view.verseAvailable} onClick={() => dispatch({ type: 'world/fireplace', action: 'study' })}>

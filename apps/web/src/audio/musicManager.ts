@@ -10,8 +10,10 @@
 // Time for a full 0→1 gain sweep; partial changes (e.g. a 0.5→0.2 duck) take proportionally less.
 // Kept long so map↔node↔battle transitions are slow and subtle rather than an abrupt swap.
 const FADE_MS = 5000
-// Quicker fade for the sleep cinematic (bg music out + cue in, and back on waking).
-const SLEEP_FADE_MS = 1400
+// Interlude fade for the sleep cue (bg music out + cue in, and back on exit).
+const INTERLUDE_FADE_MS = 1400
+// Prayer eases in/out much more slowly than sleep — a long, gentle swell into the prayer song.
+const PRAYER_FADE_MS = 4500
 
 const clamp01 = (v: number): number => (!Number.isFinite(v) ? 0 : v < 0 ? 0 : v > 1 ? 1 : v)
 
@@ -31,7 +33,7 @@ class MusicManager {
   private enabled = true
   private reducedMotion = false
   private unlockBound = false
-  private sleeping = false
+  private interlude = false // a sleep cue or prayer song is playing; background music is silenced
   private cue: Track | null = null
   private cueUrl: string | null = null
 
@@ -86,32 +88,43 @@ class MusicManager {
     return this.ctx
   }
 
-  /** Sleep cinematic: fade the background music fully out and play a one-shot cue; reverse on waking.
-   *  The cue is kept OUT of `tracks` so the per-context refresh sweep never touches it. */
+  /** Sleep cinematic: fade bg music out, play a one-shot cue, reverse on waking. */
   setSleeping(on: boolean, cueUrl?: string): void {
-    this.sleeping = on
-    this.refresh() // background music fades to 0 (sleeping) or back to its level (waking)
-    if (on && this.enabled && cueUrl) {
-      if (!this.cue || this.cueUrl !== cueUrl) {
-        this.cue = this.createTrack(cueUrl, false)
-        this.cueUrl = cueUrl
+    this.setInterlude(on, cueUrl, false, INTERLUDE_FADE_MS)
+  }
+
+  /** Prayer cinematic: slowly swell a looping prayer song in (bg music out) until prayer ends. */
+  setPraying(on: boolean, songUrl?: string): void {
+    this.setInterlude(on, songUrl, true, PRAYER_FADE_MS)
+  }
+
+  /** Shared interlude: silence the background music and play `url` (looping or one-shot) over the top;
+   *  on exit, fade the interlude track out and let the background music return. The interlude track is
+   *  kept OUT of `tracks` so the per-context refresh sweep never touches it. */
+  private setInterlude(on: boolean, url: string | undefined, loop: boolean, fadeMs: number): void {
+    this.interlude = on
+    this.refresh() // background music fades to 0 (interlude) or back to its level (exit)
+    if (on && this.enabled && url) {
+      if (!this.cue || this.cueUrl !== url) {
+        this.cue = this.createTrack(url, loop)
+        this.cueUrl = url
       }
       const c = this.cue
       try { c.el.currentTime = 0 } catch { /* not seekable yet — fine */ }
       this.play(c)
-      this.setLevel(c, this.master, SLEEP_FADE_MS) // fade the cue in
+      this.setLevel(c, this.master, fadeMs) // fade the interlude track in
     } else if (!on && this.cue) {
       const c = this.cue
-      this.setLevel(c, 0, SLEEP_FADE_MS)
+      this.setLevel(c, 0, fadeMs)
       window.clearTimeout(c.pauseTimer)
       c.pauseTimer = window.setTimeout(() => {
         if (!c.el.paused) c.el.pause()
-      }, SLEEP_FADE_MS)
+      }, fadeMs)
     }
   }
 
   private effective(): number {
-    return this.enabled && !this.sleeping ? this.currentLevel * this.master : 0
+    return this.enabled && !this.interlude ? this.currentLevel * this.master : 0
   }
 
   private createTrack(url: string, loop: boolean): Track {

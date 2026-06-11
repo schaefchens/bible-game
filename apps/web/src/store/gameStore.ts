@@ -27,6 +27,9 @@ interface GameStore {
   /** transient UI flag: the sleep cinematic (fade-to-black + cue) is playing */
   sleeping: boolean
   setSleeping: (sleeping: boolean) => void
+  /** transient UI flag: the prayer cinematic (golden overlay + psalm crawl) is playing */
+  praying: boolean
+  setPraying: (praying: boolean) => void
   dispatch: (cmd: Command) => void
   createHero: (name: string) => void
   startRun: (characterId: string, worldId?: string) => void
@@ -52,8 +55,10 @@ export const useGame = create<GameStore>((set, get) => ({
   content,
   resumableIds: [],
   sleeping: false,
+  praying: false,
 
   setSleeping: (sleeping) => set({ sleeping }),
+  setPraying: (praying) => set({ praying }),
 
   dispatch: (cmd) => {
     const { state, tick } = get()
