@@ -477,9 +477,7 @@ input[type='range']::-moz-range-thumb:hover { background: var(--gold-bright); }
 /* long, gentle fade to/from a TRANSLUCENT gold so the scene shows through behind it. The distracting
    chrome (panels/buttons/text) is hidden separately (.app.praying below) — only backgrounds remain. */
 .pray-overlay { position: fixed; inset: 0; z-index: 59; opacity: 0; pointer-events: none; overflow: hidden; transition: opacity 4.5s ease;
-  background: radial-gradient(ellipse at 50% 46%, rgba(255,244,196,1) 0%, rgba(226,184,86,1) 52%, rgba(198,152,60,0.6) 80%, rgba(138,99,30,0.46) 100%); }
-/* ALT center (calmer/deeper gold, less bright) — swap the two opaque center stops above for these if
-   the cream reads too bright: rgba(222,182,98,1) 0%, rgba(216,174,90,1) 55% (edge stops unchanged). */
+  background: radial-gradient(ellipse at 50% 46%, rgba(255,245,200,1) 0%, rgba(252,238,182,1) 46%, rgba(238,206,128,0.92) 66%, rgba(216,176,92,0.74) 80%, rgba(186,144,60,0.54) 90%, rgba(146,108,42,0.34) 97%, rgba(120,88,32,0.22) 100%); }
 .pray-overlay.active { opacity: 1; pointer-events: auto; }
 /* while praying, fade out the screen's chrome (panels/buttons/text) but keep its background, so the
    translucent gold reveals the scene behind rather than distracting UI */
