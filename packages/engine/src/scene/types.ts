@@ -38,6 +38,7 @@ export type ScriptCmd =
   | { setFlag: string; value: string | number | boolean }
   | { giveItem: ItemId; count?: number }
   | { takeItem: ItemId; count?: number }
+  | { giveGold: number } // add spendable currency (run.inventory.currency) — usable in the shop
   | { revealNode: NodeId }
   | { goToNode: NodeId }
   | { unlockEdge: EdgeId }

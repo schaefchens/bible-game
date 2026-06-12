@@ -73,6 +73,12 @@ describe('runScript', () => {
     expect(out.transition).toEqual({ kind: 'goto', id: 'n3' })
   })
 
+  it('giveGold adds spendable currency to the inventory', () => {
+    const out = runScript(world(), emptyInventory(), 100, 's', [{ giveGold: 100 }])
+    expect(out.inventory.currency).toBe(100)
+    expect(out.events).toContainEqual({ type: 'goldGained', amount: 100 })
+  })
+
   it('grantCard / unlockCard collect card-grant intents (deck vs pool), even inside a branch', () => {
     const script: Script = [
       { grantCard: 'brace' },

@@ -6,17 +6,19 @@ import type { EncounterDef, MapEdge, MapNode, WorldMap } from '@bible/engine'
 // system in TEXT — the player discovers that on their own. The foes are BANDITS (human): the boss is
 // two at once, of different size, so the fight teaches target priority (drop the fiercest first).
 // (Bandits being human means killing them quietly grieves Spirit — never explained, only felt; that
-// IS the discover-it-yourself design, not a hint.) Five linear nodes: talk → one easy bandit → rest
-// (now meaningful, you're hurt) → a wayside market (spend the coin, meet the shop) → the boss ambush
-// of two bandits, whose victory plays the outro.
+// IS the discover-it-yourself design, not a hint.) Six linear nodes: talk → one easy bandit → rest
+// (now meaningful, you're hurt) → an old well to explore (observe → pull → take 100g) → a wayside
+// market (spend the coin, meet the shop) → the boss ambush of two bandits, whose victory plays the
+// outro.
 
 type Conns = Record<string, string[]>
 
 const CONNECTIONS: Conns = {
   stillWaters: ['thicket'],
   thicket: ['stillWaters', 'restingPlace'],
-  restingPlace: ['thicket', 'market'],
-  market: ['restingPlace', 'theFold'],
+  restingPlace: ['thicket', 'well'],
+  well: ['restingPlace', 'market'],
+  market: ['well', 'theFold'],
   theFold: ['market'],
 }
 
@@ -47,9 +49,11 @@ const NODES: Record<string, MapNode> = {
   // first easy fight — leaves the hero hurt, so resting at the next node actually matters
   thicket: { id: 'thicket', type: 'combat', nameKey: nameKey('thicket'), pos: { x: 1, y: 2 }, depth: 1, fixedEvent: { kind: 'combat', encounter: 'roadBandit' }, bgAsset: 'bg-combat-shepherds-track', tags: [] },
   restingPlace: { id: 'restingPlace', type: 'rest', nameKey: nameKey('restingPlace'), pos: { x: 2, y: 2 }, depth: 2, fixedEvent: { kind: 'fireplace' }, bgAsset: 'bg-rest-old-cistern', tags: [] },
+  // an old well to explore — observe the glint, pull the bucket, take the 100g purse (buy at market)
+  well: { id: 'well', type: 'scene', nameKey: nameKey('well'), pos: { x: 3, y: 2 }, depth: 3, fixedEvent: { kind: 'scene', sceneId: 'tutorialWell' }, sceneId: 'tutorialWell', bgAsset: 'bg-waypoint-lower-well', tags: [] },
   // a wayside merchant — spend the coin from the first bandit on a card or two before the boss
-  market: { id: 'market', type: 'shop', nameKey: nameKey('market'), pos: { x: 3, y: 2 }, depth: 3, fixedEvent: { kind: 'shop' }, bgAsset: 'bg-shop-roadside-market', tags: [] },
-  theFold: { id: 'theFold', type: 'boss', nameKey: nameKey('theFold'), pos: { x: 4, y: 2 }, depth: 4, fixedEvent: { kind: 'boss', encounter: 'banditAmbush' }, bgAsset: 'bg-combat-shepherds-track', tags: [] },
+  market: { id: 'market', type: 'shop', nameKey: nameKey('market'), pos: { x: 4, y: 2 }, depth: 4, fixedEvent: { kind: 'shop' }, bgAsset: 'bg-shop-roadside-market', tags: [] },
+  theFold: { id: 'theFold', type: 'boss', nameKey: nameKey('theFold'), pos: { x: 5, y: 2 }, depth: 5, fixedEvent: { kind: 'boss', encounter: 'banditAmbush' }, bgAsset: 'bg-combat-shepherds-track', tags: [] },
 }
 
 const graph = buildGraph(CONNECTIONS)

@@ -34,6 +34,7 @@ export type GameEvent =
   | { type: 'sceneLine'; lineKey: I18nKey; speaker?: string }
   | { type: 'itemGained'; itemId: ItemId; count: number }
   | { type: 'itemUsed'; itemId: ItemId }
+  | { type: 'goldGained'; amount: number }
   | { type: 'cardGranted'; cardId: CardDefId }
   | { type: 'cardUnlocked'; cardId: CardDefId }
   | { type: 'nodeRevealed'; node: NodeId }

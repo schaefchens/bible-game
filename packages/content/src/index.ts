@@ -15,6 +15,7 @@ import { STORIES } from './jericho/stories'
 import { TUTORIAL_AMBUSH_TABLE, TUTORIAL_ENCOUNTERS, TUTORIAL_MAP } from './tutorial/map'
 import { TUTORIAL_DIALOGUES } from './tutorial/dialogues'
 import { TUTORIAL_STORIES } from './tutorial/stories'
+import { TUTORIAL_SCENES } from './tutorial/scenes'
 
 const HERO_GRACE_ABILITIES = ['sight', 'mercy']
 
@@ -27,7 +28,7 @@ export function createContent(): ContentBundle {
     cardUnlocksByLevel: CARD_UNLOCKS_BY_LEVEL,
     deckLimit: DECK_LIMIT,
     encounters: { ...ENCOUNTERS, ...TUTORIAL_ENCOUNTERS },
-    scenes: SCENES,
+    scenes: { ...SCENES, ...TUTORIAL_SCENES },
     events: EVENTS,
     dialogues: { ...DIALOGUES, ...TUTORIAL_DIALOGUES },
     stories: { ...STORIES, ...TUTORIAL_STORIES },
@@ -191,3 +192,4 @@ export { STORIES } from './jericho/stories'
 export { TUTORIAL_MAP, TUTORIAL_ENCOUNTERS, TUTORIAL_AMBUSH_TABLE } from './tutorial/map'
 export { TUTORIAL_DIALOGUES } from './tutorial/dialogues'
 export { TUTORIAL_STORIES } from './tutorial/stories'
+export { TUTORIAL_SCENES } from './tutorial/scenes'

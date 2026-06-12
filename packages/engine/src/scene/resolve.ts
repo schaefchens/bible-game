@@ -68,6 +68,9 @@ export function runScript(
       const left = Math.max(0, (inv.stacks[cmd.takeItem] ?? 0) - n)
       inv = { ...inv, stacks: { ...inv.stacks, [cmd.takeItem]: left } }
       events.push({ type: 'itemUsed', itemId: cmd.takeItem })
+    } else if ('giveGold' in cmd) {
+      inv = { ...inv, currency: inv.currency + cmd.giveGold }
+      events.push({ type: 'goldGained', amount: cmd.giveGold })
     } else if ('revealNode' in cmd) {
       if (!w.revealed.includes(cmd.revealNode)) w = { ...w, revealed: [...w.revealed, cmd.revealNode] }
       events.push({ type: 'nodeRevealed', node: cmd.revealNode })

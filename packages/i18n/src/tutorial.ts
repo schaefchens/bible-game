@@ -7,10 +7,20 @@ export const tutorialEn: Record<string, string> = {
   'node.tutorial.stillWaters': 'Still Waters',
   'node.tutorial.thicket': 'The Thicket',
   'node.tutorial.restingPlace': 'A Resting Place',
+  'node.tutorial.well': 'The Old Well',
   'node.tutorial.market': 'The Wayside Market',
   'node.tutorial.theFold': 'The Fold',
   // fireplace reflection line (shown on the rest screen)
   'node.tutorial.restingPlace.reflect': 'The water lies still, and for a little while, so do you.',
+
+  // -- the old well (observe → pull → take) --
+  'scene.tutorialWell.well': 'the old well',
+  'scene.tutorialWell.well.observe': 'You peer over the mossy rim. Far down in the dark, something catches the light and glitters.',
+  'scene.tutorialWell.well.pull': 'You take up the rope and haul. The bucket rises, heavy and dripping, and thuds against the rim.',
+  'scene.tutorialWell.well.pullAgain': 'The bucket is already up, swaying gently on its rope.',
+  'scene.tutorialWell.well.take': 'Beneath the water sits a small leather purse — a hundred gold pieces, cold and bright. You pocket it.',
+  'scene.tutorialWell.well.takeNoBucket': 'Whatever glitters is far below. You will have to pull the bucket up first.',
+  'scene.tutorialWell.well.empty': 'Only well-water now. The purse is already yours.',
 
   // -- foes --
   'enemy.bandit': 'Bandit',
@@ -42,9 +52,19 @@ export const tutorialDe: Record<string, string> = {
   'node.tutorial.stillWaters': 'Stille Wasser',
   'node.tutorial.thicket': 'Das Dickicht',
   'node.tutorial.restingPlace': 'Ein Rastplatz',
+  'node.tutorial.well': 'Der alte Brunnen',
   'node.tutorial.market': 'Der Markt am Wegesrand',
   'node.tutorial.theFold': 'Der Pferch',
   'node.tutorial.restingPlace.reflect': 'Das Wasser liegt still, und für einen Augenblick liegst auch du still.',
+
+  // -- der alte Brunnen (betrachten → ziehen → nehmen) --
+  'scene.tutorialWell.well': 'der alte Brunnen',
+  'scene.tutorialWell.well.observe': 'Du beugst dich über den moosigen Rand. Tief unten im Dunkeln fängt etwas das Licht und funkelt.',
+  'scene.tutorialWell.well.pull': 'Du greifst das Seil und ziehst. Der Eimer steigt empor, schwer und triefend, und schlägt gegen den Rand.',
+  'scene.tutorialWell.well.pullAgain': 'Der Eimer ist bereits oben und schaukelt sanft an seinem Seil.',
+  'scene.tutorialWell.well.take': 'Unter dem Wasser liegt ein kleiner Lederbeutel — hundert Goldstücke, kalt und glänzend. Du steckst ihn ein.',
+  'scene.tutorialWell.well.takeNoBucket': 'Was da funkelt, ist tief unten. Du musst erst den Eimer heraufziehen.',
+  'scene.tutorialWell.well.empty': 'Nur noch Brunnenwasser. Der Beutel gehört bereits dir.',
 
   'enemy.bandit': 'Bandit',
 
