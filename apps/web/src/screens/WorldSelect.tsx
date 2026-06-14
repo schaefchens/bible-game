@@ -15,6 +15,7 @@ interface WorldCard {
 const WORLDS: WorldCard[] = [
   { id: 'world-02', titleKey: 'ui.worldSelect.world02.title', subtitleKey: 'ui.worldSelect.world02.subtitle', bg: 'bg-rest-old-cistern.png', tagKey: 'ui.worldSelect.tutorialTag' },
   { id: 'world-01', titleKey: 'ui.worldSelect.world01.title', subtitleKey: 'ui.worldSelect.world01.subtitle', bg: 'bg-road-dusty-road.png', unlockedBy: 'world-02' },
+  { id: 'world-03', titleKey: 'ui.worldSelect.world03.title', subtitleKey: 'ui.worldSelect.world03.subtitle', bg: 'bg-combat-rocky-pass.png', unlockedBy: 'world-01' },
 ]
 
 export function WorldSelect() {

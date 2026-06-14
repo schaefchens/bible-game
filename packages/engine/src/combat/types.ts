@@ -26,6 +26,9 @@ export interface Intent {
   kind: IntentKind
   value?: number
   hits?: number
+  /** buff → applied to the enemy itself; debuff → applied to the party target */
+  status?: StatusId
+  stacks?: number
 }
 
 export interface Combatant {

@@ -441,7 +441,7 @@ function beginRound(c: CombatState): CombatStep {
   for (const id of combat.enemyOrder) {
     const e = combat.combatants[id]!
     if (!e.alive || e.hidden) continue
-    combat = withCombatant(combat, id, (x) => ({ ...x, intent: pickIntent(x) }))
+    combat = withCombatant(combat, id, (x) => ({ ...x, intent: pickIntent(x, { round }) }))
     events.push({ type: 'intentTelegraphed', id })
   }
 
@@ -644,7 +644,7 @@ function enemyPhase(c: CombatState): CombatStep {
 
 function executeIntent(c: CombatState, enemyId: CombatantId): CombatStep {
   const e = c.combatants[enemyId]!
-  const intent = e.intent ?? pickIntent(e)
+  const intent = e.intent ?? pickIntent(e, { round: c.roundNumber })
 
   // bound enemies skip their turn and lose a bound stack
   if (statusStacks(e, 'bound') > 0) {
@@ -674,6 +674,12 @@ function executeIntent(c: CombatState, enemyId: CombatantId): CombatStep {
       return damageTarget(c, enemyId, target.id, intent.value ?? e.dread ?? 0, 'spiritual', { nonLethal: false })
     case 'block':
       return step(withCombatant(c, enemyId, (x) => ({ ...x, block: x.block + (intent.value ?? 0) })))
+    case 'buff':
+      // self-buff (e.g. gain Strength); persists like card-applied strength
+      return step(applyStatusTo(c, enemyId, intent.status ?? 'strength', intent.stacks ?? 1))
+    case 'debuff':
+      // afflict the front party member (weak/vulnerable)
+      return step(applyStatusTo(c, target.id, intent.status ?? 'weak', intent.stacks ?? 1))
     default:
       return step(c)
   }

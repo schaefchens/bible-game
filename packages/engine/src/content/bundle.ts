@@ -32,6 +32,8 @@ export interface EnemyTemplate {
   spiritualArmor?: number
   side?: Side
   row?: Row
+  /** selects a coded boss/elite AI pattern in combat/ai.ts (e.g. 'goliath' | 'champion' | 'dreadSpirit') */
+  aiProfileId?: string
 }
 
 export interface EncounterDef {

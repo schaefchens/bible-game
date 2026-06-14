@@ -5,6 +5,7 @@
 
 import { jerichoDe, jerichoEn } from './jericho'
 import { tutorialDe, tutorialEn } from './tutorial'
+import { elahDe, elahEn } from './elah'
 
 export type Locale = 'en' | 'de'
 export type Messages = Record<string, string>
@@ -40,6 +41,8 @@ export const en: Messages = {
   'ui.worldSelect.world01.subtitle': 'From Jerusalem down to Jericho — the road of the Good Samaritan.',
   'ui.worldSelect.world02.title': 'Beside Still Waters',
   'ui.worldSelect.world02.subtitle': 'A short, gentle walk to learn the way.',
+  'ui.worldSelect.world03.title': 'The Valley of Elah',
+  'ui.worldSelect.world03.subtitle': 'A gauntlet of Philistine battles, ending at the giant — not by sword or spear.',
   'ui.worldSelect.tutorialTag': 'Tutorial — Start Here',
   'ui.worldSelect.locked': 'Finish the tutorial to unlock this road.',
   'ui.common.back': 'Back',
@@ -332,6 +335,8 @@ export const de: Messages = {
   'ui.worldSelect.world01.subtitle': 'Von Jerusalem hinab nach Jericho — der Weg des barmherzigen Samariters.',
   'ui.worldSelect.world02.title': 'An stillen Wassern',
   'ui.worldSelect.world02.subtitle': 'Ein kurzer, sanfter Gang, um den Weg zu lernen.',
+  'ui.worldSelect.world03.title': 'Das Tal Elah',
+  'ui.worldSelect.world03.subtitle': 'Ein Spießrutenlauf philistischer Schlachten, am Ende der Riese — nicht durch Schwert oder Speer.',
   'ui.worldSelect.tutorialTag': 'Einführung — Hier starten',
   'ui.worldSelect.locked': 'Schließe die Einführung ab, um diesen Weg freizuschalten.',
   'ui.common.back': 'Zurück',
@@ -585,6 +590,6 @@ export const de: Messages = {
 }
 
 export const resources = {
-  en: { translation: { ...en, ...jerichoEn, ...tutorialEn } },
-  de: { translation: { ...de, ...jerichoDe, ...tutorialDe } },
+  en: { translation: { ...en, ...jerichoEn, ...tutorialEn, ...elahEn } },
+  de: { translation: { ...de, ...jerichoDe, ...tutorialDe, ...elahDe } },
 } as const

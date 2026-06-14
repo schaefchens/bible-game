@@ -296,6 +296,8 @@ export interface CombatantView {
   row: 'front' | 'back'
   intentKind?: string
   intentValue?: number
+  intentHits?: number
+  intentStacks?: number
 }
 
 export interface HandCardView {
@@ -347,6 +349,8 @@ export function selectCombat(state: GameState): CombatView | null {
       row: x.row,
       intentKind: x.intent?.kind,
       intentValue: x.intent?.value,
+      intentHits: x.intent?.hits,
+      intentStacks: x.intent?.stacks,
     }
   }
 

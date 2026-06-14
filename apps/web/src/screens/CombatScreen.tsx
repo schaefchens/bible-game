@@ -79,7 +79,13 @@ export function CombatScreen() {
         {side === 'enemy' && c.intentKind && (
           <div className="intent">
             {INTENT_ICON[c.intentKind] ?? '❔'}
-            {c.intentValue ? <b>{c.intentValue}</b> : null}
+            {c.intentKind === 'attackMulti' && c.intentValue ? (
+              <b>{c.intentValue}×{c.intentHits ?? 1}</b>
+            ) : c.intentValue ? (
+              <b>{c.intentValue}</b>
+            ) : c.intentStacks ? (
+              <b>{c.intentStacks}</b>
+            ) : null}
           </div>
         )}
         <div className="unit-figure">

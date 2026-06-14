@@ -59,6 +59,7 @@ function enemyCombatant(t: EnemyTemplate, heroLevel: number, runDepth: number): 
     dread: t.dread,
     fleshDamageCap: t.fleshDamageCap,
     spiritualArmor: t.spiritualArmor,
+    aiProfileId: t.aiProfileId,
   }
 }
 

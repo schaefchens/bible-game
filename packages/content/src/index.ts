@@ -16,6 +16,8 @@ import { TUTORIAL_AMBUSH_TABLE, TUTORIAL_ENCOUNTERS, TUTORIAL_MAP } from './tuto
 import { TUTORIAL_DIALOGUES } from './tutorial/dialogues'
 import { TUTORIAL_STORIES } from './tutorial/stories'
 import { TUTORIAL_SCENES } from './tutorial/scenes'
+import { ELAH_AMBUSH_TABLE, ELAH_ENCOUNTERS, ELAH_MAP } from './elah/map'
+import { ELAH_STORIES } from './elah/stories'
 
 const HERO_GRACE_ABILITIES = ['sight', 'mercy']
 
@@ -27,16 +29,17 @@ export function createContent(): ContentBundle {
     cardPoolStart: CARD_POOL_START,
     cardUnlocksByLevel: CARD_UNLOCKS_BY_LEVEL,
     deckLimit: DECK_LIMIT,
-    encounters: { ...ENCOUNTERS, ...TUTORIAL_ENCOUNTERS },
+    encounters: { ...ENCOUNTERS, ...TUTORIAL_ENCOUNTERS, ...ELAH_ENCOUNTERS },
     scenes: { ...SCENES, ...TUTORIAL_SCENES },
     events: EVENTS,
     dialogues: { ...DIALOGUES, ...TUTORIAL_DIALOGUES },
-    stories: { ...STORIES, ...TUTORIAL_STORIES },
+    stories: { ...STORIES, ...TUTORIAL_STORIES, ...ELAH_STORIES },
     items: ITEMS,
     verses: VERSES,
     worlds: {
       'world-02': { map: TUTORIAL_MAP, ambushTable: TUTORIAL_AMBUSH_TABLE },
       'world-01': { map: WORLD_01_MAP, ambushTable: AMBUSH_TABLE },
+      'world-03': { map: ELAH_MAP, ambushTable: ELAH_AMBUSH_TABLE },
     },
   }
   validateContent(bundle)
@@ -193,3 +196,5 @@ export { TUTORIAL_MAP, TUTORIAL_ENCOUNTERS, TUTORIAL_AMBUSH_TABLE } from './tuto
 export { TUTORIAL_DIALOGUES } from './tutorial/dialogues'
 export { TUTORIAL_STORIES } from './tutorial/stories'
 export { TUTORIAL_SCENES } from './tutorial/scenes'
+export { ELAH_MAP, ELAH_ENCOUNTERS, ELAH_AMBUSH_TABLE } from './elah/map'
+export { ELAH_STORIES } from './elah/stories'
