@@ -28,7 +28,6 @@ export interface EnemyTemplate {
   scaling: EnemyScalingDef
   /** fixed (un-scaled) special attributes */
   dread?: number
-  fleshDamageCap?: number
   spiritualArmor?: number
   side?: Side
   row?: Row

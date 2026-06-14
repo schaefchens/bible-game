@@ -27,7 +27,8 @@ const hero = (over: Partial<Combatant> = {}): Combatant => ({
   spiritualBlock: 0,
   side: 'left',
   row: 'front',
-  stats: { maxHp: 50, attack: 2, defense: 0, spiritAffinity: 1, speed: 5 },
+  stats: { maxHp: 50, attack: 2, speed: 5 },
+  scale: 1,
   statuses: [],
   memberId: 'm-hero',
   contributesEnergy: 3,
@@ -47,7 +48,8 @@ const thief = (over: Partial<Combatant> = {}): Combatant => ({
   spiritualBlock: 0,
   side: 'right',
   row: 'front',
-  stats: { maxHp: 12, attack: 4, defense: 0, spiritAffinity: 0, speed: 3 },
+  stats: { maxHp: 12, attack: 4, speed: 3 },
+  scale: 1,
   statuses: [],
   revealsId: 'demon',
   ...over,
@@ -67,7 +69,8 @@ const demon = (over: Partial<Combatant> = {}): Combatant => ({
   spiritualBlock: 0,
   side: 'right',
   row: 'front',
-  stats: { maxHp: 8, attack: 2, defense: 0, spiritAffinity: 0, speed: 1 },
+  stats: { maxHp: 8, attack: 2, speed: 1 },
+  scale: 1,
   statuses: [],
   dread: 4,
   boundToId: 'thief',
@@ -165,7 +168,7 @@ describe('thief encounter — the brute path (teaches by contrast)', () => {
   it('killing the human ends the fight (demon flees) with a heavy Spirit penalty, no righteous loot', () => {
     let { combat } = startCombat(thiefInit())
     combat = ensureActing(combat).combat // draw the opening hand
-    // two Strikes (6 + hero attack 2 = 8 each) kill the 12-HP thief
+    // two Strikes (base 6 × hero scale 1 = 6 each; no attack-stat bonus) kill the 12-HP thief
     const s1 = findInHand(combat, 'strike')
     const played = playCard(combat, s1, 'thief', 100)
     combat = played.combat
@@ -195,7 +198,7 @@ describe('companion death purges their cards from every pile + drops shared ener
     let { combat } = startCombat(
       thiefInit({
         party: [hero({ hp: 5 }), companion],
-        enemies: [{ ...thief({ id: 'brute', archetype: 'brute', isHuman: false, revealsId: undefined, hp: 100, maxHp: 100, stats: { maxHp: 100, attack: 99, defense: 0, spiritAffinity: 0, speed: 9 } }) }],
+        enemies: [{ ...thief({ id: 'brute', archetype: 'brute', isHuman: false, revealsId: undefined, hp: 100, maxHp: 100, stats: { maxHp: 100, attack: 99, speed: 9 } }) }],
         deck: [...deck(['strike', 'light', 'guard'], 'm-hero'), ...deck(['strike', 'guard'], 'm-comp')],
         energyMax: 4,
         winCondition: { kind: 'allEnemiesDefeated' },

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { DAMAGE_CAP } from '../leveling/scaling'
 import { absorb, physicalAmount, spiritualAmount, statusStacks } from './damage'
 import type { Combatant } from './types'
 
@@ -15,19 +14,22 @@ const mk = (over: Partial<Combatant> = {}): Combatant => ({
   spiritualBlock: 0,
   side: 'right',
   row: 'front',
-  stats: { maxHp: 100, attack: 0, defense: 0, spiritAffinity: 1, speed: 0 },
+  stats: { maxHp: 100, attack: 0, speed: 0 },
+  scale: 1,
   statuses: [],
   ...over,
 })
 
-describe('physicalAmount — fixed pipeline', () => {
-  it('adds the attacker flat attack contribution via base', () => {
+describe('physicalAmount — flesh pipeline (no defense, no cap)', () => {
+  it('passes the (pre-scaled) base straight through with no modifiers', () => {
     expect(physicalAmount(10, mk(), mk()).amount).toBe(10)
   })
 
-  it('applies Strength (flat, before multipliers)', () => {
+  it('adds Strength scaled by the attacker level (so it stays relevant)', () => {
     const atk = mk({ statuses: [{ id: 'strength', stacks: 3 }] })
-    expect(physicalAmount(10, atk, mk()).amount).toBe(13)
+    expect(physicalAmount(10, atk, mk()).amount).toBe(13) // 10 + 3×scale(1)
+    const bigAtk = mk({ scale: 10, statuses: [{ id: 'strength', stacks: 3 }] })
+    expect(physicalAmount(10, bigAtk, mk()).amount).toBe(40) // 10 + 3×10
   })
 
   it('applies Weak (×0.75 dealt) and Vulnerable (×1.5 taken), each floored', () => {
@@ -43,32 +45,25 @@ describe('physicalAmount — fixed pipeline', () => {
     expect(physicalAmount(10, mk({ row: 'back' }), mk({ row: 'back' })).amount).toBe(2) // floor(floor(10*.5)*.5)
   })
 
-  it('subtracts flat defense and never goes negative', () => {
-    expect(physicalAmount(10, mk(), mk({ stats: { ...mk().stats, defense: 4 } })).amount).toBe(6)
-    expect(physicalAmount(3, mk(), mk({ stats: { ...mk().stats, defense: 10 } })).amount).toBe(0)
+  it('NEVER subtracts defense and is NEVER capped — flesh always does its work', () => {
+    expect(physicalAmount(99999, mk(), mk()).amount).toBe(99999)
+    expect(physicalAmount(99999, mk(), mk()).capped).toBe(false)
+    // a huge HP demon takes full flesh damage (no fleshDamageCap exists anymore)
+    const demon = mk({ isDemon: true })
+    expect(physicalAmount(600, mk(), demon).amount).toBe(600)
   })
 
-  it('applies the global 9999 cap, then the per-target flesh cap (the wall)', () => {
-    expect(physicalAmount(99999, mk(), mk()).amount).toBe(DAMAGE_CAP)
-    expect(physicalAmount(99999, mk(), mk()).capped).toBe(true)
-    const demon = mk({ fleshDamageCap: 1 })
-    expect(physicalAmount(99999, mk(), demon).amount).toBe(1)
-    expect(physicalAmount(99999, mk(), demon).capped).toBe(true)
+  it('clamps to 0, never negative', () => {
+    const weak = mk({ statuses: [{ id: 'weak', stacks: 1 }] })
+    expect(physicalAmount(0, weak, mk()).amount).toBe(0)
   })
 })
 
-describe('spiritualAmount — bypasses flesh defenses', () => {
-  it('ignores rows and the flesh cap; only spiritualArmor reduces it', () => {
-    const demon = mk({ fleshDamageCap: 1, row: 'back', spiritualArmor: 5 })
-    // 50 base spiritual: rows/fleshcap ignored, minus 5 armor = 45
+describe('spiritualAmount — spirit layer (Phase 2)', () => {
+  it('ignores rows; only spiritualArmor reduces it', () => {
+    const demon = mk({ row: 'back', spiritualArmor: 5 })
     expect(spiritualAmount(50, demon).amount).toBe(45)
     expect(spiritualAmount(50, demon).capped).toBe(false)
-  })
-
-  it('breaches a wall that flesh cannot', () => {
-    const demon = mk({ fleshDamageCap: 1 })
-    expect(physicalAmount(9999, mk(), demon).amount).toBe(1)
-    expect(spiritualAmount(9999, demon).amount).toBe(9999)
   })
 })
 

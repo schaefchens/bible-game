@@ -5,7 +5,7 @@
 
 import type { CardDef, CardInstance } from '../cards/types'
 import type { ContentBundle } from '../content/bundle'
-import { deriveStats, scaleEnemy } from '../leveling/scaling'
+import { deriveStats, enemyScale, levelScale, scaleEnemy } from '../leveling/scaling'
 import type { RngState } from '../rng/rng'
 import type { PartyMember } from '../state/character'
 import type { RunState } from '../state/gameState'
@@ -29,6 +29,7 @@ function partyCombatant(m: PartyMember): Combatant {
     side: 'left',
     row: 'front',
     stats,
+    scale: levelScale(m.level),
     statuses: [],
     memberId: m.memberId,
     contributesEnergy: m.contributesEnergy,
@@ -52,12 +53,12 @@ function enemyCombatant(t: EnemyTemplate, heroLevel: number, runDepth: number): 
     side: t.side ?? 'right',
     row: t.row ?? 'front',
     stats,
+    scale: enemyScale(heroLevel, runDepth),
     statuses: [],
     hidden: t.hidden,
     revealsId: t.revealsId,
     boundToId: t.boundToId,
     dread: t.dread,
-    fleshDamageCap: t.fleshDamageCap,
     spiritualArmor: t.spiritualArmor,
     aiProfileId: t.aiProfileId,
   }

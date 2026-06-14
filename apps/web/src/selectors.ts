@@ -8,6 +8,7 @@ import {
   MAX_VERSE_ATTEMPTS,
   memberMaxHp,
   nodeVisible,
+  previewCardDamage,
   type ContentBundle,
   type GameState,
   type NodeType,
@@ -303,12 +304,15 @@ export interface CombatantView {
 export interface HandCardView {
   iid: string
   defId: string
+  ownerId: string
   nameKey: string
   textKey: string
   cost: number
   layer: 'flesh' | 'spirit' | 'both'
   type: string
   target: string
+  /** nominal scaled damage at rest (level scale applied); undefined for non-damage cards */
+  damage?: { perHit: number; hits: number; spiritual: boolean }
 }
 
 export interface CombatView {
@@ -330,6 +334,7 @@ export interface CombatView {
 export function selectCombat(state: GameState): CombatView | null {
   const c = state.combat
   if (!c) return null
+  const spirit = state.run?.spirit.spirit ?? 0
   const heroName = (id: string) => state.run?.party.find((m) => m.memberId === id)?.displayName
 
   const toView = (id: string): CombatantView => {
@@ -359,7 +364,12 @@ export function selectCombat(state: GameState): CombatView | null {
     enemies: c.enemyOrder.map(toView).filter((e) => e.alive),
     hand: c.hand.map((ci) => {
       const def = c.cardDefs[ci.defId]!
-      return { iid: ci.iid, defId: ci.defId, nameKey: def.nameKey, textKey: def.textKey, cost: ci.costOverride ?? def.cost, layer: def.layer, type: def.type, target: def.target }
+      const dmg = previewCardDamage(c, ci.defId, ci.ownerId, spirit)
+      return {
+        iid: ci.iid, defId: ci.defId, ownerId: ci.ownerId, nameKey: def.nameKey, textKey: def.textKey,
+        cost: ci.costOverride ?? def.cost, layer: def.layer, type: def.type, target: def.target,
+        damage: dmg ? { perHit: dmg.perHit, hits: dmg.hits, spiritual: dmg.damageType === 'spiritual' } : undefined,
+      }
     }),
     energy: c.energy,
     grace: c.grace,

@@ -15,14 +15,14 @@ const CARDS: Record<string, CardDef> = {
 const hero = (over: Partial<Combatant> = {}): Combatant => ({
   id: 'hero', faction: 'party', archetype: 'hero', isHuman: true, alive: true,
   hp: 200, maxHp: 200, block: 0, spiritualBlock: 0, side: 'left', row: 'front',
-  stats: { maxHp: 200, attack: 2, defense: 0, spiritAffinity: 1, speed: 5 },
+  stats: { maxHp: 200, attack: 2, speed: 5 }, scale: 1,
   statuses: [], memberId: 'm-hero', contributesEnergy: 3, graceAbilityIds: [], ...over,
 })
 
 const boss = (over: Partial<Combatant> = {}): Combatant => ({
   id: 'boss', faction: 'enemy', archetype: 'goliath', isHuman: true, alive: true,
   hp: 340, maxHp: 340, block: 0, spiritualBlock: 0, side: 'right', row: 'front',
-  stats: { maxHp: 340, attack: 12, defense: 0, spiritAffinity: 0, speed: 3 },
+  stats: { maxHp: 340, attack: 12, speed: 3 }, scale: 1,
   statuses: [], ...over,
 })
 
@@ -55,7 +55,7 @@ describe('boss AI profiles execute through the combat core', () => {
   })
 
   it('a profile-less enemy still just attacks (legacy behavior intact)', () => {
-    const c = afterEnemyTurn(boss({ stats: { maxHp: 340, attack: 12, defense: 0, spiritAffinity: 0, speed: 3 } }))
+    const c = afterEnemyTurn(boss({ stats: { maxHp: 340, attack: 12, speed: 3 } }))
     expect(c.combatants.hero!.hp).toBeLessThan(200) // took a basic hit, no buff/debuff
     expect(statusStacks(c.combatants.boss!, 'strength')).toBe(0)
   })

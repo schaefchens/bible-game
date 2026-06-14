@@ -78,7 +78,7 @@ export const TUTORIAL_MAP: WorldMap = {
 export const TUTORIAL_ENCOUNTERS: Record<string, EncounterDef> = {
   roadBandit: {
     id: 'roadBandit',
-    enemies: [{ id: 'bandit', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 20, baseAtk: 8, hpLevelExp: 0, atkLevelExp: 0 } }],
+    enemies: [{ id: 'bandit', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 20, baseAtk: 8 } }],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: [{ id: 'money', kind: 'money', amount: 8 }],
@@ -88,14 +88,11 @@ export const TUTORIAL_ENCOUNTERS: Record<string, EncounterDef> = {
   },
   banditAmbush: {
     id: 'banditAmbush',
-    // Both FRONT row. A back-row defender takes HALF physical damage (damage.ts:27) and flat defense
-    // is subtracted AFTER the halving (line 28). At this depth defense ≈ 3, so a 6-dmg starter Strike
-    // became floor(6/2)−3 = 0 (nullified), while the 8-dmg subdue scraped through at 1 — which looked
-    // like the big bandit was immune to everything but that one card. Front row = no halving, so
-    // Strike lands base−defense and both bandits take honest damage.
+    // Both FRONT row. A back-row defender takes HALF physical damage (positioning, not armor —
+    // Shove/pushRow counter it); front row = full damage. The big bandit is just a bigger HP pool.
     enemies: [
-      { id: 'bandit1', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 20, baseAtk: 8, hpLevelExp: 0, atkLevelExp: 0 } },
-      { id: 'bandit2', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 50, baseAtk: 12, hpLevelExp: 0, atkLevelExp: 0 } },
+      { id: 'bandit1', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 20, baseAtk: 8 } },
+      { id: 'bandit2', archetype: 'bandit', nameKey: 'enemy.bandit', isHuman: true, scaling: { baseHp: 50, baseAtk: 12 } },
     ],
     flags: { mandatory: false, allowFlee: true, isBoss: true },
     winCondition: { kind: 'allEnemiesDefeated' },

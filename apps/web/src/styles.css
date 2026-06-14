@@ -363,6 +363,10 @@ body {
 .card-art.both { background: linear-gradient(135deg, #4a4030, #2a2416); }
 .card-name { font-size: 0.76rem; font-weight: 700; color: var(--gold-bright); }
 .card-text { font-size: 0.64rem; color: #c9c3b0; margin-top: 4px; line-height: 1.18; }
+.card-damage { position: absolute; top: -11px; right: -9px; min-width: 26px; padding: 2px 7px; border-radius: 11px; background: rgba(22,10,8,0.9); border: 2px solid #c0453c; color: #ff9a8a; font-weight: 800; font-size: 0.86rem; display: flex; align-items: center; gap: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 2; }
+.card-damage.spirit { border-color: #6f8fd0; color: #bcd0ff; }
+.card-damage .hits { font-size: 0.66rem; opacity: 0.85; }
+.dmg-predict { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 5; font-size: 1.5rem; font-weight: 800; color: #ffd36b; text-shadow: 0 2px 6px #000, 0 0 3px #000; pointer-events: none; }
 
 .targeting-hint { position: absolute; z-index: 6; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--gold); border-radius: 9px; padding: 0.35rem 1rem; color: var(--gold-bright); }
 

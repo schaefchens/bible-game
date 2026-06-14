@@ -1,18 +1,18 @@
-// The visible "flesh" stat vocabulary. The hidden "spirit" stat is NOT here — it lives on the
-// run (see spirit/types.ts) and is never directly allocatable.
+// The visible stat vocabulary. There is no hidden flesh/spirit stat duality: combat is HP + damage
+// + block. "Spirit" is a run resource that powers spiritual cards (see spirit/types.ts) — never an
+// allocatable stat. Damage growth is automatic via the level multiplier (see leveling/scaling.ts),
+// so there is no `attack`/`defense` to allocate; points go to survivability (maxHp) and turn order
+// (speed).
 
-export type StatId = 'maxHp' | 'attack' | 'defense' | 'spiritAffinity' | 'speed'
+export type StatId = 'maxHp' | 'speed'
 
-export const STAT_IDS: readonly StatId[] = ['maxHp', 'attack', 'defense', 'spiritAffinity', 'speed']
+export const STAT_IDS: readonly StatId[] = ['maxHp', 'speed']
 
 /** A resolved stat block for a combatant (hero/companion/enemy). */
 export interface CombatStats {
   maxHp: number
+  /** unit attack value — enemies strike for `attack` (already level-scaled); heroes are 0 (they play cards) */
   attack: number
-  /** flat physical mitigation */
-  defense: number
-  /** RPG-side multiplier on spiritual potency (base 1.0); the only stat that compounds with the win condition */
-  spiritAffinity: number
   /** turn order within a faction */
   speed: number
 }
@@ -22,8 +22,5 @@ export type StatAllocation = Record<StatId, number>
 
 export const emptyAllocation = (): StatAllocation => ({
   maxHp: 0,
-  attack: 0,
-  defense: 0,
-  spiritAffinity: 0,
   speed: 0,
 })

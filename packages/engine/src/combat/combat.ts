@@ -237,12 +237,12 @@ function applyEffect(
       const isSpiritual = op.damageType === 'spiritual'
       let base: number
       if (isSpiritual) {
-        base = scaleSpiritValue(op.amount, spirit, { affinity: source.stats.spiritAffinity })
+        base = scaleSpiritValue(op.amount, spirit)
         if (base <= 0) {
           return step(combat, [{ type: 'cardFizzled', iid: '', defId: card.id, reason: 'lowSpirit' }])
         }
       } else {
-        base = op.amount + source.stats.attack
+        base = op.amount * source.scale
       }
       for (const tid of targets) {
         for (let h = 0; h < hits; h++) {
@@ -259,7 +259,7 @@ function applyEffect(
     case 'block': {
       const targets = resolveTargets(combat, sourceId, op.target ?? 'self', chosenId)
       const spiritual = op.layer === 'spirit'
-      const amount = spiritual ? scaleSpiritValue(op.amount, spirit, { affinity: source.stats.spiritAffinity, floor: 1 }) : op.amount
+      const amount = spiritual ? scaleSpiritValue(op.amount, spirit, { floor: 1 }) : op.amount * source.scale
       for (const tid of targets) {
         combat = withCombatant(combat, tid, (x) =>
           spiritual ? { ...x, spiritualBlock: x.spiritualBlock + amount } : { ...x, block: x.block + amount },
@@ -270,9 +270,10 @@ function applyEffect(
     }
     case 'heal': {
       const targets = resolveTargets(combat, sourceId, op.target ?? 'self', chosenId)
+      const amount = op.amount * source.scale
       for (const tid of targets) {
-        combat = withCombatant(combat, tid, (x) => ({ ...x, hp: Math.min(x.maxHp, x.hp + op.amount) }))
-        events.push({ type: 'healed', targetId: tid, amount: op.amount })
+        combat = withCombatant(combat, tid, (x) => ({ ...x, hp: Math.min(x.maxHp, x.hp + amount) }))
+        events.push({ type: 'healed', targetId: tid, amount })
       }
       return step(combat, events)
     }
@@ -310,7 +311,7 @@ function applyEffect(
       const scaled = scaleSpiritValue(
         'amount' in op.base ? op.base.amount : 0,
         spirit,
-        { affinity: source.stats.spiritAffinity, floor: op.floor },
+        { floor: op.floor },
       )
       const inner = { ...op.base, amount: scaled } as EffectOp
       if ('amount' in inner && inner.amount <= 0) {

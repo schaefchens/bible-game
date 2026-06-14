@@ -19,10 +19,10 @@ const CARDS: Record<string, CardDef> = {
 }
 
 const hero = (over: Partial<Combatant> = {}): Combatant => ({
-  id: 'hero', faction: 'party', archetype: 'hero', isHuman: true, alive: true, hp: 30, maxHp: 50, block: 0, spiritualBlock: 0, side: 'left', row: 'front', stats: { maxHp: 50, attack: 0, defense: 0, spiritAffinity: 1, speed: 5 }, statuses: [], memberId: 'm-hero', contributesEnergy: 4, graceAbilityIds: [], ...over,
+  id: 'hero', faction: 'party', archetype: 'hero', isHuman: true, alive: true, hp: 30, maxHp: 50, block: 0, spiritualBlock: 0, side: 'left', row: 'front', stats: { maxHp: 50, attack: 0, speed: 5 }, scale: 1, statuses: [], memberId: 'm-hero', contributesEnergy: 4, graceAbilityIds: [], ...over,
 })
 const dummy = (over: Partial<Combatant> = {}): Combatant => ({
-  id: 'dummy', faction: 'enemy', archetype: 'dummy', isHuman: false, alive: true, hp: 100, maxHp: 100, block: 0, spiritualBlock: 0, side: 'right', row: 'front', stats: { maxHp: 100, attack: 6, defense: 0, spiritAffinity: 0, speed: 1 }, statuses: [], ...over,
+  id: 'dummy', faction: 'enemy', archetype: 'dummy', isHuman: false, alive: true, hp: 100, maxHp: 100, block: 0, spiritualBlock: 0, side: 'right', row: 'front', stats: { maxHp: 100, attack: 6, speed: 1 }, scale: 1, statuses: [], ...over,
 })
 
 const deck = (defs: string[]): CardInstance[] => defs.map((d, i) => ({ iid: `i${i}-${d}`, defId: d, ownerId: 'm-hero' }))
@@ -86,7 +86,7 @@ describe('effect ops', () => {
 describe('enemy turn: dread is stopped by ward, not flesh block', () => {
   it('ward absorbs dread; flesh block does not', () => {
     // hero with only flesh block faces a dread enemy
-    const dreadEnemy = dummy({ id: 'demon', isDemon: true, dread: 8, stats: { maxHp: 100, attack: 0, defense: 0, spiritAffinity: 0, speed: 1 } })
+    const dreadEnemy = dummy({ id: 'demon', isDemon: true, dread: 8, stats: { maxHp: 100, attack: 0, speed: 1 } })
     let c = begin(init(['guard', 'ward', 'guard', 'guard', 'guard'], { enemies: [dreadEnemy], winCondition: { kind: 'survive', rounds: 99 } }))
     c = playCard(c, iid(c, 'guard'), undefined, 100).combat // 5 flesh block
     const hpBefore = c.combatants.hero!.hp

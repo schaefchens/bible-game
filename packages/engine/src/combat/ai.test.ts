@@ -14,7 +14,8 @@ const mk = (over: Partial<Combatant> = {}): Combatant => ({
   spiritualBlock: 0,
   side: 'right',
   row: 'front',
-  stats: { maxHp: 100, attack: 10, defense: 0, spiritAffinity: 1, speed: 0 },
+  stats: { maxHp: 100, attack: 10, speed: 0 },
+  scale: 1,
   statuses: [],
   ...over,
 })
@@ -36,7 +37,7 @@ describe('pickIntent — default (no profile)', () => {
 })
 
 describe('goliath profile', () => {
-  const g = (round: number, over: Partial<Combatant> = {}) => pickIntent(mk({ aiProfileId: 'goliath', stats: { maxHp: 100, attack: 12, defense: 0, spiritAffinity: 1, speed: 0 }, ...over }), { round })
+  const g = (round: number, over: Partial<Combatant> = {}) => pickIntent(mk({ aiProfileId: 'goliath', stats: { maxHp: 100, attack: 12, speed: 0 }, ...over }), { round })
 
   it('cycles brace → smash(×3) → guard while healthy, on a 1-based round', () => {
     expect(g(1)).toEqual({ kind: 'buff', status: 'strength', stacks: 2 })

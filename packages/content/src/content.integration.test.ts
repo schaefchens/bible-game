@@ -100,8 +100,7 @@ describe('Jericho Road — content & integration', () => {
     s = dispatch(s, { type: 'world/enter' })
     expect(s.screen).toBe('combat')
     expect(s.combat?.encounterId).toBe('accuser')
-    // the late-game wall: flesh barely scratches the Accuser; only Spirit (grace/spiritual/verse) can win
-    expect(s.combat?.combatants.accuser?.fleshDamageCap).toBe(1)
+    // flesh is never capped now — the Accuser is a demon with dread; Spirit cards are the bonus, not a gate
     expect(s.combat?.combatants.accuser?.isDemon).toBe(true)
   })
 

@@ -162,12 +162,12 @@ describe('stat allocation', () => {
     const { state, events } = run(withPoint, {
       type: 'allocateStat',
       memberId: withPoint.run!.heroMemberId,
-      stat: 'attack',
+      stat: 'maxHp',
     })
-    expect(state.profile.slots[0]!.character.allocated.attack).toBe(1)
+    expect(state.profile.slots[0]!.character.allocated.maxHp).toBe(1)
     expect(state.profile.slots[0]!.character.unspentPoints).toBe(0)
-    expect(state.run!.party[0]!.allocated.attack).toBe(1)
-    expect(events).toEqual([{ type: 'statAllocated', memberId: withPoint.run!.heroMemberId, stat: 'attack' }])
+    expect(state.run!.party[0]!.allocated.maxHp).toBe(1)
+    expect(events).toEqual([{ type: 'statAllocated', memberId: withPoint.run!.heroMemberId, stat: 'maxHp' }])
   })
 })
 

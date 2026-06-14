@@ -4,6 +4,7 @@ import type { GameEvent, ReduceResult } from '../events/event'
 import { totalXpForLevel } from '../leveling/scaling'
 import { reduceWorld } from '../map/reduce'
 import { createCharacter, partyMemberFromCharacter } from '../state/character'
+import { STAT_IDS, type StatId } from '../state/stats'
 import {
   defaultSettings,
   GAME_STATE_VERSION,
@@ -210,7 +211,8 @@ function allocateStat(state: GameState, memberId: string, stat: string): ReduceR
   const slot = state.profile.slots[slotIdx]
   if (!slot || slot.character.unspentPoints <= 0) return reject(state, 'no-points')
 
-  const statKey = stat as keyof typeof slot.character.allocated
+  if (!STAT_IDS.includes(stat as StatId)) return reject(state, 'bad-stat')
+  const statKey = stat as StatId
   const character = {
     ...slot.character,
     allocated: { ...slot.character.allocated, [statKey]: slot.character.allocated[statKey] + 1 },

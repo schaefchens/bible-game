@@ -141,7 +141,7 @@ export function testContent(): ContentBundle {
       beast: {
         id: 'beast',
         enemies: [
-          { id: 'wolf', archetype: 'wolf', nameKey: 'enemy.wolf', isHuman: false, scaling: { baseHp: 5, baseAtk: 2, hpLevelExp: 1, atkLevelExp: 1 } },
+          { id: 'wolf', archetype: 'wolf', nameKey: 'enemy.wolf', isHuman: false, scaling: { baseHp: 5, baseAtk: 2 } },
         ],
         flags: { mandatory: false, allowFlee: true, isBoss: false },
         winCondition: { kind: 'allEnemiesDefeated' },
@@ -151,8 +151,8 @@ export function testContent(): ContentBundle {
       thief: {
         id: 'thief',
         enemies: [
-          { id: 'thief', archetype: 'thief', nameKey: 'enemy.thief', isHuman: true, revealsId: 'demon', scaling: { baseHp: 4, baseAtk: 1, hpLevelExp: 1, atkLevelExp: 1 } },
-          { id: 'demon', archetype: 'demon', nameKey: 'enemy.demon', isHuman: false, isDemon: true, hidden: true, boundToId: 'thief', dread: 3, fleshDamageCap: 1, scaling: { baseHp: 1, baseAtk: 1, hpLevelExp: 1, atkLevelExp: 1 } },
+          { id: 'thief', archetype: 'thief', nameKey: 'enemy.thief', isHuman: true, revealsId: 'demon', scaling: { baseHp: 4, baseAtk: 1 } },
+          { id: 'demon', archetype: 'demon', nameKey: 'enemy.demon', isHuman: false, isDemon: true, hidden: true, boundToId: 'thief', dread: 3, scaling: { baseHp: 1, baseAtk: 1 } },
         ],
         flags: { mandatory: false, allowFlee: true, isBoss: true },
         winCondition: { kind: 'allDemonsDestroyed' },

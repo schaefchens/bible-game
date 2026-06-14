@@ -47,6 +47,9 @@ export interface Combatant {
   side: Side
   row: Row
   stats: CombatStats
+  /** level multiplier for this combatant's damage/block/heal output (party: levelScale(level);
+   *  enemy: enemyScale(heroLevel, depth)). Content is authored in level-1 units; this scales it. */
+  scale: number
   statuses: StatusInstance[]
 
   // --- party members ---
@@ -64,9 +67,7 @@ export interface Combatant {
   revealsId?: CombatantId
   /** a demon's host human id; when the host dies the demon flees */
   boundToId?: CombatantId
-  /** caps incoming FLESH damage (the late-game wall; demons cap flesh to ~1) */
-  fleshDamageCap?: number
-  /** reduces incoming spiritual damage by a flat amount */
+  /** reduces incoming spiritual damage by a flat amount (spiritual layer — Phase 2) */
   spiritualArmor?: number
   /** spirit-layer attack value (unblockable by flesh block; mitigated only by ward) */
   dread?: number

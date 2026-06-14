@@ -120,20 +120,22 @@ export const ELAH_MAP: WorldMap = {
 }
 
 // ---- enemy templates ---------------------------------------------------------------------
-// Humans use modest super-linear HP (hpLevelExp 0.6–0.8) on larger bases + FLAT attack, so the
-// fight stays readable across hero levels. Demons are flesh-capped and want a spiritual answer.
+// Numbers are level-1 units; HP + attack scale linearly with level/depth at build time (so fight
+// length is constant across levels — growth is cosmetic). No flesh caps: flesh always works; the
+// demons' dread is the spiritual pressure, not damage immunity. Archers sit back row (half melee
+// until shoved). Difficulty across the world comes from bigger HP pools, not armor.
 
 const soldier = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineSoldier', nameKey: 'enemy.philistineSoldier', isHuman: true,
-  scaling: { baseHp: 16, baseAtk: 6, hpLevelExp: 0.7, atkLevelExp: 0 }, ...over,
+  scaling: { baseHp: 30, baseAtk: 4 }, ...over,
 })
 const archer = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineArcher', nameKey: 'enemy.philistineArcher', isHuman: true, row: 'back',
-  scaling: { baseHp: 12, baseAtk: 7, hpLevelExp: 0.6, atkLevelExp: 0 }, ...over,
+  scaling: { baseHp: 22, baseAtk: 4 }, ...over,
 })
 const shield = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'shieldBearer', nameKey: 'enemy.shieldBearer', isHuman: true,
-  scaling: { baseHp: 26, baseAtk: 4, hpLevelExp: 0.7, atkLevelExp: 0 }, ...over,
+  scaling: { baseHp: 46, baseAtk: 3 }, ...over,
 })
 
 /** battleBg/rewardBg pair from a combat-bg stem (sideview for the battle, plain for the reward). */
@@ -172,12 +174,12 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     rewardOptions: money(38), rewardXp: 32, ...bg('bg-combat-ridge-path'),
   },
   dreadWhisper: {
-    // a lone spirit of dread — only ward stops its spirit attack; flesh is capped
+    // a lone spirit of dread — its dread attack is stopped only by ward; flesh fells it but slowly
     id: 'dreadWhisper',
     enemies: [{
       id: 'dread', archetype: 'spiritOfDread', nameKey: 'enemy.spiritOfDread', isHuman: false, isDemon: true,
-      dread: 8, fleshDamageCap: 4, spiritualArmor: 2, aiProfileId: 'dreadSpirit', row: 'back',
-      scaling: { baseHp: 20, baseAtk: 2, hpLevelExp: 0.7, atkLevelExp: 0 },
+      dread: 8, spiritualArmor: 2, aiProfileId: 'dreadSpirit', row: 'back',
+      scaling: { baseHp: 34, baseAtk: 2 },
     }],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -188,10 +190,10 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'dagonZealot',
     enemies: [
       { id: 'zealot', archetype: 'dagonZealot', nameKey: 'enemy.dagonZealot', isHuman: true, revealsId: 'idol',
-        scaling: { baseHp: 18, baseAtk: 5, hpLevelExp: 0.6, atkLevelExp: 0 } },
+        scaling: { baseHp: 34, baseAtk: 4 } },
       { id: 'idol', archetype: 'idolSpirit', nameKey: 'enemy.idolSpirit', isHuman: false, isDemon: true,
-        hidden: true, boundToId: 'zealot', dread: 6, fleshDamageCap: 4, row: 'back',
-        scaling: { baseHp: 14, baseAtk: 2, hpLevelExp: 0.6, atkLevelExp: 0 } },
+        hidden: true, boundToId: 'zealot', dread: 6, row: 'back',
+        scaling: { baseHp: 24, baseAtk: 2 } },
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -210,7 +212,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'champion',
     enemies: [
       { id: 'champ', archetype: 'philistineChampion', nameKey: 'enemy.philistineChampion', isHuman: true, aiProfileId: 'champion',
-        scaling: { baseHp: 40, baseAtk: 9, hpLevelExp: 0.8, atkLevelExp: 0 } },
+        scaling: { baseHp: 64, baseAtk: 5 } },
       shield('shield', { side: 'left' }),
       archer('arch', { side: 'right' }),
     ],
@@ -230,21 +232,21 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     // the herald who taunts the armies of the living God — a hard single champion before the giant
     id: 'taunting',
     enemies: [{ id: 'herald', archetype: 'philistineChampion', nameKey: 'enemy.philistineChampion', isHuman: true, aiProfileId: 'champion',
-      scaling: { baseHp: 48, baseAtk: 10, hpLevelExp: 0.8, atkLevelExp: 0 } }],
+      scaling: { baseHp: 84, baseAtk: 6 } }],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(70), rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-ridge-path'),
   },
   goliath: {
-    // The giant: fixed ~340 HP, soft flesh cap (8/hit) + the depth defense curve make flesh slow;
-    // holy/verse damage bypasses both. Rich 'goliath' profile: brace(strength) → smash(×3) → guard,
+    // The giant: a huge HP wall — flesh fells him but it's a long grind, so survival (block, heal,
+    // spiritual miracles) is what wins. Rich 'goliath' profile: brace(strength) → smash(×3) → guard,
     // enraging below half HP (no guard, ×4 smashes). A shield-bearer + an archer make up his company.
     id: 'goliath',
     enemies: [
-      { id: 'goliath', archetype: 'goliath', nameKey: 'enemy.goliath', isHuman: true, aiProfileId: 'goliath', fleshDamageCap: 8, row: 'front',
-        scaling: { baseHp: 340, baseAtk: 14, hpLevelExp: 0, atkLevelExp: 0, baseSpeed: 0 } },
-      shield('goliathShield', { side: 'left', scaling: { baseHp: 30, baseAtk: 4, hpLevelExp: 0, atkLevelExp: 0 } }),
-      archer('goliathArcher', { side: 'right', scaling: { baseHp: 18, baseAtk: 6, hpLevelExp: 0, atkLevelExp: 0 } }),
+      { id: 'goliath', archetype: 'goliath', nameKey: 'enemy.goliath', isHuman: true, aiProfileId: 'goliath', row: 'front',
+        scaling: { baseHp: 140, baseAtk: 5, baseSpeed: 0 } },
+      shield('goliathShield', { side: 'left', scaling: { baseHp: 28, baseAtk: 3 } }),
+      archer('goliathArcher', { side: 'right', scaling: { baseHp: 18, baseAtk: 4 } }),
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: true },
     winCondition: { kind: 'allEnemiesDefeated' },
