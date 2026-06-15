@@ -122,9 +122,10 @@ export const ELAH_MAP: WorldMap = {
 
 // ---- enemy templates ---------------------------------------------------------------------
 // Numbers are level-1 units; HP + attack scale linearly with level/depth at build time (so fight
-// length is constant across levels — growth is cosmetic). No flesh caps: flesh always works; the
-// demons' dread is the spiritual pressure, not damage immunity. Archers sit back row (half melee
-// until shoved). Difficulty across the world comes from bigger HP pools, not armor.
+// length is constant across levels — growth is cosmetic). No flesh caps: flesh always works.
+// Archers sit back row (half melee until shoved). Difficulty across the world comes from bigger HP
+// pools, not armor. The base helpers below give the "stock" attack used by the big 3+ fights and the
+// boss; the small 1-2 foe skirmishes override scaling to DOUBLE that attack so they still bite solo.
 
 const soldier = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineSoldier', nameKey: 'enemy.philistineSoldier', isHuman: true,
@@ -146,14 +147,16 @@ const money = (amount: number) => [{ id: 'money', kind: 'money' as const, amount
 export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistineScouts: {
     id: 'philistineScouts',
-    enemies: [soldier('sol'), archer('arch', { side: 'right' })],
+    // small 1-2 foe skirmish: attack DOUBLED vs the base helper so the early fights bite (the 3+ and boss fights keep base damage)
+    enemies: [soldier('sol', { scaling: { baseHp: 30, baseAtk: 8 } }), archer('arch', { side: 'right', scaling: { baseHp: 22, baseAtk: 8 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(28), rewardXp: 24, ...bg('bg-combat-shepherds-track'),
   },
   philistinePatrol: {
     id: 'philistinePatrol',
-    enemies: [soldier('sol1'), soldier('sol2', { side: 'right' })],
+    // small 2-foe skirmish: attack DOUBLED
+    enemies: [soldier('sol1', { scaling: { baseHp: 30, baseAtk: 8 } }), soldier('sol2', { side: 'right', scaling: { baseHp: 30, baseAtk: 8 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(32), rewardXp: 28, ...bg('bg-combat-dry-wash'),
@@ -161,7 +164,8 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   slingStones: {
     // a soldier behind a shield-bearer — learn to drop the screen / use the back row
     id: 'slingStones',
-    enemies: [soldier('sol'), shield('shield', { side: 'right' })],
+    // small 2-foe screen puzzle: attack DOUBLED
+    enemies: [soldier('sol', { scaling: { baseHp: 30, baseAtk: 8 } }), shield('shield', { side: 'right', scaling: { baseHp: 46, baseAtk: 6 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(36), rewardXp: 30, ...bg('bg-combat-broken-toll-gate'),
@@ -180,7 +184,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     enemies: [{
       id: 'dread', archetype: 'spiritOfDread', nameKey: 'enemy.spiritOfDread', isHuman: false, isDemon: true,
       aiProfileId: 'dreadSpirit', row: 'back',
-      scaling: { baseHp: 34, baseAtk: 5 },
+      scaling: { baseHp: 34, baseAtk: 10 }, // lone foe: attack DOUBLED
     }],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -191,10 +195,10 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'dagonZealot',
     enemies: [
       { id: 'zealot', archetype: 'dagonZealot', nameKey: 'enemy.dagonZealot', isHuman: true, revealsId: 'idol',
-        scaling: { baseHp: 34, baseAtk: 4 } },
+        scaling: { baseHp: 34, baseAtk: 8 } }, // small 1-2 foe fight: attack DOUBLED
       { id: 'idol', archetype: 'idolSpirit', nameKey: 'enemy.idolSpirit', isHuman: false, isDemon: true,
         hidden: true, boundToId: 'zealot', row: 'back',
-        scaling: { baseHp: 24, baseAtk: 4 } },
+        scaling: { baseHp: 24, baseAtk: 8 } },
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -233,7 +237,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     // the herald who taunts the armies of the living God — a hard single champion before the giant
     id: 'taunting',
     enemies: [{ id: 'herald', archetype: 'philistineChampion', nameKey: 'enemy.philistineChampion', isHuman: true, aiProfileId: 'champion', banishImmune: true,
-      scaling: { baseHp: 84, baseAtk: 6 } }],
+      scaling: { baseHp: 84, baseAtk: 12 } }], // lone champion (not a 3+ line, not the boss): attack DOUBLED
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(70), rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-ridge-path'),
