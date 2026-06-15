@@ -11,7 +11,8 @@ import type { RunState } from '../state/gameState'
 import type { NodeId } from '../types'
 import type { ShopItemOffer, ShopState } from './types'
 
-const CARD_OFFER_COUNT = 4
+// up to 8 card choices (capped by the hero's effective pool size — ~6 early, ~9 by level 5)
+const CARD_OFFER_COUNT = 8
 const ITEM_OFFER_COUNT = 2
 const REMOVE_PRICE = 60
 
