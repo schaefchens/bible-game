@@ -10,7 +10,7 @@ import type { GameEvent, ReduceResult } from '../events/event'
 import { memberMaxHp, type PartyMember } from '../state/character'
 import { applySpiritEvent, type SpiritEvent } from '../spirit/spirit'
 import type { GameState, RunState } from '../state/gameState'
-import { fork } from '../rng/rng'
+import { chance, fork } from '../rng/rng'
 import { resolveInteraction, runScript, type CardGrant, type SceneTransition } from '../scene/resolve'
 import type { DialogueChoice } from '../scene/types'
 import type { CardDefId, ItemId, NodeId } from '../types'
@@ -183,9 +183,29 @@ function move(state: GameState, target: NodeId): ReduceResult {
   const firstVisit = chk.visit === 'first'
   const visited = firstVisit ? [...run.world.visited, target] : run.world.visited
   const depth = Math.max(run.depth, node.depth)
-  const run2: RunState = { ...run, depth, world: { ...run.world, current: target, visited } }
+  let run2: RunState = { ...run, depth, world: { ...run.world, current: target, visited } }
+  const moved: GameEvent = { type: 'moved', from: fromId, to: target, visit: chk.visit }
 
-  return ok({ ...state, run: run2 }, [{ type: 'moved', from: fromId, to: target, visit: chk.visit }])
+  // Revisit ambush: stepping back onto a CLEARED combat node (not the boss) risks a fresh skirmish —
+  // so backtracking across the map has a real cost. Chance + encounter come from the world's
+  // ambushTable (0 = never, e.g. the tutorial). The ambushCursor advances each roll so consecutive
+  // steps draw independent rolls. A backward fight does NOT re-clear the node (see combat leaveReward).
+  const table = run.content.worlds[run.worldId]?.ambushTable
+  const clearedCombat = !firstVisit && run.world.cleared.includes(target) && (node.type === 'combat' || node.type === 'elite')
+  if (clearedCombat && table && table.combat > 0 && table.combatEncounterId) {
+    const cursor = run.world.ambushCursor
+    const [hit] = chance(fork(run.rng, `ambush:${target}:${cursor}`), table.combat)
+    run2 = { ...run2, world: { ...run2.world, ambushCursor: cursor + 1 } }
+    if (hit) {
+      return startCombatNode({ ...state, run: run2 }, run2, target, table.combatEncounterId, true, [
+        moved,
+        { type: 'ambush', kind: 'combat' },
+      ])
+    }
+    return ok({ ...state, run: run2 }, [moved, { type: 'ambush', kind: 'nothing' }])
+  }
+
+  return ok({ ...state, run: run2 }, [moved])
 }
 
 /** Resolve the node the hero is standing on. First time fires its fixed event (combat/scene/event/

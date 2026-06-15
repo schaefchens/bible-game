@@ -104,10 +104,12 @@ function applyStep(state: GameState, result: CombatStep): ReduceResult {
       // pool. Run-aware: needs run.rng + the profile. `fork` derives an independent, deterministic
       // sub-stream per node, so run.rng is left untouched (mirrors the combat-rng fork pattern).
       if (combat.reward && combat.reward.cardOptions === undefined) {
+        // Backward (revisit-ambush) fights give NO card pick — they're a travel cost, not a farm.
+        const backward = run.world.movement.kind === 'inCombat' && run.world.movement.backward === true
         const heroChar = heroCharacterOf(state, run)
         const deck = run.deckByMember[run.heroMemberId] ?? []
         let cardOptions: CardDefId[] = []
-        if (heroChar && deck.length < run.deckLimit) {
+        if (!backward && heroChar && deck.length < run.deckLimit) {
           const [picks] = sampleCards(effectivePool(heroChar, run.content), CARD_REWARD_COUNT, fork(run.rng, `reward:${combat.nodeId}`))
           cardOptions = picks
         }
