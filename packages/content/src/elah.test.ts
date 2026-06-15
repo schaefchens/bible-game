@@ -53,3 +53,22 @@ describe('Goliath', () => {
     expect(enc.battleMusic).toBe('music/battle-elah-boss')
   })
 })
+
+describe('Scripture Fragments drop across the Elah gauntlet', () => {
+  it('its notable fights award fragments, covering all four scriptures (so Elah is a fragment source)', () => {
+    const fights = ['dagonZealot', 'shieldWallElite', 'champion', 'taunting', 'goliath']
+    const dropped = new Set<string>()
+    for (const id of fights) {
+      for (const o of bundle.encounters[id]?.rewardOptions ?? []) {
+        if (o.kind === 'relic' && o.defId?.startsWith('fragment_')) dropped.add(o.defId)
+      }
+    }
+    // every fragment item is a valid, studyable item linked to a real verse
+    for (const defId of dropped) {
+      const item = bundle.items[defId]
+      expect(item?.kind, defId).toBe('fragment')
+      expect(bundle.verses[item!.verseChallengeId!]).toBeDefined()
+    }
+    expect(dropped).toEqual(new Set(['fragment_2kings_6_17', 'fragment_phil_4_6', 'fragment_zech_4_6', 'fragment_luke_10_27']))
+  })
+})

@@ -143,6 +143,8 @@ const shield = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate =>
 /** battleBg/rewardBg pair from a combat-bg stem (sideview for the battle, plain for the reward). */
 const bg = (stem: string) => ({ battleBg: `${stem}-sideview`, rewardBg: stem })
 const money = (amount: number) => [{ id: 'money', kind: 'money' as const, amount }]
+/** a Scripture Fragment spoil (claimed like a relic, by item id) — Elah's fragment source */
+const frag = (defId: string) => ({ id: 'fragment', kind: 'relic' as const, defId })
 
 export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistineScouts: {
@@ -203,7 +205,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
-    rewardOptions: money(42), rewardXp: 36, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'),
+    rewardOptions: [...money(42), frag('fragment_2kings_6_17')], rewardXp: 36, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'), // Sight — "open his eyes" fits the demon-bound zealot
   },
   shieldWallElite: {
     // a shield wall screening an archer — a bulky target-priority puzzle (solo: 3 foes, not 4)
@@ -212,7 +214,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     lastStandWhenAlone: true, // 3+ fight: the last foe standing rallies (×2 dmg, ×½ taken, steps to front)
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
-    rewardOptions: money(80), rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'),
+    rewardOptions: [...money(80), frag('fragment_phil_4_6')], rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'), // Divine Protection from the shield wall
   },
   champion: {
     // a Philistine champion (rich AI: weakens you, then crushes; enrages) with a screen + archer
@@ -226,7 +228,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     lastStandWhenAlone: true, // 3+ elite: the last foe standing rallies (×2 dmg, ×½ taken, steps to front)
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
-    rewardOptions: money(90), rewardXp: 60, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'),
+    rewardOptions: [...money(90), frag('fragment_zech_4_6')], rewardXp: 60, battleMusic: 'music/battle-intense', ...bg('bg-combat-rocky-pass'), // Finger of God — "not by might" vs the champion
   },
   philistineVanguard: {
     // the Philistine line — a dress rehearsal for the giant's company (solo: 3 foes, not 4)
@@ -244,7 +246,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
       scaling: { baseHp: 84, baseAtk: 12 } }], // lone champion (not a 3+ line, not the boss): attack DOUBLED
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
-    rewardOptions: money(70), rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-ridge-path'),
+    rewardOptions: [...money(70), frag('fragment_luke_10_27')], rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-ridge-path'), // Loving Mercy from the taunting herald
   },
   goliath: {
     // The giant: a huge HP wall — flesh fells him but it's a long grind, so survival (block, heal,
@@ -259,7 +261,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: true },
     winCondition: { kind: 'allEnemiesDefeated' },
-    rewardOptions: money(200), rewardXp: 120, battleMusic: 'music/battle-elah-boss',
+    rewardOptions: [...money(200), frag('fragment_zech_4_6')], rewardXp: 120, battleMusic: 'music/battle-elah-boss', // Finger of God — "not by might nor power" (1 Sam 17:47) crowns the giant's fall
     battleBg: 'bg-boss-narrow-gate-sideview', rewardBg: 'bg-boss-narrow-gate',
   },
 }
