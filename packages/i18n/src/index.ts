@@ -143,6 +143,8 @@ export const en: Messages = {
   'ui.shop.back': 'Back',
   'ui.shop.leave': 'Leave',
   'deck.full': 'Your deck is full.',
+  'deck.atMax': 'Your deck already holds the most copies of that card.',
+  'verse.atMax': 'You already carry this scripture in your deck.',
   'ui.pray.amen': 'Amen',
   // Prayer-cinematic psalms (public-domain KJV)
   'pray.psalm.1': 'The LORD is my shepherd; I shall not want. He maketh me to lie down in green pastures: he leadeth me beside the still waters. He restoreth my soul.',
@@ -454,6 +456,8 @@ export const de: Messages = {
   'ui.shop.back': 'Zurück',
   'ui.shop.leave': 'Verlassen',
   'deck.full': 'Dein Deck ist voll.',
+  'deck.atMax': 'Dein Deck enthält bereits die maximale Anzahl dieser Karte.',
+  'verse.atMax': 'Du trägst diese Schriftstelle bereits in deinem Deck.',
   'ui.pray.amen': 'Amen',
   // Gebets-Cinematic Psalmen (gemeinfrei, Luther 1912)
   'pray.psalm.1': 'Der HERR ist mein Hirte; mir wird nichts mangeln. Er weidet mich auf einer grünen Aue und führet mich zum frischen Wasser. Er erquicket meine Seele.',

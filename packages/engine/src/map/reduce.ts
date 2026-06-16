@@ -5,6 +5,7 @@
 // Threads Spirit intents onto run.spirit (single-writer) and sets screens. Pure.
 
 import { buildEncounter, encounterExists } from '../combat/encounterBuilder'
+import { canAddCopy } from '../cards/pool'
 import type { Command } from '../commands/command'
 import type { GameEvent, ReduceResult } from '../events/event'
 import { memberMaxHp, type PartyMember } from '../state/character'
@@ -54,6 +55,11 @@ function withCardGrants(state: GameState, run: RunState, grants: CardGrant[]): {
     }
     if (!g.bypassLimit && deck.length >= run.deckLimit) {
       events.push({ type: 'notice', messageKey: 'deck.full' })
+      continue
+    }
+    // per-card copy cap applies even to bypassLimit grants (which only bypass the overall size cap)
+    if (!canAddCopy(run.content, deck, g.cardId)) {
+      events.push({ type: 'notice', messageKey: 'deck.atMax' })
       continue
     }
     deck = [...deck, g.cardId]
@@ -597,6 +603,7 @@ function shopBuyCard(state: GameState, nodeId: NodeId, defId: CardDefId): Reduce
   if (run.inventory.currency < offer.price) return reject(state, 'shop:too-poor')
   const deck = run.deckByMember[run.heroMemberId] ?? []
   if (deck.length >= run.deckLimit) return reject(state, 'deck-full')
+  if (!canAddCopy(run.content, deck, defId)) return reject(state, 'card-at-max')
   const cards = shop.cards.map((o, i) => (i === idx ? { ...o, sold: true } : o))
   const run2: RunState = {
     ...run,

@@ -30,17 +30,27 @@ const FRAGMENT_PRICE = 70 // Scripture Fragments are a rare-ish buy
 /** Build a shop's stock for `nodeId`. Deterministic per (run seed, node). Does not advance run.rng. */
 export function generateShop(run: RunState, character: Character | undefined, nodeId: NodeId): ShopState {
   let rng = fork(run.rng, `shop:${nodeId}`)
+  const heroDeck = run.deckByMember[run.heroMemberId] ?? []
 
-  // cards: sample from the hero's effective pool
+  // cards: sample from the hero's effective pool (verse cards are fireplace-only; at-cap cards dropped)
   let cards: ShopState['cards'] = []
   if (character) {
-    const [picks, next] = sampleCards(effectivePool(character, run.content), CARD_OFFER_COUNT, rng)
+    const [picks, next] = sampleCards(effectivePool(character, run.content, heroDeck), CARD_OFFER_COUNT, rng)
     rng = next
     cards = picks.map((defId) => ({ defId, price: cardPrice(run.content.cards[defId]), sold: false }))
   }
 
+  // a Scripture Fragment is redundant once you already hold it OR have already studied its verse this
+  // run (the verse card is in the deck) — never stock a duplicate, so spirit cards stay once-per-run
+  const fragmentRedundant = (verseChallengeId: string | undefined, itemId: string): boolean => {
+    const cardId = verseChallengeId ? run.content.verses[verseChallengeId]?.cardDefId : undefined
+    return (!!cardId && heroDeck.includes(cardId)) || (run.inventory.stacks[itemId] ?? 0) > 0
+  }
+
   // items: relics + consumables + Scripture Fragments the world defines
-  const buyable = Object.values(run.content.items).filter((i) => i.kind === 'relic' || i.kind === 'consumable' || i.kind === 'fragment')
+  const buyable = Object.values(run.content.items).filter((i) =>
+    i.kind === 'relic' || i.kind === 'consumable' || (i.kind === 'fragment' && !fragmentRedundant(i.verseChallengeId, i.id)),
+  )
   const [shuffledItems] = shuffle(rng, buyable)
   const items: ShopItemOffer[] = shuffledItems
     .slice(0, ITEM_OFFER_COUNT)

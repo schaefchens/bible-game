@@ -231,7 +231,8 @@ describe('Scripture Fragments: study a fragment → attempts, loss (item destroy
   }
   const FRAGMENT = 'fragment_v_test'
   const TEST_FRAGMENT = { id: FRAGMENT, kind: 'fragment' as const, nameKey: 'item.x', descKey: 'item.x', icon: 'item/x', stackable: true, usableInScene: false, verseChallengeId: 'v_test' }
-  const VERSE_CONTENT = { ...CONTENT, verses: { v_test: TEST_VERSE }, items: { ...CONTENT.items, [FRAGMENT]: TEST_FRAGMENT } }
+  const TEST_VERSE_CARD = { id: 'verse_test_card', type: 'verse' as const, layer: 'spirit' as const, cost: 1, target: 'none' as const, nameKey: 'card.x.name', textKey: 'card.x.text', effects: [] }
+  const VERSE_CONTENT = { ...CONTENT, cards: { ...CONTENT.cards, verse_test_card: TEST_VERSE_CARD }, verses: { v_test: TEST_VERSE }, items: { ...CONTENT.items, [FRAGMENT]: TEST_FRAGMENT } }
   const PROMPT = { kind: 'verseChallenge' as const, cardDefId: 'verse_test_card', challengeId: 'v_test', fragmentId: FRAGMENT }
   const wrong: Command = { type: 'verse/submit', challengeId: 'v_test', answers: ['definitely-not-it'] }
   const heroChar = (s: GameState) => s.profile.slots[0]!.character
@@ -309,15 +310,17 @@ describe('Scripture Fragments: study a fragment → attempts, loss (item destroy
     expect(r.state.run!.deckByMember[hid]).toContain('verse_test_card') // into this run's deck now
   })
 
-  it('studying a SECOND fragment of the same scripture adds another copy (fragment-priced duplicates, by design)', () => {
+  it('studying a verse already at its copy cap is REFUSED and KEEPS the fragment (spirit cards once per run)', () => {
     let s = opened()
     const hid = s.run!.heroMemberId
-    // already hold the card in this run's deck (e.g. studied an earlier fragment)…
+    // already hold the (spirit, cap-1) card in this run's deck …
     s = { ...s, run: { ...s.run!, deckByMember: { ...s.run!.deckByMember, [hid]: [...(s.run!.deckByMember[hid] ?? []), 'verse_test_card'] } } }
     const before = s.run!.deckByMember[hid]!.filter((c) => c === 'verse_test_card').length
     const r = run(s, { type: 'verse/submit', challengeId: 'v_test', answers: ['still'] })
     const after = r.state.run!.deckByMember[hid]!.filter((c) => c === 'verse_test_card').length
-    expect(after).toBe(before + 1) // a second copy — NOT deduped
-    expect(fragCount(r.state)).toBe(0) // and it cost the fragment
+    expect(after).toBe(before) // no second copy
+    expect(r.events).toContainEqual({ type: 'notice', messageKey: 'verse.atMax' })
+    expect(r.state.prompt).toBeNull() // modal closed
+    expect(fragCount(r.state)).toBe(1) // fragment KEPT — not consumed
   })
 })

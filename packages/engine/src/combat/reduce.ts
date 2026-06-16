@@ -4,7 +4,7 @@ import { grantXp } from '../leveling/scaling'
 import { applySpiritEvent } from '../spirit/spirit'
 import type { GameState } from '../state/gameState'
 import type { PartyMember } from '../state/character'
-import { effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
+import { canAddCopy, effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
 import { fork } from '../rng/rng'
 import type { CardDefId } from '../types'
 import { endTurn, ensureActing, flee, playCard, reposition, useGrace, type CombatStep } from './combat'
@@ -110,7 +110,7 @@ function applyStep(state: GameState, result: CombatStep): ReduceResult {
         const deck = run.deckByMember[run.heroMemberId] ?? []
         let cardOptions: CardDefId[] = []
         if (!backward && heroChar && deck.length < run.deckLimit) {
-          const [picks] = sampleCards(effectivePool(heroChar, run.content), CARD_REWARD_COUNT, fork(run.rng, `reward:${combat.nodeId}`))
+          const [picks] = sampleCards(effectivePool(heroChar, run.content, deck), CARD_REWARD_COUNT, fork(run.rng, `reward:${combat.nodeId}`))
           cardOptions = picks
         }
         nextCombat = { ...combat, reward: { ...combat.reward, cardOptions } }
@@ -162,6 +162,7 @@ function takeCard(state: GameState, defId: CardDefId): ReduceResult {
   if (!(combat.reward.cardOptions ?? []).includes(defId)) return reject(state, 'no-such-card-option')
   const deck = run.deckByMember[run.heroMemberId] ?? []
   if (deck.length >= run.deckLimit) return reject(state, 'deck-full')
+  if (!canAddCopy(run.content, deck, defId)) return reject(state, 'card-at-max')
   const deckByMember = { ...run.deckByMember, [run.heroMemberId]: [...deck, defId] }
   const reward = { ...combat.reward, cardChosen: defId, cardResolved: true }
   return {

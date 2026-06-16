@@ -68,6 +68,10 @@ export interface CardDef {
   /** the fixed '+' form this card upgrades into at a fireplace (an ephemeral run-deck slot swap). The
    *  '+' CardDef is a normal entry in the card registry but is never placed in the pool / sampled. */
   upgradeTo?: CardDefId
+  /** max copies of this card allowed in one run deck. Default (see cards/pool.maxCopiesOf): 1 for
+   *  spirit-layer cards (so a miracle like Finger of God can never stack), unlimited for flesh.
+   *  Enforced at every deck add-path (reward / shop / event grant / fragment-study). */
+  maxCopies?: number
 }
 
 /** A physical copy of a card within a single combat. */

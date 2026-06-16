@@ -1,3 +1,4 @@
+import { canAddCopy } from '../cards/pool'
 import type { Command } from '../commands/command'
 import type { GameEvent, ReduceResult } from '../events/event'
 import { applySpiritEvent } from '../spirit/spirit'
@@ -73,9 +74,15 @@ export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
     }
   }
 
-  // success: UNLOCK the card into the persistent pool (so it's offered like any unlocked card from now
-  // on) AND drop it into THIS run's deck; consume the fragment; raise Spirit; clear the attempt count
-  // (and keep a lifetime "learned" record on ownedVerseCardIds).
+  // per-card copy cap: spirit cards are once-per-run by default, so if the run deck already holds the
+  // maximum copies, refuse the study and KEEP the fragment (not consumed). Close the modal + notice.
+  const deckNow = run.deckByMember[run.heroMemberId] ?? []
+  if (!canAddCopy(run.content, deckNow, cardId)) {
+    return { state: { ...state, prompt: null }, events: [{ type: 'notice', messageKey: 'verse.atMax' }] }
+  }
+
+  // success: record the card on the permanent character (lifetime + pool) AND drop a copy into THIS
+  // run's deck; consume the fragment; raise Spirit; clear the attempt count.
   let profile = state.profile
   if (slot) {
     const has = (xs: string[]) => xs.includes(cardId)
@@ -86,12 +93,9 @@ export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
     profile = patchCharacter({ ownedVerseCardIds, pool, verseAttempts })
   }
 
-  // Append a copy to this run's deck. Intentionally NO dedup: the study just consumed a fragment, so it
-  // always yields a copy — studying a second fragment of the same scripture is a valid, fragment-priced
-  // way to run duplicates (decks already allow multiples, e.g. 3× Strike). Deduping would silently
-  // waste a consumed fragment.
-  const heroDeck = run.deckByMember[run.heroMemberId] ?? []
-  const deckByMember = { ...run.deckByMember, [run.heroMemberId]: [...heroDeck, cardId] }
+  // Append a copy to this run's deck. The copy cap was checked above (spirit cards are once-per-run by
+  // default), so this never pushes a copy past the card's `maxCopies`.
+  const deckByMember = { ...run.deckByMember, [run.heroMemberId]: [...deckNow, cardId] }
 
   const out = applySpiritEvent(run.spirit, { kind: 'earnVerse' })
   const newRun = { ...takeFragment(run), deckByMember, spirit: out.state }
