@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { newGame, reduce } from '../commands/reduce'
+import type { ContentBundle } from '../content/bundle'
 import type { GameState } from '../state/gameState'
 import { testContent } from '../testing/fixtures'
 import { generateShop } from './shop'
@@ -8,12 +9,13 @@ import { generateShop } from './shop'
 // deterministic: if eligible it is always picked (ITEM_OFFER_COUNT ≥ 1); if filtered out, items is empty.
 const FRAG = 'frag_v'
 const base = testContent()
-const content = {
+const content: ContentBundle = {
   ...base,
   cards: { ...base.cards, verse_x: { id: 'verse_x', type: 'verse' as const, layer: 'spirit' as const, cost: 1, target: 'none' as const, nameKey: '', textKey: '', effects: [] } },
   verses: {
     v: {
       id: 'v',
+      ref: { book: 'Psalms', chapter: 46, verse: 10 },
       cardDefId: 'verse_x',
       byLocale: {
         en: { translation: 'KJV', reference: 'Psalm 46:10', fullText: 'Be still', tokens: ['Be', 'still'], blankIndices: [1] },
