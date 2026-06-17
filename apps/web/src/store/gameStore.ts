@@ -59,6 +59,8 @@ interface GameStore {
   holdItem: (itemId: string) => void
   /** point the held item at a target → open the action wheel there (no-op unless currently holding) */
   aimItemAt: (target: ItemTarget, anchor: { x: number; y: number }) => void
+  /** open the action wheel directly on a bag item (the item is its own target) — e.g. long-press to Inspect */
+  openItemWheel: (itemId: string, anchor: { x: number; y: number }) => void
   /** close the wheel but keep carrying the item (re-target) */
   releaseToHolding: () => void
   /** drop the item / cancel the whole flow */
@@ -104,6 +106,8 @@ export const useGame = create<GameStore>((set, get) => ({
         ? { itemInteraction: { phase: 'menu', itemId: s.itemInteraction.itemId, target, anchor } }
         : {},
     ),
+  openItemWheel: (itemId, anchor) =>
+    set({ itemInteraction: { phase: 'menu', itemId, target: { kind: 'item', id: itemId }, anchor } }),
   releaseToHolding: () =>
     set((s) =>
       s.itemInteraction?.phase === 'menu' ? { itemInteraction: { phase: 'holding', itemId: s.itemInteraction.itemId } } : {},

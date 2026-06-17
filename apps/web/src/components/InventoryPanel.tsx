@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { resolveAsset } from '@bible/assets'
@@ -29,10 +29,15 @@ export function InventoryPanel() {
   const itemInteraction = useGame((s) => s.itemInteraction)
   const holdItem = useGame((s) => s.holdItem)
   const aimItemAt = useGame((s) => s.aimItemAt)
+  const openItemWheel = useGame((s) => s.openItemWheel)
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
   const asideRef = useRef<HTMLElement>(null)
   // single tooltip positioned to the LEFT of the panel (vertically aligned to the hovered slot)
   const [hovered, setHovered] = useState<{ slot: InvSlotView; top: number } | null>(null)
+  // long-press a slot → open the item's OWN action wheel (Inspect, …) instead of picking it up
+  const pressTimer = useRef<number | undefined>(undefined)
+  const longPressed = useRef(false)
+  useEffect(() => () => window.clearTimeout(pressTimer.current), [])
   if (!view) return null
 
   const carrying = itemInteraction != null
@@ -49,8 +54,22 @@ export function InventoryPanel() {
     setHovered({ slot, top: r.top - (base?.top ?? 0) })
   }
 
+  const startPress = (slot: InvSlotView, e: React.PointerEvent) => {
+    if (e.button !== 0) return // primary button / touch only
+    longPressed.current = false
+    const r = e.currentTarget.getBoundingClientRect()
+    const anchor = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    window.clearTimeout(pressTimer.current)
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true
+      openItemWheel(slot.itemId, anchor) // long-press → the item's own action wheel (Inspect, …)
+    }, 450)
+  }
+  const endPress = () => window.clearTimeout(pressTimer.current)
+
   const onSlot = (slot: InvSlotView, e: React.MouseEvent) => {
     e.stopPropagation() // handled — don't bubble to the drop-cancel
+    if (longPressed.current) { longPressed.current = false; return } // a long-press already opened the wheel
     if (carrying) {
       if (slot.itemId === heldId) clearItemInteraction() // click the held item again → drop it
       else aimItemAt({ kind: 'item', id: slot.itemId }, slotAnchor(e)) // click another item → wheel (Combine)
@@ -97,8 +116,12 @@ export function InventoryPanel() {
                 key={slot.itemId}
                 className="inv-slot"
                 onClick={(e) => onSlot(slot, e)}
+                onContextMenu={(e) => e.preventDefault()}
+                onPointerDown={(e) => startPress(slot, e)}
+                onPointerUp={endPress}
+                onPointerCancel={endPress}
                 onMouseEnter={(e) => onHover(slot, e)}
-                onMouseLeave={() => setHovered(null)}
+                onMouseLeave={() => { endPress(); setHovered(null) }}
               >
                 {url ? <img src={url} alt="" /> : <span className="inv-glyph">{KIND_ICON[slot.kind] ?? '❔'}</span>}
                 {slot.stackable && slot.count > 1 && <span className="inv-stack-count">{slot.count}</span>}

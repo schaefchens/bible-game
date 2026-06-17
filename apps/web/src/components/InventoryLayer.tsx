@@ -142,7 +142,11 @@ export function InventoryLayer() {
         clearItemInteraction()
       } else refuse()
     } else if (target.kind === 'item') {
-      if (verbId === 'use' || verbId === 'combine') {
+      if (verbId === 'observe') {
+        const def = content?.items[target.id]
+        setToast(`${t(def?.nameKey ?? target.id)} — ${t(def?.descKey ?? '')}`) // Inspect: read the description
+        clearItemInteraction()
+      } else if ((verbId === 'use' || verbId === 'combine') && target.id !== itemId) {
         dispatch({ type: 'inventory/combineItems', a: itemId, b: target.id })
         clearItemInteraction()
       } else refuse()
