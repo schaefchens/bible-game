@@ -9,6 +9,23 @@ import { i18n } from '../i18n'
 
 const content = createContent()
 
+/** Where a held item can be applied — the action wheel pops up on whichever of these you point at. */
+export type ItemTarget =
+  | { kind: 'hotspot'; id: string } // a scene hotspot / NPC / object
+  | { kind: 'unit'; id: string } // a combat party member / enemy
+  | { kind: 'item'; id: string } // another bag item (→ combine)
+  | { kind: 'self' } // the HUD hero block (use on yourself)
+
+/** The cursor-carry item flow (Monkey-Island style). Lives in the store (not a screen) because the
+ *  held-item ghost + the action wheel mount at the App root and drive targeting on the scene, combat,
+ *  the bag panel, and the HUD alike.
+ *  - `holding`: the item rides the cursor; pointing at a target opens the wheel.
+ *  - `menu`: the wheel is open ON a target; picking a verb applies the held item to it. */
+export type ItemInteraction =
+  | null
+  | { phase: 'holding'; itemId: string }
+  | { phase: 'menu'; itemId: string; target: ItemTarget; anchor: { x: number; y: number } }
+
 const randomId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `id-${Math.random().toString(36).slice(2)}`
 
@@ -33,6 +50,23 @@ interface GameStore {
   /** transient UI flag: the top-bar Deck viewer modal is open (works on map + in battle) */
   deckOpen: boolean
   setDeckOpen: (open: boolean) => void
+  /** transient UI flag: the bag/inventory panel is open (works on map, scene, and in battle) */
+  inventoryOpen: boolean
+  setInventoryOpen: (open: boolean) => void
+  /** the bag button: open if closed, close (and drop any carried item) if already open */
+  toggleInventory: () => void
+  /** the cursor-carry item flow (null = idle). */
+  itemInteraction: ItemInteraction
+  /** pick an item up onto the cursor (start the carry flow) */
+  holdItem: (itemId: string) => void
+  /** point the held item at a target → open the action wheel there (no-op unless currently holding) */
+  aimItemAt: (target: ItemTarget, anchor: { x: number; y: number }) => void
+  /** open the action wheel directly on a bag item (the item is its own target) — e.g. long-press to Inspect */
+  openItemWheel: (itemId: string, anchor: { x: number; y: number }) => void
+  /** close the wheel but keep carrying the item (re-target) */
+  releaseToHolding: () => void
+  /** drop the item / cancel the whole flow */
+  clearItemInteraction: () => void
   dispatch: (cmd: Command) => void
   createHero: (name: string) => void
   startRun: (characterId: string, worldId?: string) => void
@@ -60,10 +94,28 @@ export const useGame = create<GameStore>((set, get) => ({
   sleeping: false,
   praying: false,
   deckOpen: false,
+  inventoryOpen: false,
+  itemInteraction: null,
 
   setSleeping: (sleeping) => set({ sleeping }),
   setPraying: (praying) => set({ praying }),
   setDeckOpen: (deckOpen) => set({ deckOpen }),
+  setInventoryOpen: (inventoryOpen) => set({ inventoryOpen }),
+  toggleInventory: () => set((s) => (s.inventoryOpen ? { inventoryOpen: false, itemInteraction: null } : { inventoryOpen: true })),
+  holdItem: (itemId) => set({ itemInteraction: { phase: 'holding', itemId } }),
+  aimItemAt: (target, anchor) =>
+    set((s) =>
+      s.itemInteraction?.phase === 'holding'
+        ? { itemInteraction: { phase: 'menu', itemId: s.itemInteraction.itemId, target, anchor } }
+        : {},
+    ),
+  openItemWheel: (itemId, anchor) =>
+    set({ itemInteraction: { phase: 'menu', itemId, target: { kind: 'item', id: itemId }, anchor } }),
+  releaseToHolding: () =>
+    set((s) =>
+      s.itemInteraction?.phase === 'menu' ? { itemInteraction: { phase: 'holding', itemId: s.itemInteraction.itemId } } : {},
+    ),
+  clearItemInteraction: () => set({ itemInteraction: null }),
 
   dispatch: (cmd) => {
     const { state, tick } = get()

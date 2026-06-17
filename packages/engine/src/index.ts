@@ -165,13 +165,22 @@ export type {
   Story,
 } from './scene/types'
 export { M1_VERBS, VERBS } from './scene/types'
-export type { InventoryState, ItemDef, ItemKind } from './inventory/types'
-export { emptyInventory, itemCount } from './inventory/types'
+export type {
+  InventoryState,
+  ItemDef,
+  ItemKind,
+  ItemCombination,
+  ItemTargetMode,
+  ItemSceneVerb,
+  ItemUseContext,
+} from './inventory/types'
+export { emptyInventory, itemCount, shouldConsume, findRecipe, itemPseudoCard } from './inventory/types'
+export { applyItemEffectsToParty, type PartyItemOutcome } from './inventory/useOutOfCombat'
 
 // ---- combat engine ----
-export { startCombat, HAND_SIZE, type CombatInit, type CombatStep } from './combat/combat'
+export { startCombat, useItem, HAND_SIZE, type CombatInit, type CombatStep } from './combat/combat'
 export { physicalAmount, absorb, statusStacks } from './combat/damage'
-export { previewCardDamage, previewMiracle, cardDisplayValues, cardSource, type CardDamagePreview, type MiraclePreview } from './combat/preview'
+export { previewCardDamage, previewItemEffect, previewMiracle, cardDisplayValues, cardSource, type CardDamagePreview, type MiraclePreview, type ItemEffectPreview } from './combat/preview'
 export { pickIntent } from './combat/ai'
 export { buildEncounter, encounterExists } from './combat/encounterBuilder'
 export { GRACE_ABILITIES, getGrace, type GraceAbilityMeta } from './grace/grace'

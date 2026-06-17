@@ -311,6 +311,7 @@ export const en: Messages = {
   'verb.push': 'Push',
   'verb.pull': 'Pull',
   'verb.goTo': 'Go to',
+  'verb.give': 'Give',
 
   // -- verb refusals (generic point-and-click) --
   'verb.refusal.observe': 'Nothing more to see here.',
@@ -322,6 +323,22 @@ export const en: Messages = {
   'verb.refusal.open': 'It won’t open.',
   'verb.refusal.close': 'It’s already shut.',
   'verb.refusal.goTo': 'There’s no path here.',
+  'verb.refusal.give': 'They have no need of that.',
+
+  // -- inventory / bag --
+  'ui.inventory.title': 'Bag',
+  'ui.inventory.empty': 'Your bag is empty.',
+  'ui.inventory.used': 'Used {{item}}.',
+  'ui.inventory.useOn': 'Use {{item}} on…',
+  'ui.inventory.pickTarget': 'Choose a target',
+  'ui.inventory.pickUnit': 'Choose who to use it on',
+  'ui.inventory.combineWith': 'Choose another item to combine',
+  'ui.inventory.unusable': 'That can’t be used here.',
+  'item.action.use': 'Use',
+  'item.action.give': 'Give',
+  'item.action.inspect': 'Inspect',
+  'item.action.combine': 'Combine',
+  'item.noEffectHere': 'That has no effect here.',
 }
 
 export const de: Messages = {
@@ -615,6 +632,7 @@ export const de: Messages = {
   'verb.push': 'Drücken',
   'verb.pull': 'Ziehen',
   'verb.goTo': 'Hingehen',
+  'verb.give': 'Geben',
 
   'verb.refusal.observe': 'Hier gibt es nichts weiter zu sehen.',
   'verb.refusal.take': 'Das kannst du nicht nehmen.',
@@ -625,6 +643,22 @@ export const de: Messages = {
   'verb.refusal.open': 'Es lässt sich nicht öffnen.',
   'verb.refusal.close': 'Es ist bereits geschlossen.',
   'verb.refusal.goTo': 'Hier führt kein Weg entlang.',
+  'verb.refusal.give': 'Sie brauchen das nicht.',
+
+  // -- inventory / bag --
+  'ui.inventory.title': 'Tasche',
+  'ui.inventory.empty': 'Deine Tasche ist leer.',
+  'ui.inventory.used': '{{item}} benutzt.',
+  'ui.inventory.useOn': '{{item}} benutzen an…',
+  'ui.inventory.pickTarget': 'Wähle ein Ziel',
+  'ui.inventory.pickUnit': 'Wähle, an wem du es benutzt',
+  'ui.inventory.combineWith': 'Wähle einen zweiten Gegenstand',
+  'ui.inventory.unusable': 'Das lässt sich hier nicht benutzen.',
+  'item.action.use': 'Benutzen',
+  'item.action.give': 'Geben',
+  'item.action.inspect': 'Untersuchen',
+  'item.action.combine': 'Kombinieren',
+  'item.noEffectHere': 'Das hat hier keine Wirkung.',
 }
 
 export const resources = {

@@ -13,11 +13,12 @@ import {
   type ProfileState,
   type RunState,
 } from '../state/gameState'
-import { emptyInventory } from '../inventory/types'
+import { emptyInventory, findRecipe, itemCount } from '../inventory/types'
 import { initialWorldState } from '../map/types'
 import { seedRng } from '../rng/rng'
 import { initialSpiritState } from '../spirit/types'
 import { reduceVerse } from '../verse/reduce'
+import type { ItemId } from '../types'
 import type { Command } from './command'
 
 /** Fresh game on the start screen — no characters, no run. */
@@ -72,6 +73,7 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     case 'world/enter':
     case 'world/sceneInteract':
     case 'world/leaveScene':
+    case 'world/useItemSelf':
     case 'world/eventChoice':
     case 'world/dialogueChoice':
     case 'world/leaveDialogue':
@@ -88,6 +90,7 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     case 'combat/beginAction':
     case 'combat/playCard':
     case 'combat/useGrace':
+    case 'combat/useItem':
     case 'combat/endTurn':
     case 'combat/claimSpoil':
     case 'combat/takeCard':
@@ -97,6 +100,10 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     case 'verse/submit':
     case 'verse/cancel':
       return reduceVerse(state, cmd)
+
+    // ---- inventory (run-scoped, context-free) ----
+    case 'inventory/combineItems':
+      return combineItems(state, cmd.a, cmd.b)
 
     default: {
       // Exhaustiveness guard: adding a Command without handling it is a compile error.
@@ -192,6 +199,10 @@ function startRun(
       : []
   const startDeck = [...content.heroStartDeck, ...verseCards]
   const hero = partyMemberFromCharacter(slot.character, startDeck, content.heroGraceAbilities)
+  // The "Enoch" testing hero also starts with a bag of usable items, so the inventory's use/combine
+  // flows can be exercised immediately (only items the bundle actually defines are seeded).
+  const inventory =
+    slot.character.name === TEST_HERO_NAME ? testHeroInventory(content) : emptyInventory()
   const run: RunState = {
     seed,
     rng: seedRng(seed),
@@ -202,7 +213,7 @@ function startRun(
     // Begin UNPLACED: the map opens with the entry points marked, and the player chooses where to
     // start (world/chooseEntry) — then clicks that node to enter it (usually the intro combat).
     world: { ...initialWorldState(worldId, world.map.entrance), current: '', visited: [] },
-    inventory: emptyInventory(),
+    inventory,
     spirit: initialSpiritState(),
     deckByMember: { [hero.memberId]: startDeck },
     deckLimit: content.deckLimit ?? 20,
@@ -211,6 +222,50 @@ function startRun(
   }
   const base: GameState = { ...state, run, combat: null, prompt: null, screen: 'map' }
   return { state: base, events: [{ type: 'runStarted', worldId }] }
+}
+
+/** Combine two inventory items (item-on-item / adventure-game crafting). Consumes the recipe's
+ *  inputs and grants its output. Order-independent (findRecipe checks both items' recipe tables). */
+function combineItems(state: GameState, a: ItemId, b: ItemId): ReduceResult {
+  const run = state.run
+  if (!run) return reject(state, 'no-run')
+  const items = run.content.items
+  const recipe = findRecipe(items, a, b)
+  if (!recipe) return reject(state, 'no-recipe')
+  if (!items[recipe.produces]) return reject(state, 'recipe-output-missing')
+
+  const inv = run.inventory
+  // require the inputs to be held — combining two of the SAME item needs 2 in the stack
+  if (a === b ? itemCount(inv, a) < 2 : itemCount(inv, a) < 1 || itemCount(inv, b) < 1) {
+    return reject(state, 'item-empty')
+  }
+
+  const stacks = { ...inv.stacks }
+  const events: GameEvent[] = []
+  for (const id of recipe.consume ?? [a, b]) {
+    stacks[id] = Math.max(0, (stacks[id] ?? 0) - 1)
+    events.push({ type: 'itemUsed', itemId: id })
+  }
+  const count = recipe.count ?? 1
+  stacks[recipe.produces] = (stacks[recipe.produces] ?? 0) + count
+  events.push(
+    { type: 'itemCombined', a, b, produces: recipe.produces },
+    { type: 'itemGained', itemId: recipe.produces, count },
+  )
+  return ok({ ...state, run: { ...run, inventory: { ...inv, stacks } } }, events)
+}
+
+/** Starter bag for the "Enoch" testing hero — only seeds items the bundle actually defines. */
+function testHeroInventory(content: ContentBundle) {
+  const inv = emptyInventory()
+  const bag: Array<[ItemId, number]> = [
+    ['bandage', 3],
+    ['balm', 2],
+    ['emptyJar', 1],
+    ['oil', 1],
+  ]
+  for (const [id, n] of bag) if (content.items[id]) inv.stacks[id] = n
+  return inv
 }
 
 function allocateStat(state: GameState, memberId: string, stat: string): ReduceResult {

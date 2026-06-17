@@ -3,6 +3,7 @@
 // (Spirit- or level-scaled) damage at rest, the exact per-target hit while aiming, and miracle odds.
 
 import type { CardDef } from '../cards/types'
+import { itemPseudoCard, type ItemDef } from '../inventory/types'
 import { miracleChance, scaleSpiritValue } from '../spirit/spirit'
 import type { CardDefId, CombatantId } from '../types'
 import { absorb, physicalAmount } from './damage'
@@ -32,15 +33,16 @@ export function cardSource(c: CombatState, ownerMemberId: string): CombatantId |
 const bySpiritBase = (def: CardDef, amount: number, spirit: number, scale: number): number =>
   def.layer === 'spirit' ? scaleSpiritValue(amount, spirit) : amount * scale
 
-/** Headline damage for a card's first damage op. null for cards that deal no direct damage. */
+/** Headline damage for a card's first damage op. null for cards that deal no direct damage.
+ *  Pass an explicit `def` (e.g. an item's pseudo-card, not in c.cardDefs) to preview that instead. */
 export function previewCardDamage(
   c: CombatState,
   defId: CardDefId,
   ownerMemberId: string,
   spirit: number,
   defenderId?: CombatantId,
+  def: CardDef | undefined = c.cardDefs[defId],
 ): CardDamagePreview | null {
-  const def = c.cardDefs[defId]
   const op = def?.effects.find((e) => e.kind === 'damage')
   if (!def || !op || op.kind !== 'damage') return null
 
@@ -59,6 +61,29 @@ export function previewCardDamage(
     blocked = split.blocked
   }
   return { perHit, hits, total: perHit * hits, spirit: def.layer === 'spirit', blocked }
+}
+
+export interface ItemEffectPreview {
+  /** total heal the item would apply (level-scaled by the user in combat — matches applyEffect) */
+  heal: number
+  /** headline damage against the chosen defender (null for non-damaging items) */
+  damage: CardDamagePreview | null
+}
+
+/** Preview a bag item's effect in combat, reusing the exact card math (so previews can't drift). */
+export function previewItemEffect(
+  c: CombatState,
+  item: ItemDef,
+  ownerMemberId: string,
+  spirit: number,
+  defenderId?: CombatantId,
+): ItemEffectPreview {
+  const pseudo = itemPseudoCard(item)
+  const srcId = cardSource(c, ownerMemberId)
+  const scale = srcId ? (c.combatants[srcId]?.scale ?? 1) : 1
+  const values = cardDisplayValues(pseudo, scale, spirit)
+  const damage = previewCardDamage(c, pseudo.id, ownerMemberId, spirit, defenderId, pseudo)
+  return { heal: values.heal ?? 0, damage }
 }
 
 /**

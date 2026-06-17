@@ -64,6 +64,15 @@ export function validateContent(b: ContentBundle): void {
     for (const id of ids) if (!b.cards[id]) err(`cardUnlocksByLevel[${lvl}] references missing card "${id}"`)
   }
 
+  // item integrity: combination recipes must reference items that exist in the bundle
+  for (const item of Object.values(b.items)) {
+    for (const r of item.combinations ?? []) {
+      if (!b.items[r.with]) err(`item "${item.id}" combination references missing item "${r.with}"`)
+      if (!b.items[r.produces]) err(`item "${item.id}" combination produces missing item "${r.produces}"`)
+      for (const c of r.consume ?? []) if (!b.items[c]) err(`item "${item.id}" combination consumes missing item "${c}"`)
+    }
+  }
+
   for (const v of Object.values(b.verses)) {
     if (!b.cards[v.cardDefId]) err(`verse "${v.id}" references missing card "${v.cardDefId}"`)
     for (const loc of ['en', 'de'] as const) {

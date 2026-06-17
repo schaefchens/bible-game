@@ -7,7 +7,9 @@ import type { PartyMember } from '../state/character'
 import { canAddCopy, effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
 import { fork } from '../rng/rng'
 import type { CardDefId } from '../types'
-import { endTurn, ensureActing, flee, playCard, reposition, useGrace, type CombatStep } from './combat'
+import { endTurn, ensureActing, flee, playCard, reposition, useGrace, useItem, type CombatStep } from './combat'
+import { itemCount, shouldConsume } from '../inventory/types'
+import type { CombatantId, ItemId } from '../types'
 import type { CombatState } from './types'
 
 /** How many card-reward options to sample from the pool after a fight. */
@@ -37,6 +39,8 @@ export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
   if (cmd.type === 'combat/takeCard') return takeCard(state, cmd.defId)
   if (cmd.type === 'combat/skipCard') return skipCard(state)
   if (cmd.type === 'combat/leaveReward') return leaveReward(state)
+  // Using a bag item is allowed any time during the party's turn; it has its own guards + consume.
+  if (cmd.type === 'combat/useItem') return useItemInCombat(state, cmd.itemId, cmd.targetId)
 
   if (!state.combat || !state.run) return reject(state, 'not-in-combat')
   if (state.combat.outcome !== 'ongoing') return reject(state, 'combat-over')
@@ -68,6 +72,37 @@ export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
   }
 
   return applyStep(state, result)
+}
+
+/**
+ * Use a bag item in combat: validate the stack, apply the item's effects through the combat core
+ * (reusing applyStep to thread Spirit + win/loss), then consume one on success and announce it.
+ */
+function useItemInCombat(state: GameState, itemId: ItemId, targetId?: CombatantId): ReduceResult {
+  const run = state.run
+  const combat = state.combat
+  if (!combat || !run) return reject(state, 'not-in-combat')
+  if (combat.outcome !== 'ongoing') return reject(state, 'combat-over')
+  const item = run.content.items[itemId]
+  if (!item) return reject(state, 'no-such-item')
+  if (itemCount(run.inventory, itemId) < 1) return reject(state, 'item-empty')
+  if (!item.effects?.length) return reject(state, 'item-not-usable-in-combat')
+
+  const result = useItem(combat, item, run.heroMemberId, targetId, run.spirit.spirit)
+  const wasRejected = result.events.some((e) => e.type === 'rejected')
+  const applied = applyStep(state, result)
+  if (wasRejected) return applied
+
+  // applyStep already wrote back run.spirit + combat; now consume one (if the item is consumable).
+  let appliedRun = applied.state.run!
+  if (shouldConsume(item)) {
+    const left = Math.max(0, itemCount(appliedRun.inventory, itemId) - 1)
+    appliedRun = {
+      ...appliedRun,
+      inventory: { ...appliedRun.inventory, stacks: { ...appliedRun.inventory.stacks, [itemId]: left } },
+    }
+  }
+  return { state: { ...applied.state, run: appliedRun }, events: [...applied.events, { type: 'itemUsed', itemId }] }
 }
 
 /** Thread SpiritEvents onto run.spirit and resolve screen transitions from the combat outcome. */

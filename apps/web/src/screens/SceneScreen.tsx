@@ -19,6 +19,9 @@ export function SceneScreen() {
   const view = useMemo(() => selectScene(state), [state])
   const dispatch = useGame((s) => s.dispatch)
   const lastEvents = useGame((s) => s.lastEvents)
+  const toggleInventory = useGame((s) => s.toggleInventory)
+  const itemInteraction = useGame((s) => s.itemInteraction)
+  const aimItemAt = useGame((s) => s.aimItemAt)
 
   const [bloom, setBloom] = useState<string | null>(null)
   const [fan, setFan] = useState<{ hotspotId: string; x: number; y: number } | null>(null)
@@ -50,6 +53,11 @@ export function SceneScreen() {
 
   if (!view) return null
 
+  // Carrying a bag item behaves EXACTLY like the no-item discovery cursor (dwell → bloom → click) —
+  // no target highlighting, no spoilers; the only differences are the cursor is the item ghost and a
+  // click on a revealed zone opens the ITEM action wheel instead of the verb fan (see openFan).
+  const carrying = itemInteraction != null
+
   const dwell = (id: string) => {
     window.clearTimeout(dwellTimer.current)
     // already identified → bloom at once (we know this zone); unknown zones still need the dwell
@@ -62,10 +70,16 @@ export function SceneScreen() {
   const clearSelection = () => {
     setBloom(null)
     setFan(null)
+    // dropping a held item / closing the bag on an empty click is owned by InventoryLayer's handler
   }
   const openFan = (id: string, x: number, y: number) => {
     window.clearTimeout(dwellTimer.current)
     setBloom(id)
+    // carrying an item → open the ITEM action wheel on this (revealed) zone instead of the verb fan
+    if (itemInteraction?.phase === 'holding') {
+      aimItemAt({ kind: 'hotspot', id }, { x, y })
+      return
+    }
     // toggle: selecting the same zone again (without choosing an action) closes the coin
     setFan((cur) => (cur && cur.hotspotId === id ? null : { hotspotId: id, x, y }))
   }
@@ -84,8 +98,13 @@ export function SceneScreen() {
   // or already investigated. A zone can only bloom via the deliberate dwell, never a quick tap, so an
   // unrevealed zone still ignores taps — that's what stops wild tapping from spoiling the scene.
   const onTap = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (bloom === id || observed.has(id)) openFan(id, e.clientX, e.clientY)
+    // Only a REVEALED zone "handles" the click (stop it bubbling to the backdrop). An unrevealed,
+    // still-invisible zone lets the click pass through — so it reads as clicking empty space (which
+    // drops a held item, and otherwise does nothing) instead of silently swallowing the click.
+    if (bloom === id || observed.has(id)) {
+      e.stopPropagation()
+      openFan(id, e.clientX, e.clientY)
+    }
   }
   const pick = (verb: Verb) => {
     if (fan) {
@@ -97,7 +116,7 @@ export function SceneScreen() {
 
   return (
     <div
-      className="screen scene eye-cursor"
+      className={`screen scene ${carrying ? '' : 'eye-cursor'}`}
       style={{ backgroundImage: assetBg(view.bgAsset) }}
       onClick={clearSelection}
       onContextMenu={(e) => e.preventDefault()} // long-press is our discover gesture, not a context menu
@@ -150,6 +169,10 @@ export function SceneScreen() {
 
       <button className="btn primary scene-leave" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'world/leaveScene' }) }}>
         {t('ui.scene.leave')}
+      </button>
+
+      <button className="bag-button" onClick={(e) => { e.stopPropagation(); toggleInventory() }} aria-label={t('ui.inventory.title')}>
+        🎒
       </button>
     </div>
   )

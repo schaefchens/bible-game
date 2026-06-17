@@ -188,6 +188,13 @@ export const ITEMS: Record<string, ItemDef> = {
   coin: { id: 'coin', kind: 'currency', nameKey: 'item.coin.name', descKey: 'item.coin.desc', icon: 'item/coin', stackable: true, usableInScene: false },
   veil_lifted: { id: 'veil_lifted', kind: 'relic', nameKey: 'item.veil_lifted.name', descKey: 'item.veil_lifted.desc', icon: 'item/veil', stackable: false, usableInScene: false, spiritEffectWhileHeld: 2 },
 
+  // Usable consumables (the bag's "Use" flow) + a widow's-oil combination (item-on-item / combine).
+  bandage: { id: 'bandage', kind: 'consumable', nameKey: 'item.bandage.name', descKey: 'item.bandage.desc', icon: 'item/bandage', stackable: true, usableInScene: true, consumeOnUse: true, effects: [{ kind: 'heal', amount: 8 }], targetMode: 'self', useContext: 'both', sceneVerbs: ['use', 'inspect'] },
+  balm: { id: 'balm', kind: 'consumable', nameKey: 'item.balm.name', descKey: 'item.balm.desc', icon: 'item/balm', stackable: true, usableInScene: false, consumeOnUse: true, effects: [{ kind: 'heal', amount: 14, target: 'ally' }], targetMode: 'allyUnit', useContext: 'combat' },
+  emptyJar: { id: 'emptyJar', kind: 'questItem', nameKey: 'item.emptyJar.name', descKey: 'item.emptyJar.desc', icon: 'item/jar', stackable: false, usableInScene: true, combinations: [{ with: 'oil', produces: 'fullJar' }] },
+  oil: { id: 'oil', kind: 'questItem', nameKey: 'item.oil.name', descKey: 'item.oil.desc', icon: 'item/oil', stackable: true, usableInScene: false },
+  fullJar: { id: 'fullJar', kind: 'consumable', nameKey: 'item.fullJar.name', descKey: 'item.fullJar.desc', icon: 'item/jar-full', stackable: false, usableInScene: true, consumeOnUse: true, effects: [{ kind: 'heal', amount: 20 }], targetMode: 'self', useContext: 'both' },
+
   // Scripture Fragments — collectibles studied at a fireplace to UNLOCK their spirit card (then it's
   // offered like any unlocked card). One per verse; `verseChallengeId` names the gap-fill to solve.
   fragment_2kings_6_17: { id: 'fragment_2kings_6_17', kind: 'fragment', nameKey: 'item.fragment_2kings_6_17.name', descKey: 'item.fragment.desc', icon: 'item/fragment', stackable: true, usableInScene: false, verseChallengeId: '2kings_6_17' },

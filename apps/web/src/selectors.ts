@@ -12,8 +12,8 @@ import {
   previewMiracle,
   cardDisplayValues,
   levelScale,
-  type ContentBundle,
   type GameState,
+  type ItemKind,
   type NodeType,
   type Visit,
 } from '@bible/engine'
@@ -636,6 +636,43 @@ export function selectUpgradeable(state: GameState): UpgradeOption[] {
     })
   })
   return out
+}
+
+// ---- inventory / bag --------------------------------------------------------------------
+
+export interface InvSlotView {
+  itemId: string
+  kind: ItemKind
+  nameKey: string
+  descKey: string
+  icon: string
+  count: number
+  stackable: boolean
+}
+
+export interface InventoryView {
+  slots: InvSlotView[]
+  gold: number
+  /** fixed-slot grid capacity (WoW-style); empties pad the grid */
+  capacity: number
+}
+
+const INV_CAPACITY = 24
+
+/** The bag contents as a view-model: held items joined to their defs, plus the action affordances
+ *  the UI needs to build the item fan + targeting. Sorted by kind then id for a stable grid. */
+export function selectInventory(state: GameState): InventoryView | null {
+  const run = state.run
+  if (!run) return null
+  const items = run.content.items
+  const slots: InvSlotView[] = Object.entries(run.inventory.stacks)
+    .filter(([id, n]) => n > 0 && items[id])
+    .map(([id, n]) => {
+      const def = items[id]!
+      return { itemId: id, kind: def.kind, nameKey: def.nameKey, descKey: def.descKey, icon: def.icon, count: n, stackable: def.stackable }
+    })
+    .sort((a, b) => (a.kind === b.kind ? a.itemId.localeCompare(b.itemId) : a.kind.localeCompare(b.kind)))
+  return { slots, gold: run.inventory.currency, capacity: INV_CAPACITY }
 }
 
 export const heroSummary = (state: GameState) => {

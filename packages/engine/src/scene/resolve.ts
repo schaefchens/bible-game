@@ -145,15 +145,23 @@ export function resolveInteraction(
   }
 
   const interaction = hotspot.interactions[intent.verb]
-  if (!interaction) {
-    return { ...unchanged, events: [{ type: 'sceneLine', lineKey: `verb.refusal.${intent.verb}` }] }
-  }
-  if (interaction.requiresItem && itemCount(inventory, interaction.requiresItem) < 1) {
-    return {
-      ...unchanged,
-      events: [{ type: 'sceneLine', lineKey: interaction.fallbackLineKey ?? 'verb.refusal.use' }],
+  const refuse = (key?: string): ScriptOutcome => ({
+    ...unchanged,
+    events: [{ type: 'sceneLine', lineKey: key ?? interaction?.fallbackLineKey ?? `verb.refusal.${intent.verb}` }],
+  })
+  if (!interaction) return refuse()
+
+  if (intent.itemId !== undefined) {
+    // Point-and-click "use/give ITEM on hotspot": the interaction must be keyed to THIS specific item
+    // (and the player must hold it). Using the wrong item — or on a hotspot that wants none — refuses.
+    if (interaction.requiresItem !== intent.itemId || itemCount(inventory, intent.itemId) < 1) {
+      return refuse()
     }
+  } else if (interaction.requiresItem && itemCount(inventory, interaction.requiresItem) < 1) {
+    // Bare verb (no item): legacy behavior — a requiresItem interaction needs the item merely held.
+    return refuse('verb.refusal.use')
   }
+
   if (interaction.script) {
     return runScript(world, inventory, spirit, scene.id, interaction.script)
   }

@@ -20,6 +20,9 @@ export function CombatScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const lastEvents = useGame((s) => s.lastEvents)
   const tick = useGame((s) => s.tick)
+  const itemInteraction = useGame((s) => s.itemInteraction)
+  const aimItemAt = useGame((s) => s.aimItemAt)
+  const clearItemInteraction = useGame((s) => s.clearItemInteraction)
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
   // a bottom-corner pile to inspect (read-only), and a "pick cards" prompt for hone/cast-off/prepare
   const [pileModal, setPileModal] = useState<'draw' | 'discard' | 'exhaust' | null>(null)
@@ -38,9 +41,22 @@ export function CombatScreen() {
     return m
   }, [lastEvents, tick])
 
+  // transient heal flashes (item/heal cards) — green "+N" rising over the healed unit
+  const healByTarget = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const e of lastEvents) if (e.type === 'healed' && e.amount > 0) m[e.targetId] = (m[e.targetId] ?? 0) + e.amount
+    return m
+  }, [lastEvents, tick])
+
   if (!view) return null
 
   const enemyTargetable = pending?.kind === 'card' || (pending?.kind === 'grace' && pending.ability === 'mercy')
+  // Carrying a bag item → click a unit to open the action wheel on it (InventoryLayer routes "Use" to
+  // combat/useItem). No highlight/preview — same restraint as the scene; you find out by trying.
+  const carrying = itemInteraction != null
+  const holding = itemInteraction?.phase === 'holding'
+  const aimAtUnit = (id: string, e: { clientX: number; clientY: number }) =>
+    aimItemAt({ kind: 'unit', id }, { x: e.clientX, y: e.clientY })
 
   // While aiming a damage card, show the EXACT hit each enemy would take (level scale + statuses +
   // rows + their block) — the honest correction over the card's nominal number.
@@ -53,6 +69,7 @@ export function CombatScreen() {
   }
 
   const clickCard = (card: HandCardView) => {
+    if (itemInteraction) clearItemInteraction() // picking a card cancels any in-flight item flow
     if (card.unplayable) return // clutter (Spike): cannot be played
     if (pending?.kind === 'card' && pending.iid === card.iid) return setPending(null) // click again → cancel
     if (card.pick) {
@@ -77,6 +94,7 @@ export function CombatScreen() {
     }
   }
   const useGraceAbility = (ability: string) => {
+    if (itemInteraction) clearItemInteraction()
     setPending({ kind: 'grace', ability }) // mercy → pick a human (Sight is now a card, not grace)
   }
 
@@ -97,7 +115,10 @@ export function CombatScreen() {
         initial={{ opacity: 0, scale: 0.6 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-        onClick={() => side === 'enemy' && clickEnemy(c.id, c.isHuman)}
+        onClick={(e) => {
+          if (carrying) { e.stopPropagation(); if (holding) aimAtUnit(c.id, e); return } // click → wheel on this unit
+          if (side === 'enemy') clickEnemy(c.id, c.isHuman)
+        }}
       >
         {side === 'enemy' && c.intentKind && (
           <div className="intent">
@@ -121,6 +142,10 @@ export function CombatScreen() {
             {dmgByTarget[c.id] ? (
               <motion.div key={tick + c.id} className="dmg-float" initial={{ y: 0, opacity: 1 }} animate={{ y: -46, opacity: 0 }} transition={{ duration: 0.9 }}>
                 -{dmgByTarget[c.id]}
+              </motion.div>
+            ) : healByTarget[c.id] ? (
+              <motion.div key={`h${tick}${c.id}`} className="heal-float" initial={{ y: 0, opacity: 1 }} animate={{ y: -46, opacity: 0 }} transition={{ duration: 0.9 }}>
+                +{healByTarget[c.id]}
               </motion.div>
             ) : null}
           </AnimatePresence>

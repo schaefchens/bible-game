@@ -167,6 +167,12 @@ export function testContent(): ContentBundle {
     items: {
       key: { id: 'key', kind: 'key', nameKey: 'item.key.name', descKey: 'item.key.desc', icon: 'item/key', stackable: false, usableInScene: true },
       coin: { id: 'coin', kind: 'currency', nameKey: 'item.coin.name', descKey: 'item.coin.desc', icon: 'item/coin', stackable: true, usableInScene: false },
+      // usable consumables + a combination recipe — exercise item-use / self-use / combine in tests
+      bandage: { id: 'bandage', kind: 'consumable', nameKey: 'item.bandage.name', descKey: 'item.bandage.desc', icon: 'item/bandage', stackable: true, usableInScene: true, consumeOnUse: true, effects: [{ kind: 'heal', amount: 8 }], targetMode: 'self', useContext: 'both', sceneVerbs: ['use', 'inspect'] },
+      healPotion: { id: 'healPotion', kind: 'consumable', nameKey: 'item.healPotion.name', descKey: 'item.healPotion.desc', icon: 'item/potion', stackable: true, usableInScene: false, consumeOnUse: true, effects: [{ kind: 'heal', amount: 14, target: 'ally' }], targetMode: 'allyUnit', useContext: 'combat' },
+      emptyFlask: { id: 'emptyFlask', kind: 'questItem', nameKey: 'item.emptyFlask.name', descKey: 'item.emptyFlask.desc', icon: 'item/flask', stackable: false, usableInScene: true, combinations: [{ with: 'oil', produces: 'filledFlask' }] },
+      oil: { id: 'oil', kind: 'questItem', nameKey: 'item.oil.name', descKey: 'item.oil.desc', icon: 'item/oil', stackable: true, usableInScene: false },
+      filledFlask: { id: 'filledFlask', kind: 'questItem', nameKey: 'item.filledFlask.name', descKey: 'item.filledFlask.desc', icon: 'item/flask-full', stackable: false, usableInScene: true },
     },
     verses: {},
     worlds: {

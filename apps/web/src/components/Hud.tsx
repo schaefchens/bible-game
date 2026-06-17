@@ -25,13 +25,25 @@ export function Hud() {
   const audioMode = useGame((s) => s.state.profile.settings.audioMode)
   const cycleAudioMode = useGame((s) => s.cycleAudioMode)
   const setDeckOpen = useGame((s) => s.setDeckOpen)
+  const toggleInventory = useGame((s) => s.toggleInventory)
+  const itemInteraction = useGame((s) => s.itemInteraction)
+  const aimItemAt = useGame((s) => s.aimItemAt)
   if (!summary) return null
+  // While carrying a bag item, clicking the hero block uses the item on yourself (no highlight).
+  const carrying = itemInteraction != null
   const tier = potencyTier(spirit)
   const hpPct = Math.max(0, Math.min(100, (summary.hp / summary.maxHp) * 100))
 
   return (
     <header className="hud">
-      <div className="hud-left">
+      <div
+        className="hud-left"
+        onClick={(e) => {
+          if (!carrying) return
+          e.stopPropagation()
+          if (itemInteraction?.phase === 'holding') aimItemAt({ kind: 'self' }, { x: e.clientX, y: e.clientY })
+        }}
+      >
         <div
           className="spirit-orb"
           title="spirit"
@@ -49,6 +61,14 @@ export function Hud() {
       </div>
       <div className="hud-right">
         <div className="hud-right-row">
+          <button
+            className="hud-icon-btn"
+            onClick={() => toggleInventory()}
+            title={t('ui.inventory.title')}
+            aria-label={t('ui.inventory.title')}
+          >
+            🎒
+          </button>
           <button
             className="hud-icon-btn"
             onClick={() => setDeckOpen(true)}

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { emptyInventory, itemCount } from '../inventory/types'
+import { emptyInventory, itemCount, type InventoryState } from '../inventory/types'
 import { initialWorldState } from '../map/types'
 import { testContent } from '../testing/fixtures'
 import { resolveInteraction, runScript } from './resolve'
-import type { Script } from './types'
+import type { Scene, Script } from './types'
 
 const content = testContent()
 const scene = content.scenes.forestHouse!
@@ -38,6 +38,65 @@ describe('resolveInteraction', () => {
       verb: 'observe',
     })
     expect(out.events).toEqual([{ type: 'rejected', reason: 'no-such-hotspot' }])
+  })
+})
+
+// Point-and-click "use/give ITEM on hotspot": a door that opens with the key, and a beggar who
+// accepts a given bandage. Built inline so it can't disturb the shared forestHouse fixture.
+const itemScene: Scene = {
+  id: 'itemScene',
+  bgAsset: 'scene/x',
+  hotspots: [
+    {
+      id: 'door',
+      shape: { x: 0, y: 0, w: 10, h: 10 },
+      nameKey: 'x',
+      interactions: {
+        use: { requiresItem: 'key', script: [{ setFlag: 'doorOpen', value: true }, { say: 'door.opened' }] },
+      },
+    },
+    {
+      id: 'beggar',
+      shape: { x: 20, y: 0, w: 10, h: 10 },
+      nameKey: 'x',
+      interactions: {
+        give: { requiresItem: 'bandage', script: [{ takeItem: 'bandage' }, { addSpirit: 5, reason: 'gaveBandage' }, { say: 'beggar.thanks' }] },
+      },
+    },
+  ],
+}
+const inv = (stacks: Record<string, number>): InventoryState => ({ stacks, currency: 0 })
+
+describe('resolveInteraction — using an item on a hotspot', () => {
+  it('fires the interaction only when the MATCHING item is used on it', () => {
+    const out = resolveInteraction(world(), inv({ key: 1 }), 100, itemScene, {
+      sceneId: 'itemScene', hotspotId: 'door', verb: 'use', itemId: 'key',
+    })
+    expect(out.world.flags.doorOpen).toBe(true)
+    expect(out.events).toContainEqual({ type: 'sceneLine', lineKey: 'door.opened', speaker: undefined })
+  })
+
+  it('refuses the WRONG item on the hotspot (no script runs)', () => {
+    const out = resolveInteraction(world(), inv({ key: 1, coin: 1 }), 100, itemScene, {
+      sceneId: 'itemScene', hotspotId: 'door', verb: 'use', itemId: 'coin',
+    })
+    expect(out.world.flags.doorOpen).toBeUndefined()
+    expect(out.events[0]?.type).toBe('sceneLine') // a refusal line, not the script
+  })
+
+  it('GIVE runs the NPC reaction (consumes the item, shifts Spirit)', () => {
+    const out = resolveInteraction(world(), inv({ bandage: 1 }), 100, itemScene, {
+      sceneId: 'itemScene', hotspotId: 'beggar', verb: 'give', itemId: 'bandage',
+    })
+    expect(itemCount(out.inventory, 'bandage')).toBe(0) // takeItem in the reaction
+    expect(out.spiritEvents).toContainEqual({ kind: 'moralChoice', delta: 5, reason: 'gaveBandage' })
+  })
+
+  it('preserves legacy bare-verb behavior (requiresItem merely held)', () => {
+    const out = resolveInteraction(world(), inv({ key: 1 }), 100, itemScene, {
+      sceneId: 'itemScene', hotspotId: 'door', verb: 'use', // no itemId
+    })
+    expect(out.world.flags.doorOpen).toBe(true)
   })
 })
 

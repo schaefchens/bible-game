@@ -22,6 +22,7 @@ import { MusicController } from './components/MusicController'
 import { SleepOverlay } from './components/SleepOverlay'
 import { PrayOverlay } from './components/PrayOverlay'
 import { DeckModal } from './components/DeckModal'
+import { InventoryLayer } from './components/InventoryLayer'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
@@ -67,6 +68,7 @@ export function App() {
       {dialogueActive && <DialogueOverlay />}
       {storyActive && <StoryScroll />}
       {deckOpen && <DeckModal />}
+      <InventoryLayer />
       <SleepOverlay />
       <PrayOverlay />
     </div>

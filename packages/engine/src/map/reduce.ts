@@ -13,6 +13,8 @@ import { applySpiritEvent, type SpiritEvent } from '../spirit/spirit'
 import type { GameState, RunState } from '../state/gameState'
 import { chance, fork } from '../rng/rng'
 import { resolveInteraction, runScript, type CardGrant, type SceneTransition } from '../scene/resolve'
+import { itemCount, shouldConsume } from '../inventory/types'
+import { applyItemEffectsToParty } from '../inventory/useOutOfCombat'
 import type { DialogueChoice } from '../scene/types'
 import type { CardDefId, ItemId, NodeId } from '../types'
 import { COMBAT_TYPES, type MapNode, type WorldMap } from './types'
@@ -120,6 +122,8 @@ export function reduceWorld(state: GameState, cmd: Command): ReduceResult {
       return sceneInteract(state, cmd)
     case 'world/leaveScene':
       return leaveScene(state)
+    case 'world/useItemSelf':
+      return useItemSelf(state, cmd.itemId)
     case 'world/eventChoice':
       return eventChoice(state, cmd.eventId, cmd.choiceId)
     case 'world/dialogueChoice':
@@ -325,6 +329,30 @@ function sceneInteract(state: GameState, cmd: Extract<Command, { type: 'world/sc
 
   if (outcome.transition) return applyTransition(cg.state, run2, outcome.transition, events)
   return ok({ ...cg.state, run: run2 }, events)
+}
+
+/** Use an item on the hero outside combat (the bag's "Use" on a self-targeted item, e.g. a bandage).
+ *  Applies the item's effects to the persistent party HP, threads any Spirit shift, and consumes it. */
+function useItemSelf(state: GameState, itemId: ItemId): ReduceResult {
+  const run = state.run!
+  if (state.combat) return reject(state, 'use-item-in-combat') // combat self-use goes through combat/useItem
+  if (run.world.dialogue || run.world.story) return reject(state, 'busy-overlay')
+  const item = run.content.items[itemId]
+  if (!item) return reject(state, 'no-such-item')
+  if (itemCount(run.inventory, itemId) < 1) return reject(state, 'item-empty')
+  if (!item.effects?.length) return reject(state, 'item-not-self-usable')
+
+  const out = applyItemEffectsToParty(run.party, run.heroMemberId, item)
+  let run2: RunState = { ...run, party: out.party }
+  const sp = withSpirit(run2, out.spiritEvents)
+  run2 = sp.run
+  const events: GameEvent[] = [...out.events, ...sp.events]
+  if (shouldConsume(item)) {
+    const left = Math.max(0, itemCount(run2.inventory, itemId) - 1)
+    run2 = { ...run2, inventory: { ...run2.inventory, stacks: { ...run2.inventory.stacks, [itemId]: left } } }
+    events.push({ type: 'itemUsed', itemId })
+  }
+  return ok({ ...state, run: run2 }, events)
 }
 
 function leaveScene(state: GameState): ReduceResult {

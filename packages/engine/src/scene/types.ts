@@ -17,13 +17,13 @@ import type { GateExpr } from '../map/types'
 /** The Monkey-Island verb set. Milestone 1 implements observe / take / use; the rest get a
  *  generic localized refusal line (the model supports them for later). `goTo` is a navigation
  *  action: on a hotspot that hides a path it reveals + travels to that map node (see `goToNode`). */
-export type Verb = 'observe' | 'talk' | 'take' | 'pull' | 'push' | 'use' | 'open' | 'close' | 'goTo'
+export type Verb = 'observe' | 'talk' | 'take' | 'pull' | 'push' | 'use' | 'open' | 'close' | 'goTo' | 'give'
 
 export const M1_VERBS: readonly Verb[] = ['observe', 'take', 'use']
 
 /** Every verb, for the radial verb coin — the player may try any action (unsupported ones simply
  *  return a refusal line). Order is the fan layout, clockwise from the top. */
-export const VERBS: readonly Verb[] = ['observe', 'talk', 'take', 'use', 'open', 'close', 'push', 'pull', 'goTo']
+export const VERBS: readonly Verb[] = ['observe', 'talk', 'take', 'use', 'give', 'open', 'close', 'push', 'pull', 'goTo']
 
 export type HotspotShape =
   | { x: number; y: number; w: number; h: number }

@@ -4,6 +4,7 @@
 // reads the current spirit scalar (passed in) only to scale spiritual effects via potencyMult.
 
 import type { CardDef, CardInstance, EffectOp, StatusId, TargetKind } from '../cards/types'
+import { itemPseudoCard, type ItemDef } from '../inventory/types'
 import type { GameEvent } from '../events/event'
 import { getGrace } from '../grace/grace'
 import { miracleChance, scaleSpiritValue } from '../spirit/spirit'
@@ -720,6 +721,41 @@ export function useGrace(c: CombatState, ability: GraceAbilityId, chosenId: Comb
     combat = death.combat
     events.push(...death.events)
     spiritEvents.push(...death.spiritEvents)
+  }
+
+  const ended = finalizeIfEnded(combat)
+  return step(ended.combat, [...events, ...ended.events], [...spiritEvents, ...ended.spiritEvents])
+}
+
+/**
+ * Use a bag item in combat. The item is wrapped in a synthetic flesh "card" so its `effects` flow
+ * through the EXACT same interpreter as cards (heal/damage/block/status/…) — there is no parallel
+ * effect system. Using an item is FREE: it pays no energy and does NOT set `roundActionTaken`, so it
+ * never costs the turn. (Flip the commented `roundActionTaken` line to make item-use cost the turn.)
+ * Does NOT touch the inventory — the run-aware combat reducer validates the stack and decrements.
+ */
+export function useItem(
+  c: CombatState,
+  item: ItemDef,
+  sourceMemberId: MemberId,
+  chosenId: CombatantId | undefined,
+  spirit: number,
+): CombatStep {
+  if (!item.effects?.length) return reject(c, 'item-not-usable-in-combat')
+  const begun = ensureActing(c)
+  let combat = begun.combat
+  if (combat.phase !== 'partyAction') return reject(c, 'not-action-phase')
+  // combat = { ...combat, roundActionTaken: true } // ← uncomment to make item-use cost the turn
+
+  const pseudoCard = itemPseudoCard(item)
+  const sourceId = sourceForCard(combat, sourceMemberId)
+  const events: GameEvent[] = [...begun.events]
+  const spiritEvents: SpiritEvent[] = []
+  for (const op of item.effects) {
+    const r = applyEffect(combat, op, sourceId, chosenId, pseudoCard.target, spirit, pseudoCard)
+    combat = r.combat
+    events.push(...r.events)
+    spiritEvents.push(...r.spiritEvents)
   }
 
   const ended = finalizeIfEnded(combat)

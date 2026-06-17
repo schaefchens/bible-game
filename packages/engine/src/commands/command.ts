@@ -41,6 +41,8 @@ export type Command =
   | { type: 'world/enter' }
   | { type: 'world/sceneInteract'; sceneId: SceneId; hotspotId: HotspotId; verb: Verb; itemId?: ItemId }
   | { type: 'world/leaveScene' }
+  | { type: 'world/useItemSelf'; itemId: ItemId } // use an item on the hero in a scene (no on-screen target)
+  | { type: 'inventory/combineItems'; a: ItemId; b: ItemId } // item-on-item combination (recipes)
   | { type: 'world/eventChoice'; eventId: EventId; choiceId: string }
   | { type: 'world/dialogueChoice'; dialogueId: DialogueId; nodeId: DialogueNodeId; choiceId: string }
   | { type: 'world/leaveDialogue' }
@@ -58,6 +60,7 @@ export type Command =
   | { type: 'combat/beginAction' }
   | { type: 'combat/playCard'; iid: string; targetId?: CombatantId; cardTargetIids?: string[] }
   | { type: 'combat/useGrace'; ability: GraceAbilityId; targetId?: CombatantId }
+  | { type: 'combat/useItem'; itemId: ItemId; targetId?: CombatantId } // use a bag item in battle (heal an ally, …)
   | { type: 'combat/endTurn' }
   // ---- reward (post-combat): claim spoils individually, pick one card (or skip), then leave ----
   | { type: 'combat/claimSpoil'; spoilId: string }

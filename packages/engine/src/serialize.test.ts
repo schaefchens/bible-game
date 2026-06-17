@@ -28,6 +28,16 @@ describe('serialize / deserialize', () => {
     expect(back.run!.rng).toEqual(g.run!.rng)
   })
 
+  it('round-trips an inventory holding items with the new ItemDef fields', () => {
+    const g = startedRun()
+    const withItems = {
+      ...g,
+      run: { ...g.run!, inventory: { ...g.run!.inventory, stacks: { bandage: 3, emptyFlask: 1 } } },
+    }
+    const back = deserialize(serialize(withItems))
+    expect(back.run!.inventory.stacks).toEqual({ bandage: 3, emptyFlask: 1 })
+  })
+
   it('rejects non-objects and missing/mismatched versions', () => {
     expect(() => deserialize('42')).toThrow()
     expect(() => deserialize(JSON.stringify({ screen: 'start' }))).toThrow(/version/)
