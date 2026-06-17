@@ -36,6 +36,7 @@ export function InventoryLayer() {
   const { t } = useTranslation()
   const inventoryOpen = useGame((s) => s.inventoryOpen)
   const setInventoryOpen = useGame((s) => s.setInventoryOpen)
+  const toggleInventory = useGame((s) => s.toggleInventory)
   const itemInteraction = useGame((s) => s.itemInteraction)
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
   const dispatch = useGame((s) => s.dispatch)
@@ -95,16 +96,21 @@ export function InventoryLayer() {
     clearItemInteraction()
   }, [screen, setInventoryOpen, clearItemInteraction])
 
-  // Esc cancels the carry first, then closes the bag.
+  // Esc cancels the carry first, then closes the bag. "b" toggles the bag (global hotkey, in-run).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (itemInteraction) clearItemInteraction()
-      else if (inventoryOpen) setInventoryOpen(false)
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return // don't hijack typing
+      if (e.key === 'Escape') {
+        if (itemInteraction) clearItemInteraction()
+        else if (inventoryOpen) setInventoryOpen(false)
+        return
+      }
+      if ((e.key === 'b' || e.key === 'B') && hasRun) toggleInventory()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [itemInteraction, inventoryOpen, clearItemInteraction, setInventoryOpen])
+  }, [itemInteraction, inventoryOpen, clearItemInteraction, setInventoryOpen, hasRun, toggleInventory])
 
   // Surface item feedback (used / combined / no-effect / item-related rejections) as a toast.
   useEffect(() => {
