@@ -12,6 +12,8 @@ export function CardView({
   onClick,
   fan,
   z,
+  flyTo,
+  reduced,
 }: {
   card: HandCardView
   playable: boolean
@@ -19,11 +21,25 @@ export function CardView({
   onClick: () => void
   fan: { x: number; y: number; rotate: number }
   z: number
+  // when set, the card flies toward this point on play (enemy-targeted) instead of straight up
+  flyTo?: { x: number; y: number }
+  reduced?: boolean
 }) {
   const { t } = useTranslation()
   const verse = card.type === 'verse'
   const lifted = { x: fan.x, y: -72, rotate: 0, scale: 1.18, zIndex: 50, opacity: 1 }
   const rest = { x: fan.x, y: fan.y, rotate: fan.rotate, scale: 1, zIndex: z, opacity: 1 }
+  // Play exit: a quick fade for reduced motion, else launch toward the target (enemy) or up (self).
+  const exit = reduced
+    ? { opacity: 0, transition: { duration: 0.12 } }
+    : {
+        opacity: 0,
+        x: flyTo ? flyTo.x : fan.x,
+        y: flyTo ? flyTo.y : -190,
+        scale: flyTo ? 0.55 : 0.7,
+        rotate: 0,
+        transition: { duration: flyTo ? 0.36 : 0.28 },
+      }
   return (
     <motion.button
       className={['card', card.layer, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : ''].join(' ')}
@@ -31,7 +47,7 @@ export function CardView({
       disabled={!playable && !selected}
       initial={{ opacity: 0, x: fan.x, y: 130, rotate: fan.rotate }}
       animate={selected ? lifted : rest}
-      exit={{ opacity: 0, y: -190, scale: 0.7, transition: { duration: 0.28 } }}
+      exit={exit}
       whileHover={playable && !selected ? lifted : undefined}
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
     >

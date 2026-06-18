@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useAnimationControls } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { previewCardDamage } from '@bible/engine'
@@ -10,6 +10,7 @@ import { CardView } from '../components/Card'
 import { Hud } from '../components/Hud'
 import { CardListModal } from '../components/CardListModal'
 import { CardPickModal, type PickSpec } from '../components/CardPickModal'
+import { useCombatFeedback, type UnitFloat, type UnitReaction } from './useCombatFeedback'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
 
@@ -18,15 +19,20 @@ export function CombatScreen() {
   const state = useGame((s) => s.state)
   const view = useMemo(() => selectCombat(state), [state])
   const dispatch = useGame((s) => s.dispatch)
-  const lastEvents = useGame((s) => s.lastEvents)
-  const tick = useGame((s) => s.tick)
   const itemInteraction = useGame((s) => s.itemInteraction)
   const aimItemAt = useGame((s) => s.aimItemAt)
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
+  const fb = useCombatFeedback()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
   // a bottom-corner pile to inspect (read-only), and a "pick cards" prompt for hone/cast-off/prepare
   const [pileModal, setPileModal] = useState<'draw' | 'discard' | 'exhaust' | null>(null)
   const [pickModal, setPickModal] = useState<{ iid: string; pick: PickSpec } | null>(null)
+  // a transient "Your Turn / Enemy Turn" banner, raised by the feedback hook's turn cue
+  const [banner, setBanner] = useState<{ kind: 'party' | 'enemy'; seq: number } | null>(null)
+
+  // Screen shake (battlefield only — never the clickable hand) and the energy-orb spend pulse.
+  const shakeControls = useAnimationControls()
+  const energyControls = useAnimationControls()
 
   // Auto-begin the action phase each round: the engine opens combat (and every new round) in a brief
   // "decision" window before the hand is drawn — draw it automatically so the player never presses ▶.
@@ -34,19 +40,21 @@ export function CombatScreen() {
     if (view?.phase === 'partyDecision' && view.outcome === 'ongoing') dispatch({ type: 'combat/beginAction' })
   }, [view?.phase, view?.outcome, dispatch])
 
-  // transient damage flashes keyed by the dispatch tick
-  const dmgByTarget = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const e of lastEvents) if (e.type === 'damageDealt' && e.amount > 0) m[e.targetId] = (m[e.targetId] ?? 0) + e.amount
-    return m
-  }, [lastEvents, tick])
-
-  // transient heal flashes (item/heal cards) — green "+N" rising over the healed unit
-  const healByTarget = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const e of lastEvents) if (e.type === 'healed' && e.amount > 0) m[e.targetId] = (m[e.targetId] ?? 0) + e.amount
-    return m
-  }, [lastEvents, tick])
+  useEffect(() => {
+    if (fb.shake && !fb.reduced) void shakeControls.start({ x: [0, -6, 6, -4, 0], transition: { duration: 0.26 } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fb.shake])
+  useEffect(() => {
+    if (fb.energyPulse && !fb.reduced) void energyControls.start({ scale: [1, 1.16, 1], transition: { duration: 0.3 } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fb.energyPulse])
+  useEffect(() => {
+    if (!fb.turnCue) return
+    setBanner(fb.turnCue)
+    const id = setTimeout(() => setBanner(null), 950)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fb.turnCue?.seq])
 
   if (!view) return null
 
@@ -97,6 +105,15 @@ export function CombatScreen() {
     if (itemInteraction) clearItemInteraction()
     setPending({ kind: 'grace', ability }) // mercy → pick a human (Sight is now a card, not grace)
   }
+  // unit click routing: item-aim while carrying, otherwise target an enemy with the pending card/grace
+  const onUnitClick = (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => {
+    if (carrying) {
+      e.stopPropagation()
+      if (holding) aimAtUnit(c.id, e)
+      return
+    }
+    if (side === 'enemy') clickEnemy(c.id, c.isHuman)
+  }
 
   const N = view.hand.length
   const fanOf = (i: number) => {
@@ -104,84 +121,55 @@ export function CombatScreen() {
     return { x: offset * 52, y: Math.pow(Math.abs(offset), 1.5) * 6, rotate: offset * 5 }
   }
 
-  const Unit = ({ c, side }: { c: CombatantView; side: 'party' | 'enemy' }) => {
-    const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
-    const targetable = side === 'enemy' && enemyTargetable
-    const predicted = side === 'enemy' && pendingCard ? targetPreview(c.id) : null
-    return (
-      <motion.div
-        layout
-        className={['unit', side, c.row, targetable ? 'targetable' : '', c.isDemon ? 'demon' : ''].join(' ')}
-        initial={{ opacity: 0, scale: 0.6 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-        onClick={(e) => {
-          if (carrying) { e.stopPropagation(); if (holding) aimAtUnit(c.id, e); return } // click → wheel on this unit
-          if (side === 'enemy') clickEnemy(c.id, c.isHuman)
-        }}
-      >
-        {side === 'enemy' && c.intentKind && (
-          <div className="intent">
-            {INTENT_ICON[c.intentKind] ?? '❔'}
-            {c.intentKind === 'attackMulti' && c.intentValue ? (
-              <b>{c.intentValue}×{c.intentHits ?? 1}</b>
-            ) : c.intentValue ? (
-              <b>{c.intentValue}</b>
-            ) : c.intentStacks ? (
-              <b>{c.intentStacks}</b>
-            ) : null}
-          </div>
-        )}
-        <div className="unit-figure">
-          {predicted !== null && (
-            <div className="dmg-predict">−{predicted}</div>
-          )}
-          <span className="sprite">{spriteGlyph(c)}</span>
-          <span className="unit-shadow" />
-          <AnimatePresence>
-            {dmgByTarget[c.id] ? (
-              <motion.div key={tick + c.id} className="dmg-float" initial={{ y: 0, opacity: 1 }} animate={{ y: -46, opacity: 0 }} transition={{ duration: 0.9 }}>
-                -{dmgByTarget[c.id]}
-              </motion.div>
-            ) : healByTarget[c.id] ? (
-              <motion.div key={`h${tick}${c.id}`} className="heal-float" initial={{ y: 0, opacity: 1 }} animate={{ y: -46, opacity: 0 }} transition={{ duration: 0.9 }}>
-                +{healByTarget[c.id]}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-        <div className="unit-plate">
-          <div className="unit-name">{c.displayName ?? t(c.nameKey)}</div>
-          <div className="hp-bar">
-            <div className="hp-fill" style={{ width: `${hpPct}%` }} />
-            <span className="hp-text">{c.hp}/{c.maxHp}</span>
-          </div>
-          <div className="badges">
-            {c.block > 0 && <span className="badge block">🛡 {c.block}</span>}
-            {c.shield && <span className="badge ward">🛡✨ {Math.round(c.shield.chance * 100)}% · {c.shield.turns}t</span>}
-            {c.lastStand && <span className="badge laststand" title={t('ui.combat.lastStandHint')}>🔥 {t('ui.combat.lastStand')}</span>}
-            {c.row === 'back' && <span className="badge row">{t('ui.combat.backRow')}</span>}
-          </div>
-        </div>
-      </motion.div>
-    )
-  }
-
   return (
     <div className="screen combat" style={{ backgroundImage: assetBg(view.battleBg) ?? bgUrl('004-battlefield-enchanted-forest.png') }}>
       <div className="scrim" />
       <Hud />
 
-      <div className="battlefield">
-        <div className="side party">{view.party.filter((c) => c.alive).map((c) => <Unit key={c.id} c={c} side="party" />)}</div>
-        <div className="side enemies">{view.enemies.map((c) => <Unit key={c.id} c={c} side="enemy" />)}</div>
-      </div>
+      <motion.div className="battlefield" animate={shakeControls}>
+        <div className="side party">
+          {view.party.filter((c) => c.alive).map((c) => (
+            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={false} onUnitClick={onUnitClick} />
+          ))}
+        </div>
+        <div className="side enemies">
+          {view.enemies.map((c) => (
+            <CombatUnit
+              key={c.id}
+              c={c}
+              side="enemy"
+              t={t}
+              reduced={fb.reduced}
+              reaction={fb.reactions[c.id]}
+              float={fb.floats[c.id]}
+              predicted={pendingCard ? targetPreview(c.id) : null}
+              targetable={enemyTargetable}
+              onUnitClick={onUnitClick}
+            />
+          ))}
+        </div>
+      </motion.div>
+
+      <AnimatePresence>
+        {banner && (
+          <motion.div
+            key={`${banner.kind}-${banner.seq}`}
+            className={'turn-banner ' + banner.kind}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            {t(banner.kind === 'party' ? 'ui.combat.yourTurn' : 'ui.combat.enemyTurn')}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {pending && <div className="targeting-hint">{t('ui.combat.pickTarget')}</div>}
 
       <div className="combat-hud">
         <div className="hud-left">
-          <div className="energy-orb"><b>{view.energy.current}</b><span>/{view.energy.max}</span><label>{t('ui.combat.energy')}</label></div>
+          <motion.div className="energy-orb" animate={energyControls}><b>{view.energy.current}</b><span>/{view.energy.max}</span><label>{t('ui.combat.energy')}</label></motion.div>
           <button type="button" className="card-stack draw" onClick={() => setPileModal('draw')} title={t('ui.combat.draw')}><span className="stack-count">{view.drawCount}</span><label>{t('ui.combat.draw')}</label></button>
         </div>
 
@@ -196,6 +184,8 @@ export function CombatScreen() {
                 onClick={() => clickCard(card)}
                 fan={fanOf(i)}
                 z={i}
+                flyTo={card.target === 'enemy' || card.target === 'allEnemies' ? { x: 210, y: -280 } : undefined}
+                reduced={fb.reduced}
               />
             ))}
           </AnimatePresence>
@@ -229,6 +219,103 @@ export function CombatScreen() {
         <CardPickModal playedIid={pickModal.iid} pick={pickModal.pick} onClose={() => setPickModal(null)} />
       )}
     </div>
+  )
+}
+
+// the figure animation for a transient reaction (skipped under reduced motion)
+function reactionAnim(reaction: UnitReaction | undefined, side: 'party' | 'enemy', reduced: boolean) {
+  if (!reaction || reduced) return { x: 0, scale: 1 }
+  switch (reaction.kind) {
+    case 'lunge':
+      return { x: side === 'party' ? [0, 18, 0] : [0, -18, 0], scale: 1 }
+    case 'hit':
+      return { x: [0, -7, 6, -4, 0], scale: 1 }
+    case 'block':
+      return { x: 0, scale: [1, 0.93, 1] }
+    case 'heal':
+      return { x: 0, scale: [1, 1.07, 1] }
+    default:
+      return { x: 0, scale: 1 }
+  }
+}
+
+// A combatant standing on the field: figure (with reaction + impact flash + rising numbers) + nameplate.
+// Module-level so it has a stable identity across CombatScreen re-renders — its Framer animations would
+// otherwise re-fire on every state change.
+function CombatUnit({
+  c,
+  side,
+  t,
+  reduced,
+  reaction,
+  float,
+  predicted,
+  targetable,
+  onUnitClick,
+}: {
+  c: CombatantView
+  side: 'party' | 'enemy'
+  t: (key: string, opts?: Record<string, unknown>) => string
+  reduced: boolean
+  reaction?: UnitReaction
+  float?: UnitFloat
+  predicted: number | null
+  targetable: boolean
+  onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
+}) {
+  const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
+  const tgt = side === 'enemy' && targetable
+  const showFlash = reaction && !reduced && reaction.kind !== 'lunge'
+  return (
+    <motion.div
+      layout
+      className={['unit', side, c.row, tgt ? 'targetable' : '', c.isDemon ? 'demon' : ''].join(' ')}
+      initial={{ opacity: 0, scale: 0.6 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+      onClick={(e) => onUnitClick(c, side, e)}
+    >
+      {side === 'enemy' && c.intentKind && (
+        <div className="intent">
+          {INTENT_ICON[c.intentKind] ?? '❔'}
+          {c.intentKind === 'attackMulti' && c.intentValue ? (
+            <b>{c.intentValue}×{c.intentHits ?? 1}</b>
+          ) : c.intentValue ? (
+            <b>{c.intentValue}</b>
+          ) : c.intentStacks ? (
+            <b>{c.intentStacks}</b>
+          ) : null}
+        </div>
+      )}
+      <div className="unit-figure">
+        {predicted !== null && <div className="dmg-predict">−{predicted}</div>}
+        <motion.div className="sprite-react" key={reaction?.seq ?? 'idle'} animate={reactionAnim(reaction, side, reduced)} transition={{ duration: 0.34 }}>
+          <span className="sprite">{spriteGlyph(c)}</span>
+          {showFlash && <motion.div className={'hit-flash ' + reaction!.kind} initial={{ opacity: 0.8 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />}
+        </motion.div>
+        <span className="unit-shadow" />
+        <AnimatePresence>
+          {float && (
+            <motion.div key={float.seq} className={float.tone === 'dmg' ? 'dmg-float' : 'heal-float'} initial={{ y: 0, opacity: 1 }} animate={{ y: -46, opacity: 0 }} transition={{ duration: 0.9 }}>
+              {float.tone === 'dmg' ? '-' : '+'}{float.amount}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <div className="unit-plate">
+        <div className="unit-name">{c.displayName ?? t(c.nameKey)}</div>
+        <div className="hp-bar">
+          <div className="hp-fill" style={{ width: `${hpPct}%` }} />
+          <span className="hp-text">{c.hp}/{c.maxHp}</span>
+        </div>
+        <div className="badges">
+          {c.block > 0 && <span className="badge block">🛡 {c.block}</span>}
+          {c.shield && <span className="badge ward">🛡✨ {Math.round(c.shield.chance * 100)}% · {c.shield.turns}t</span>}
+          {c.lastStand && <span className="badge laststand" title={t('ui.combat.lastStandHint')}>🔥 {t('ui.combat.lastStand')}</span>}
+          {c.row === 'back' && <span className="badge row">{t('ui.combat.backRow')}</span>}
+        </div>
+      </div>
+    </motion.div>
   )
 }
 

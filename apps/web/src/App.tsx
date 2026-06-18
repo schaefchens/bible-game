@@ -47,10 +47,11 @@ export function App() {
   const storyActive = useGame((s) => Boolean(s.state.run?.world.story))
   const praying = useGame((s) => s.praying)
   const deckOpen = useGame((s) => s.deckOpen)
+  const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
   const Screen = SCREENS[screen] ?? StartScreen
 
   return (
-    <div className={`app${dialogueActive ? ' dialogue-open' : ''}${storyActive ? ' story-open' : ''}${praying ? ' praying' : ''}`}>
+    <div className={`app${dialogueActive ? ' dialogue-open' : ''}${storyActive ? ' story-open' : ''}${praying ? ' praying' : ''}${reducedMotion ? ' reduced-motion' : ''}`}>
       {/* Persistent, screen-agnostic background-music driver (renders nothing). Outside the keyed
           screen layer so it never remounts on a screen change. */}
       <MusicController />
