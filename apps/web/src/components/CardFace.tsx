@@ -15,6 +15,9 @@ export interface CardFaceProps {
   verse?: boolean
   /** drives the ornament-frame colour (starter/common/uncommon/rare); defaults to common */
   rarity?: CardRarity
+  /** optional combat badges (so the drag ghost matches the fanned hand card) */
+  damage?: { perHit: number; hits: number; spiritual: boolean }
+  miracle?: { kind: 'banish' | 'protect'; chance: number; turns?: number }
   /** scaled values for interpolating the card text (dmg/block/heal/chance) */
   values?: Record<string, number>
   selected?: boolean
@@ -22,7 +25,7 @@ export interface CardFaceProps {
   onClick?: () => void
 }
 
-export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, selected, disabled, onClick }: CardFaceProps) {
+export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, damage, miracle, selected, disabled, onClick }: CardFaceProps) {
   const { t } = useTranslation()
   return (
     <button
@@ -32,6 +35,17 @@ export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity,
       disabled={disabled || !onClick}
     >
       <div className="card-cost">{cost}</div>
+      {damage && (
+        <div className={'card-damage ' + (damage.spiritual ? 'spirit' : 'flesh')}>
+          {damage.spiritual ? '✨' : '⚔'} {damage.perHit}
+          {damage.hits > 1 ? <span className="hits">×{damage.hits}</span> : null}
+        </div>
+      )}
+      {miracle && (
+        <div className="card-damage spirit">
+          {miracle.kind === 'banish' ? '✨' : '🛡✨'} {Math.round(miracle.chance * 100)}%
+        </div>
+      )}
       <div className="card-name">{t(nameKey)}</div>
       <div className={'card-art ' + layer} />
       <div className="card-text">{t(textKey, values)}</div>

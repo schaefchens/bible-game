@@ -7,10 +7,12 @@ import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 import { selectCombat, selectCombatPile, type CombatantView, type HandCardView } from '../selectors'
 import { CardView } from '../components/Card'
+import { CardFace } from '../components/CardFace'
 import { Hud } from '../components/Hud'
 import { CardListModal } from '../components/CardListModal'
 import { CardPickModal, type PickSpec } from '../components/CardPickModal'
 import { useCombatFeedback, type UnitFloat, type UnitReaction } from './useCombatFeedback'
+import { useCardDrag } from './useCardDrag'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
 
@@ -23,6 +25,7 @@ export function CombatScreen() {
   const aimItemAt = useGame((s) => s.aimItemAt)
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
   const fb = useCombatFeedback()
+  const drag = useCardDrag()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
   // a bottom-corner pile to inspect (read-only), and a "pick cards" prompt for hone/cast-off/prepare
   const [pileModal, setPileModal] = useState<'draw' | 'discard' | 'exhaust' | null>(null)
@@ -115,6 +118,17 @@ export function CombatScreen() {
     if (side === 'enemy') clickEnemy(c.id, c.isHuman)
   }
 
+  // Drag-to-play: a press that moves becomes a drag (ghost follows the cursor, slings to the target on
+  // release); a press that doesn't move falls back to the normal tap/select via clickCard. Disabled
+  // while carrying a bag item (that interaction owns the pointer).
+  drag.setHandlers({
+    enabled: !carrying,
+    reduced: fb.reduced,
+    isPlayable: (card) => !card.unplayable && view.energy.current >= card.cost,
+    playCard: (card, targetId) => dispatch({ type: 'combat/playCard', iid: card.iid, targetId }),
+    onTap: clickCard,
+  })
+
   const N = view.hand.length
   const fanOf = (i: number) => {
     const offset = i - (N - 1) / 2
@@ -145,6 +159,7 @@ export function CombatScreen() {
               float={fb.floats[c.id]}
               predicted={c.alive && pendingCard ? targetPreview(c.id) : null}
               targetable={enemyTargetable && c.alive}
+              dropHighlight={drag.hoveredEnemyId === c.id}
               onUnitClick={onUnitClick}
             />
           ))}
@@ -182,11 +197,12 @@ export function CombatScreen() {
                 card={card}
                 playable={!card.unplayable && view.energy.current >= card.cost}
                 selected={pending?.kind === 'card' && pending.iid === card.iid}
-                onClick={() => clickCard(card)}
+                onPointerDown={(e) => drag.beginDrag(e, card)}
                 fan={fanOf(i)}
                 z={i}
                 flyTo={card.target === 'enemy' || card.target === 'allEnemies' ? { x: 210, y: -280 } : undefined}
                 reduced={fb.reduced}
+                dragging={drag.draggingIid === card.iid}
               />
             ))}
           </AnimatePresence>
@@ -218,6 +234,23 @@ export function CombatScreen() {
       )}
       {pickModal && (
         <CardPickModal playedIid={pickModal.iid} pick={pickModal.pick} onClose={() => setPickModal(null)} />
+      )}
+
+      {/* the drag ghost: a card-face that follows the cursor while dragging, then slings to the target */}
+      {drag.ghost && (
+        <motion.div className="card-ghost" style={{ x: drag.ghost.x, y: drag.ghost.y }}>
+          <CardFace
+            cost={drag.ghost.card.cost}
+            layer={drag.ghost.card.layer}
+            nameKey={drag.ghost.card.nameKey}
+            textKey={drag.ghost.card.textKey}
+            verse={drag.ghost.card.type === 'verse'}
+            rarity={drag.ghost.card.rarity}
+            damage={drag.ghost.card.damage}
+            miracle={drag.ghost.card.miracle}
+            values={drag.ghost.card.values}
+          />
+        </motion.div>
       )}
     </div>
   )
@@ -252,6 +285,7 @@ function CombatUnit({
   float,
   predicted,
   targetable,
+  dropHighlight,
   onUnitClick,
 }: {
   c: CombatantView
@@ -262,14 +296,18 @@ function CombatUnit({
   float?: UnitFloat
   predicted: number | null
   targetable: boolean
+  // a card is being dragged over this enemy — glow it as a drop target
+  dropHighlight?: boolean
   onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
 }) {
   const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
-  const tgt = side === 'enemy' && targetable
+  const tgt = (side === 'enemy' && targetable) || !!dropHighlight
   const showFlash = reaction && !reduced && reaction.kind !== 'lunge'
   return (
     <motion.div
       layout
+      data-cid={c.id}
+      data-faction={c.faction}
       className={['unit', side, c.row, tgt ? 'targetable' : '', c.isDemon ? 'demon' : '', c.alive ? '' : 'dead'].join(' ')}
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}

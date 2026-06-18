@@ -401,9 +401,11 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .card {
   position: absolute; bottom: 22px; left: 50%; margin-left: -57px; width: 114px; height: 162px; transform-origin: bottom center;
   border-radius: 12px; border: 1px solid var(--panel-edge); background: linear-gradient(180deg, #2f3724, #14180f);
-  color: var(--ink); padding: 0.4rem; display: flex; flex-direction: column; cursor: pointer; text-align: center;
+  color: var(--ink); padding: 0.4rem; display: flex; flex-direction: column; cursor: grab; text-align: center; touch-action: none;
   box-shadow: 0 7px 16px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
 }
+/* the drag ghost (a card-face that tracks the cursor, then slings to the target) sits above everything */
+.card-ghost { position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none; will-change: transform; filter: drop-shadow(0 16px 26px rgba(0,0,0,0.6)); }
 /* an ornate inset frame line whose colour reflects the card's RARITY */
 .card::before { content: ''; position: absolute; inset: 3px; border-radius: 9px; border: 1px solid #9aa4ad; pointer-events: none; }
 .card.rarity-starter::before { border-color: #6f6a5a; }
