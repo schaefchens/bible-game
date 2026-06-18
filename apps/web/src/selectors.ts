@@ -411,7 +411,8 @@ export function selectCombat(state: GameState): CombatView | null {
 
   return {
     party: c.partyOrder.map(toView),
-    enemies: c.enemyOrder.map(toView).filter((e) => e.alive),
+    // include defeated (revealed) enemies so the UI can keep their slot — survivors must not slide
+    enemies: c.enemyOrder.map(toView),
     hand: c.hand.map((ci) => {
       // resolve the copy's CURRENT def — its '+' form if it's been honed this battle
       const defId = ci.honedDefId ?? ci.defId

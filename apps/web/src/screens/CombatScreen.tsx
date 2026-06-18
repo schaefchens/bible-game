@@ -118,7 +118,8 @@ export function CombatScreen() {
   const N = view.hand.length
   const fanOf = (i: number) => {
     const offset = i - (N - 1) / 2
-    return { x: offset * 52, y: Math.pow(Math.abs(offset), 1.5) * 6, rotate: offset * 5 }
+    // wide, near-flat fan: cards spread out and only slightly overlap (cf. screenshots/battle-ui.jpg)
+    return { x: offset * 100, y: Math.pow(Math.abs(offset), 1.5) * 5, rotate: offset * 4 }
   }
 
   return (
@@ -142,8 +143,8 @@ export function CombatScreen() {
               reduced={fb.reduced}
               reaction={fb.reactions[c.id]}
               float={fb.floats[c.id]}
-              predicted={pendingCard ? targetPreview(c.id) : null}
-              targetable={enemyTargetable}
+              predicted={c.alive && pendingCard ? targetPreview(c.id) : null}
+              targetable={enemyTargetable && c.alive}
               onUnitClick={onUnitClick}
             />
           ))}
@@ -269,13 +270,13 @@ function CombatUnit({
   return (
     <motion.div
       layout
-      className={['unit', side, c.row, tgt ? 'targetable' : '', c.isDemon ? 'demon' : ''].join(' ')}
+      className={['unit', side, c.row, tgt ? 'targetable' : '', c.isDemon ? 'demon' : '', c.alive ? '' : 'dead'].join(' ')}
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}
       onClick={(e) => onUnitClick(c, side, e)}
     >
-      {side === 'enemy' && c.intentKind && (
+      {side === 'enemy' && c.alive && c.intentKind && (
         <div className="intent">
           {INTENT_ICON[c.intentKind] ?? '❔'}
           {c.intentKind === 'attackMulti' && c.intentValue ? (
