@@ -17,6 +17,22 @@ import { useCardDrag } from './useCardDrag'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
 
+// The energy orb's colour scales with how full it is: a solid dark green at empty, gaining gold with
+// each point until it glows golden at full. Interpolated (not stepped) so partial amounts read between.
+function energyOrbStyle(current: number, max: number) {
+  const t = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * t)
+  const inner = `rgb(${mix(56, 246)}, ${mix(98, 232)}, ${mix(48, 166)})` // dark green → pale gold
+  const outer = `rgb(${mix(10, 184)}, ${mix(30, 146)}, ${mix(9, 63)})` // very dark green → deep gold
+  const border = `rgb(${mix(96, 244)}, ${mix(116, 231)}, ${mix(68, 161)})` // olive → gold-bright
+  const glow = `rgba(${mix(90, 244)}, ${mix(175, 231)}, ${mix(80, 161)}, ${(0.15 + 0.6 * t).toFixed(2)})`
+  return {
+    background: `radial-gradient(circle at 36% 30%, ${inner}, ${outer} 72%)`,
+    borderColor: border,
+    boxShadow: `0 0 ${Math.round(14 + 26 * t)}px ${glow}, 0 0 0 1px rgba(0,0,0,0.4), inset 0 0 18px rgba(0,0,0,0.5), inset 0 6px 12px rgba(255,250,210,${(0.18 + 0.4 * t).toFixed(2)})`,
+  }
+}
+
 export function CombatScreen() {
   const { t } = useTranslation()
   const state = useGame((s) => s.state)
@@ -188,7 +204,7 @@ export function CombatScreen() {
 
       <div className="combat-hud">
         <div className="hud-left">
-          <motion.div className="energy-orb" animate={energyControls}><b>{view.energy.current}</b><span>/{view.energy.max}</span><label>{t('ui.combat.energy')}</label></motion.div>
+          <motion.div className="energy-orb" style={energyOrbStyle(view.energy.current, view.energy.max)} animate={energyControls}><b>{view.energy.current}</b><span>/{view.energy.max}</span><label>{t('ui.combat.energy')}</label></motion.div>
           {/* draw pile + flee beside it, flee vertically centred on the pile */}
           <div className="pile-with-btn">
             <button type="button" className="card-stack draw" onClick={() => setPileModal('draw')} title={t('ui.combat.draw')}><span className="stack-count">{view.drawCount}</span><label>{t('ui.combat.draw')}</label></button>
