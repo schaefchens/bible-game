@@ -383,6 +383,8 @@ body {
 .hud-right-row { display: flex; align-items: flex-end; gap: 0.8rem; }
 /* a pile with its button (flee / hold) beside it — the button is vertically centred on the 64px pile */
 .pile-with-btn { display: flex; align-items: center; gap: 0.85rem; }
+/* the two piles (discard + exhaust) sit close together as a pair */
+.piles { display: flex; align-items: flex-end; gap: 0.4rem; }
 .grace-row { display: flex; gap: 0.4rem; }
 /* discard + exhaust sit together at the bottom-right */
 .pile-row { display: flex; align-items: flex-end; gap: 0.8rem; }

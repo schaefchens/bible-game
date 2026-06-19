@@ -218,14 +218,16 @@ export function CombatScreen() {
 
         {/* bottom-right, levelled with the orb: [hold + discard] [exhaust] [End Turn] */}
         <div className="hud-right">
-          {/* hold (grace) beside the discard pile, vertically centred on it */}
+          {/* hold (grace) beside the two piles, vertically centred on them */}
           <div className="pile-with-btn">
             {[...new Set(view.graceAbilities)].map((g) => (
               <button key={g} className="btn grace small" onClick={() => useGraceAbility(g)}>{t(`grace.${g}.name`)}</button>
             ))}
-            <button type="button" className="card-stack discard" onClick={() => setPileModal('discard')} title={t('ui.combat.discard')}><span className="stack-count">{view.discardCount}</span><label>{t('ui.combat.discard')}</label></button>
+            <div className="piles">
+              <button type="button" className="card-stack discard" onClick={() => setPileModal('discard')} title={t('ui.combat.discard')}><span className="stack-count">{view.discardCount}</span><label>{t('ui.combat.discard')}</label></button>
+              <button type="button" className="card-stack exhaust" onClick={() => setPileModal('exhaust')} title={t('ui.combat.exhaust')}><span className="stack-count">{view.exhaustCount}</span><label>{t('ui.combat.exhaust')}</label></button>
+            </div>
           </div>
-          <button type="button" className="card-stack exhaust" onClick={() => setPileModal('exhaust')} title={t('ui.combat.exhaust')}><span className="stack-count">{view.exhaustCount}</span><label>{t('ui.combat.exhaust')}</label></button>
           <button className="btn end-turn" onClick={() => dispatch({ type: 'combat/endTurn' })}>{t('ui.combat.endTurn')}</button>
         </div>
       </div>
