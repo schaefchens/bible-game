@@ -47,6 +47,8 @@ body {
 .vignette.dark { background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.95) 100%); }
 /* player-death cinematic veil: the battlefield bleeds out (dark red → black) before game over */
 .death-veil { position: absolute; inset: 0; z-index: 90; pointer-events: none; background: radial-gradient(ellipse at center, rgba(64,4,4,0.5) 0%, rgba(14,0,0,0.9) 70%, rgba(0,0,0,0.98) 100%); }
+/* victory cinematic veil: a golden light blooms over the field (screen-blended) before the reward */
+.victory-veil { position: absolute; inset: 0; z-index: 90; pointer-events: none; mix-blend-mode: screen; background: radial-gradient(circle at 50% 46%, rgba(255,243,200,0.6) 0%, rgba(244,231,161,0.34) 30%, rgba(196,150,70,0.12) 56%, transparent 72%); }
 .scrim { background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.7)); }
 .scrim.soft { background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.55)); }
 .firelight { background: radial-gradient(ellipse at 50% 75%, rgba(216,140,60,0.28), transparent 60%), var(--bg); animation: flicker 4s ease-in-out infinite; }

@@ -229,6 +229,12 @@ export function CombatScreen() {
         <motion.div className="death-veil" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.4, ease: 'easeIn' }} />
       )}
 
+      {/* victory cinematic: a golden light blooms over the held battlefield (felled foes slumped in
+          place) before the store reveals the reward screen */}
+      {(view.outcome === 'victory' || view.outcome === 'peaceful') && !fb.reduced && (
+        <motion.div className="victory-veil" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.1, ease: 'easeOut' }} />
+      )}
+
       <AnimatePresence>
         {banner && (
           <motion.div

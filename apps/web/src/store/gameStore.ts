@@ -13,6 +13,10 @@ const content = createContent()
 // before the game-over panel is revealed. Skipped entirely under reduced motion.
 const DEATH_CINEMATIC_MS = 1900
 let deathTimer: ReturnType<typeof setTimeout> | undefined
+// The triumphant counterpart: linger on the battlefield (defeated foes + a golden light-bloom)
+// before the reward screen is revealed. Skipped under reduced motion.
+const WIN_CINEMATIC_MS = 1500
+let winTimer: ReturnType<typeof setTimeout> | undefined
 
 /** Where a held item can be applied — the action wheel pops up on whichever of these you point at. */
 export type ItemTarget =
@@ -49,6 +53,9 @@ interface GameStore {
   /** transient UI flag: the player-death cinematic is playing — the battlefield is held on screen
    *  (hero falling + the death veil) before the game-over panel is revealed. */
   dying: boolean
+  /** transient UI flag: the victory cinematic is playing — the battlefield is held (defeated foes +
+   *  the golden light-bloom) before the reward screen is revealed. */
+  winning: boolean
   /** transient UI flag: the sleep cinematic (fade-to-black + cue) is playing */
   sleeping: boolean
   setSleeping: (sleeping: boolean) => void
@@ -100,6 +107,7 @@ export const useGame = create<GameStore>((set, get) => ({
   content,
   resumableIds: [],
   dying: false,
+  winning: false,
   sleeping: false,
   praying: false,
   deckOpen: false,
@@ -142,7 +150,18 @@ export const useGame = create<GameStore>((set, get) => ({
       return
     }
 
-    set({ state: next, lastEvents: events, tick: tick + 1, dying: false })
+    // Victory: same idea, triumphant. Hold on the battlefield (the felled foe slumps + a golden light
+    // blooms) before the reward screen takes over. The engine already set screen → 'reward' (combat +
+    // its enriched reward stay in state); we override back to 'combat' for the cinematic window.
+    const justWon = next.screen === 'reward' && state.screen === 'combat'
+    if (justWon && !next.profile.settings.reducedMotion) {
+      set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, winning: true })
+      if (winTimer) clearTimeout(winTimer)
+      winTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'reward' }, winning: false })), WIN_CINEMATIC_MS)
+      return
+    }
+
+    set({ state: next, lastEvents: events, tick: tick + 1, dying: false, winning: false })
     // autosave at boundaries (never mid-combat)
     if (!next.combat) void saveStore.persist(next)
   },
