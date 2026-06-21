@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { CardRarity } from '../selectors'
+import { cardArt } from '../cardArt'
 
 /**
  * A plain (motion-free) card face for menu contexts — reward picks, the fireplace upgrade picker,
@@ -47,7 +48,7 @@ export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity,
         </div>
       )}
       <div className="card-name">{t(nameKey)}</div>
-      <div className={'card-art ' + layer} />
+      <div className={'card-art ' + layer}><span className="card-art-glyph">{cardArt(nameKey, layer)}</span></div>
       <div className="card-text">{t(textKey, values)}</div>
     </button>
   )

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HandCardView } from '../selectors'
+import { cardArt } from '../cardArt'
 
 // How far the resting hand is tucked DOWN past the bottom edge — only the title + upper art peek
 // above the "ground"; hovering or selecting lifts the card fully into view (Slay-the-Spire hand).
@@ -93,7 +94,7 @@ export function CardView({
         </div>
       )}
       <div className="card-name">{t(card.nameKey)}</div>
-      <div className={'card-art ' + card.layer} />
+      <div className={'card-art ' + card.layer}><span className="card-art-glyph">{cardArt(card.nameKey, card.layer)}</span></div>
       <div className="card-text">{t(card.textKey, card.values)}</div>
     </motion.button>
   )

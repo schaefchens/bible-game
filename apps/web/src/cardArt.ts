@@ -1,0 +1,45 @@
+// Placeholder card "art": one emoji per card, centered in the .card-art block (styled in styles.css
+// with a subtle desaturate + drop-shadow + layer-tinted glow). UI-side only — these are placeholders,
+// mirroring the emoji combatant sprites (cf. spriteGlyph in CombatScreen). Swap for real art later.
+
+// Keyed by card id. '+' upgrade variants reuse their base art.
+const CARD_ART: Record<string, string> = {
+  // flesh — attacks
+  strike: '⚔️',
+  strike_plus: '⚔️',
+  strike_heavy: '⚔️',
+  flurry: '🗡️',
+  flurry_plus: '🗡️',
+  shove: '👊',
+  riposte: '🤺',
+  subdue: '😵',
+  // flesh — skills / defense / utility
+  guard: '🛡️',
+  guard_plus: '🛡️',
+  brace: '🧱',
+  second_wind: '💨',
+  second_wind_plus: '💨',
+  quickstep: '👣',
+  rally: '📣',
+  exhort: '💪',
+  focus: '🎯',
+  steadfast: '🗿',
+  // flesh — card manipulation
+  sharpen: '⚒️',
+  cast_off: '🪶',
+  prepare: '🛤️',
+  // enemy clutter
+  spike: '🌵',
+  // spirit — verses (miracles)
+  verse_zech_4_6: '✨',
+  verse_phil_4_6: '🙏',
+  verse_luke_10_27: '❤️',
+  verse_2kings_6_17: '👁️',
+}
+
+/** The emoji for a card, looked up from its nameKey (`card.<id>.name`). Falls back by layer so a new
+ *  card without a mapping still shows something on-theme. */
+export function cardArt(nameKey: string, layer: string): string {
+  const id = nameKey.split('.')[1] ?? ''
+  return CARD_ART[id] ?? (layer === 'spirit' ? '✨' : '🃏')
+}
