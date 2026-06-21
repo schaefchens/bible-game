@@ -62,6 +62,9 @@ export type Command =
   | { type: 'combat/useGrace'; ability: GraceAbilityId; targetId?: CombatantId }
   | { type: 'combat/useItem'; itemId: ItemId; targetId?: CombatantId } // use a bag item in battle (heal an ally, …)
   | { type: 'combat/endTurn' }
+  // stepped enemy turn (UI-paced): begin queues the actors; advance resolves the next one
+  | { type: 'combat/beginEnemyTurn' }
+  | { type: 'combat/advanceEnemyTurn' }
   // ---- reward (post-combat): claim spoils individually, pick one card (or skip), then leave ----
   | { type: 'combat/claimSpoil'; spoilId: string }
   | { type: 'combat/takeCard'; defId: CardDefId }

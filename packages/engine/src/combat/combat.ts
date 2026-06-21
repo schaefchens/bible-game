@@ -762,51 +762,99 @@ export function useItem(
   return step(ended.combat, [...events, ...ended.events], [...spiritEvents, ...ended.spiritEvents])
 }
 
-export function endTurn(c: CombatState, spirit: number): CombatStep {
-  void spirit
-  const begun = ensureActing(c)
-  let combat = begun.combat
-  if (combat.phase !== 'partyAction') return reject(c, 'not-action-phase')
+// ---- enemy turn: shared building blocks (batch endTurn + UI-stepped advanceEnemyTurn) -----------
 
-  // discard hand
-  combat = { ...combat, discardPile: [...combat.discardPile, ...combat.hand], hand: [], phase: 'partyEnd' }
-
-  const after = enemyPhase(combat)
-  return step(after.combat, [...begun.events, ...after.events], after.spiritEvents)
+/** reset every enemy's block at the start of their turn */
+function resetEnemyBlock(c: CombatState): CombatState {
+  let combat = c
+  for (const id of combat.enemyOrder) combat = withCombatant(combat, id, (x) => ({ ...x, block: 0 }))
+  return combat
 }
 
-/** Enemy turn → round resolve → next round (or combat end). */
+/** the enemies that act this turn, fastest first (alive + revealed) — snapshotted at turn start */
+function buildEnemyOrder(c: CombatState): CombatantId[] {
+  return [...c.enemyOrder]
+    .map((id) => c.combatants[id]!)
+    .filter((x) => x.alive && !x.hidden)
+    .sort((a, b) => b.stats.speed - a.stats.speed)
+    .map((x) => x.id)
+}
+
+/** round resolve: tick status durations, then end combat or begin the next round */
+function resolveRound(c: CombatState): CombatStep {
+  const combat = tickStatuses(c)
+  const ended = finalizeIfEnded(combat)
+  if (ended.combat.outcome !== 'ongoing') return ended
+  return beginRound(ended.combat)
+}
+
+/** end the party's action phase: discard the hand → 'partyEnd' (shared by the batch + stepped paths) */
+function endPartyTurn(c: CombatState): CombatStep {
+  const begun = ensureActing(c)
+  if (begun.combat.phase !== 'partyAction') return reject(c, 'not-action-phase')
+  const combat: CombatState = { ...begun.combat, discardPile: [...begun.combat.discardPile, ...begun.combat.hand], hand: [], phase: 'partyEnd' }
+  return step(combat, begun.events)
+}
+
+export function endTurn(c: CombatState, spirit: number): CombatStep {
+  void spirit
+  const ended = endPartyTurn(c)
+  if (ended.events.some((e) => e.type === 'rejected')) return ended
+  const after = enemyPhase(ended.combat)
+  return step(after.combat, [...ended.events, ...after.events], after.spiritEvents)
+}
+
+/** BATCH enemy turn → round resolve → next round (or combat end). Used by tests / headless /
+ *  reduced-motion. The interactive UI uses beginEnemyTurnFromParty + advanceEnemyTurn instead. */
 function enemyPhase(c: CombatState): CombatStep {
-  let combat: CombatState = { ...c, phase: 'enemyTurn' }
+  let combat = resetEnemyBlock({ ...c, phase: 'enemyTurn' })
   const events: GameEvent[] = []
   const spiritEvents: SpiritEvent[] = []
 
-  // reset enemy block at the start of their turn
-  for (const id of combat.enemyOrder) combat = withCombatant(combat, id, (x) => ({ ...x, block: 0 }))
-
-  const order = [...combat.enemyOrder]
-    .map((id) => combat.combatants[id]!)
-    .filter((x) => x.alive && !x.hidden)
-    .sort((a, b) => b.stats.speed - a.stats.speed)
-
-  for (const e of order) {
-    const cur = combat.combatants[e.id]!
-    if (!cur.alive) continue
-    const r = executeIntent(combat, e.id)
+  for (const id of buildEnemyOrder(combat)) {
+    if (!combat.combatants[id]?.alive) continue
+    const r = executeIntent(combat, id)
     combat = r.combat
-    events.push({ type: 'enemyActed', id: e.id }, ...r.events)
+    events.push({ type: 'enemyActed', id }, ...r.events)
     spiritEvents.push(...r.spiritEvents)
     if (allPartyDead(combat)) break
   }
 
-  // round resolve: tick durations
-  combat = tickStatuses(combat)
-  const ended = finalizeIfEnded(combat)
-  if (ended.combat.outcome !== 'ongoing') {
-    return step(ended.combat, [...events, ...ended.events], [...spiritEvents, ...ended.spiritEvents])
+  const resolved = resolveRound(combat)
+  return step(resolved.combat, [...events, ...resolved.events], [...spiritEvents, ...resolved.spiritEvents])
+}
+
+/** STEPPED enemy turn (UI-paced): begin the turn — end the party turn + queue the actors — without
+ *  resolving any enemy action yet. The UI then drives advanceEnemyTurn one enemy at a time. */
+export function beginEnemyTurnFromParty(c: CombatState): CombatStep {
+  const ended = endPartyTurn(c)
+  if (ended.events.some((e) => e.type === 'rejected')) return ended
+  const combat = resetEnemyBlock({ ...ended.combat, phase: 'enemyTurn' })
+  const queue = buildEnemyOrder(combat)
+  return step(
+    { ...combat, enemyQueue: queue, enemyStepIndex: 0, turnOwner: { kind: 'enemy', index: 0 } },
+    [...ended.events, { type: 'enemyTurnBegan', count: queue.length }],
+  )
+}
+
+/** STEPPED enemy turn: resolve the NEXT queued enemy; when the queue is spent (or the party is dead)
+ *  run the round resolve and hand control back to the party. */
+export function advanceEnemyTurn(c: CombatState): CombatStep {
+  if (c.phase !== 'enemyTurn' || c.enemyQueue === undefined) return reject(c, 'not-enemy-turn')
+  const queue = c.enemyQueue
+  let idx = c.enemyStepIndex ?? 0
+  while (idx < queue.length && !c.combatants[queue[idx]!]?.alive) idx++ // skip enemies killed earlier this turn
+
+  if (idx >= queue.length || allPartyDead(c)) {
+    const cleared: CombatState = { ...c, enemyQueue: undefined, enemyStepIndex: undefined, turnOwner: { kind: 'party' } }
+    const resolved = resolveRound(cleared)
+    return step(resolved.combat, [{ type: 'enemyTurnEnded' }, ...resolved.events], resolved.spiritEvents)
   }
-  const next = beginRound(ended.combat)
-  return step(next.combat, [...events, ...next.events], spiritEvents)
+
+  const id = queue[idx]!
+  const r = executeIntent(c, id)
+  const combat: CombatState = { ...r.combat, enemyStepIndex: idx + 1, turnOwner: { kind: 'enemy', index: idx + 1 } }
+  return step(combat, [{ type: 'enemyActed', id }, ...r.events], r.spiritEvents)
 }
 
 function executeIntent(c: CombatState, enemyId: CombatantId): CombatStep {

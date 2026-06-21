@@ -151,6 +151,11 @@ export interface CombatState {
   phase: Phase
   roundNumber: number
   turnOwner: TurnOwner
+  /** while the enemy turn is being STEPPED by the UI (one enemy per dispatch): the actors this turn
+   *  (speed-desc, snapshotted at turn start) and the index of the next to act. Undefined otherwise —
+   *  the batch `endTurn` path leaves these unset. */
+  enemyQueue?: CombatantId[]
+  enemyStepIndex?: number
   formation: FormationLayout
   combatants: Record<CombatantId, Combatant>
   partyOrder: CombatantId[]

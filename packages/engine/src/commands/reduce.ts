@@ -92,6 +92,8 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     case 'combat/useGrace':
     case 'combat/useItem':
     case 'combat/endTurn':
+    case 'combat/beginEnemyTurn':
+    case 'combat/advanceEnemyTurn':
     case 'combat/claimSpoil':
     case 'combat/takeCard':
     case 'combat/skipCard':

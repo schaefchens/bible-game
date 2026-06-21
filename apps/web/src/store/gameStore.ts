@@ -9,6 +9,11 @@ import { i18n } from '../i18n'
 
 const content = createContent()
 
+// How long the player-death cinematic holds on the battlefield (hero falls + the screen bleeds out)
+// before the game-over panel is revealed. Skipped entirely under reduced motion.
+const DEATH_CINEMATIC_MS = 1900
+let deathTimer: ReturnType<typeof setTimeout> | undefined
+
 /** Where a held item can be applied — the action wheel pops up on whichever of these you point at. */
 export type ItemTarget =
   | { kind: 'hotspot'; id: string } // a scene hotspot / NPC / object
@@ -41,6 +46,9 @@ interface GameStore {
   content: typeof content
   /** hero ids that currently have an in-progress (resumable) run in storage */
   resumableIds: string[]
+  /** transient UI flag: the player-death cinematic is playing — the battlefield is held on screen
+   *  (hero falling + the death veil) before the game-over panel is revealed. */
+  dying: boolean
   /** transient UI flag: the sleep cinematic (fade-to-black + cue) is playing */
   sleeping: boolean
   setSleeping: (sleeping: boolean) => void
@@ -91,6 +99,7 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: 0,
   content,
   resumableIds: [],
+  dying: false,
   sleeping: false,
   praying: false,
   deckOpen: false,
@@ -120,7 +129,20 @@ export const useGame = create<GameStore>((set, get) => ({
   dispatch: (cmd) => {
     const { state, tick } = get()
     const { state: next, events } = reduce(state, cmd)
-    set({ state: next, lastEvents: events, tick: tick + 1 })
+
+    // Player death: don't snap to the game-over panel. Hold on the battlefield so the death cinematic
+    // (hero falling + the screen bleeding out) can play, THEN reveal game over. The engine has already
+    // set screen → 'gameOver'; we override it back to 'combat' for the cinematic window. (Reduced
+    // motion skips the beat — straight to the panel, as before.)
+    const justDefeated = next.screen === 'gameOver' && state.screen !== 'gameOver'
+    if (justDefeated && !next.profile.settings.reducedMotion) {
+      set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, dying: true })
+      if (deathTimer) clearTimeout(deathTimer)
+      deathTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'gameOver' }, dying: false })), DEATH_CINEMATIC_MS)
+      return
+    }
+
+    set({ state: next, lastEvents: events, tick: tick + 1, dying: false })
     // autosave at boundaries (never mid-combat)
     if (!next.combat) void saveStore.persist(next)
   },

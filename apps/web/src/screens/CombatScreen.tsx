@@ -17,6 +17,10 @@ import { useCardDrag } from './useCardDrag'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
 
+// Pause between each enemy's action during the UI-paced enemy turn (one engine step per gap). Long
+// enough to read the lunge → hit → HP-drop → damage float before the next foe steps up.
+const ENEMY_STEP_GAP = 820
+
 // The energy orb's colour scales with how full it is: a solid dark green at empty, gaining gold with
 // each point until it glows golden at full. Interpolated (not stepped) so partial amounts read between.
 function energyOrbStyle(current: number, max: number) {
@@ -49,6 +53,10 @@ export function CombatScreen() {
   const [pickModal, setPickModal] = useState<{ iid: string; pick: PickSpec } | null>(null)
   // a transient "Your Turn / Enemy Turn" banner, raised by the feedback hook's turn cue
   const [banner, setBanner] = useState<{ kind: 'party' | 'enemy'; seq: number } | null>(null)
+  // true while the hand is being discarded at end-turn: the cards slide DOWN off the bottom edge
+  // (vs. a single play, which keeps its fly-to-target / fly-up motion). Read by the hand's exit via
+  // AnimatePresence `custom`; reset once the player is acting again with a fresh hand.
+  const [handDiscarding, setHandDiscarding] = useState(false)
 
   // Screen shake (battlefield only — never the clickable hand) and the energy-orb spend pulse.
   const shakeControls = useAnimationControls()
@@ -59,6 +67,12 @@ export function CombatScreen() {
   useEffect(() => {
     if (view?.phase === 'partyDecision' && view.outcome === 'ongoing') dispatch({ type: 'combat/beginAction' })
   }, [view?.phase, view?.outcome, dispatch])
+
+  // The end-turn discard is over once the player is acting again (the fresh hand is dealt) — clear the
+  // flag so the next card the player PLAYS flies to its target rather than dropping off the bottom.
+  useEffect(() => {
+    if (view?.phase === 'partyAction') setHandDiscarding(false)
+  }, [view?.phase])
 
   useEffect(() => {
     if (fb.shake && !fb.reduced) void shakeControls.start({ x: [0, -6, 6, -4, 0], transition: { duration: 0.26 } })
@@ -72,6 +86,20 @@ export function CombatScreen() {
     const id = setTimeout(() => setBanner(null), 950)
     return () => clearTimeout(id)
   }, [fb.turnCue?.seq])
+
+  // Pace the stepped enemy turn: the engine resolves ONE enemy per `combat/advanceEnemyTurn`, so we
+  // fire the next advance after a short gap and let each attack animate (lunge → hit → HP drop →
+  // float) via the per-dispatch feedback path. The effect re-runs on each enemyStepIndex change,
+  // walking the queue until the turn resolves (phase leaves 'enemyTurn'). The cleanup clears the
+  // pending timer (unmount- and supersede-safe); the engine's own guard ignores any stray advance.
+  // Reduced motion never enters this phase — its End Turn dispatches the instant batch `endTurn`.
+  const enemyPhaseActive = state.combat?.phase === 'enemyTurn' && state.combat?.enemyQueue !== undefined
+  const enemyStepIndex = state.combat?.enemyStepIndex
+  useEffect(() => {
+    if (!enemyPhaseActive) return
+    const id = setTimeout(() => dispatch({ type: 'combat/advanceEnemyTurn' }), ENEMY_STEP_GAP)
+    return () => clearTimeout(id)
+  }, [enemyPhaseActive, enemyStepIndex, dispatch])
 
   if (!view) return null
 
@@ -159,7 +187,9 @@ export function CombatScreen() {
 
       <motion.div className="battlefield" animate={shakeControls}>
         <div className="side party">
-          {view.party.filter((c) => c.alive).map((c) => (
+          {/* dead members stay on the field (slumped) rather than vanishing — position is a game
+              element, and a fallen hero needs to be SEEN before the game-over screen */}
+          {view.party.map((c) => (
             <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={false} onUnitClick={onUnitClick} />
           ))}
         </div>
@@ -181,6 +211,12 @@ export function CombatScreen() {
           ))}
         </div>
       </motion.div>
+
+      {/* player-death cinematic: a dark-red veil bleeds over the held battlefield (the fallen hero
+          slumps in place) before the store reveals the game-over panel */}
+      {view.outcome === 'defeat' && !fb.reduced && (
+        <motion.div className="death-veil" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.4, ease: 'easeIn' }} />
+      )}
 
       <AnimatePresence>
         {banner && (
@@ -205,12 +241,12 @@ export function CombatScreen() {
           {/* draw pile + flee beside it, flee vertically centred on the pile */}
           <div className="pile-with-btn">
             <button type="button" className="card-stack draw" onClick={() => setPileModal('draw')} title={t('ui.combat.draw')}><span className="stack-count">{view.drawCount}</span><label>{t('ui.combat.draw')}</label></button>
-            {view.canFlee && <button className="btn ghost small" onClick={() => dispatch({ type: 'combat/flee' })}>{t('ui.combat.flee')}</button>}
+            {view.canFlee && <button className="btn ghost small" onClick={() => { setHandDiscarding(true); dispatch({ type: 'combat/flee' }) }}>{t('ui.combat.flee')}</button>}
           </div>
         </div>
 
         <div className="hand-fan">
-          <AnimatePresence>
+          <AnimatePresence custom={{ ending: handDiscarding }}>
             {view.hand.map((card, i) => (
               <CardView
                 key={card.iid}
@@ -241,7 +277,9 @@ export function CombatScreen() {
               <button type="button" className="card-stack exhaust" onClick={() => setPileModal('exhaust')} title={t('ui.combat.exhaust')}><span className="stack-count">{view.exhaustCount}</span><label>{t('ui.combat.exhaust')}</label></button>
             </div>
           </div>
-          <button className="btn end-turn" onClick={() => dispatch({ type: 'combat/endTurn' })}>{t('ui.combat.endTurn')}</button>
+          {/* End Turn: reduced motion resolves the enemy turn instantly (batch); otherwise hand off to
+              the UI-paced stepped turn (begin → the self-clocking effect advances one enemy at a time) */}
+          <button className="btn end-turn" onClick={() => { setHandDiscarding(true); dispatch({ type: fb.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' }) }}>{t('ui.combat.endTurn')}</button>
         </div>
       </div>
 
@@ -368,6 +406,11 @@ function CombatUnit({
           <span className="sprite">{spriteGlyph(c)}</span>
           {showFlash && <motion.div className={'hit-flash ' + reaction!.kind} initial={{ opacity: 0.8 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />}
         </motion.div>
+        {/* impact burst when a party member is struck — gives an enemy hit the same punch as the
+            player's slingshot landing (enemy hits already get drag.impact at the landing spot) */}
+        {side === 'party' && reaction?.kind === 'hit' && !reduced && (
+          <motion.div key={'impact-' + reaction.seq} className="unit-impact" initial={{ scale: 0.3, opacity: 0.95 }} animate={{ scale: 1.9, opacity: 0 }} transition={{ duration: 0.38, ease: 'easeOut' }} />
+        )}
         <span className="unit-shadow" />
         <AnimatePresence>
           {float && (

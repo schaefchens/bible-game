@@ -72,6 +72,9 @@ export type GameEvent =
   | { type: 'fleeAttempt'; success: boolean }
   | { type: 'intentTelegraphed'; id: CombatantId }
   | { type: 'enemyActed'; id: CombatantId }
+  // stepped (UI-paced) enemy turn: begin emits the count of actors, end hands control back to the party
+  | { type: 'enemyTurnBegan'; count: number }
+  | { type: 'enemyTurnEnded' }
   | { type: 'combatantDied'; id: CombatantId; isHuman: boolean; mode: DefeatMode }
   | { type: 'partyMemberDied'; memberId: MemberId }
   | { type: 'roundAdvanced'; round: number }

@@ -6,8 +6,9 @@ import { useGame } from '../store/gameStore'
 // Combat feedback (juice) derived from the engine's event stream. The store applies one dispatch
 // synchronously and exposes the resulting (state, lastEvents, tick) snapshot — `state` is already the
 // FINAL post-event state and `lastEvents` is the diff of what happened. We turn that diff into transient
-// visual cues. The whole enemy turn arrives in ONE batch (enemyActed A, damage…, enemyActed B, …); we
-// segment it and play it on a UI-only timeline so each hit is legible. The engine is never touched.
+// visual cues. The enemy turn is now PACED by the UI (CombatScreen dispatches one `advanceEnemyTurn`
+// per enemy), so each dispatch carries at most one enemy's `enemyActed` + its effects — we just play
+// the wind-up→impact beat for that single actor. Banners are driven by enemyTurnBegan/Ended events.
 
 export type ReactionKind = 'lunge' | 'hit' | 'block' | 'heal'
 export interface UnitReaction {
@@ -30,8 +31,7 @@ export interface CombatFeedback {
   reduced: boolean
 }
 
-// per-enemy step cadence during the staggered enemy turn
-const STEP_MS = 540
+// the wind-up → impact beat within a single actor's dispatch: lunge immediately, then land the hit
 const HIT_DELAY = 160
 
 type FxStep = {
@@ -118,39 +118,34 @@ export function useCombatFeedback(): CombatFeedback {
       })
     }
 
-    // The party's own card resolves immediately; the enemy turn is staggered for legibility.
-    const isEnemyTurn = lastEvents.some((e) => e.type === 'enemyActed')
+    // Banners are event-driven: the stepped enemy turn opens with `enemyTurnBegan` and closes with
+    // `enemyTurnEnded`. (The batch path used by reduced motion emits neither → no banner, instant.)
+    if (lastEvents.some((e) => e.type === 'enemyTurnBegan')) commit({ cue: 'enemy' })
+    const endedTurn = lastEvents.some((e) => e.type === 'enemyTurnEnded')
+    const combatEnded = lastEvents.some((e) => e.type === 'combatEnded')
 
-    if (!isEnemyTurn || reduced) {
+    // A single enemy's step (one `enemyActed`, UI-paced): wind up (lunge) now, land the hit shortly
+    // after so the strike reads as cause → effect. Everything else (the player's own card/grace/item,
+    // the reduced-motion batch enemy turn, or a no-actor resolve step) commits in one shot.
+    const actor = lastEvents.find((e): e is Extract<GameEvent, { type: 'enemyActed' }> => e.type === 'enemyActed')
+    if (actor && !reduced) {
+      commit({ reactions: { [actor.id]: 'lunge' } })
+      const step = bundle(lastEvents)
+      timersRef.current.push(setTimeout(() => commit(step), HIT_DELAY))
+    } else {
       const step = bundle(lastEvents)
       // the played card's owner (a party member) lunges toward the field
       const sourceId = playedSourceId(combat, lastEvents)
       if (sourceId && step.reactions[sourceId] == null) step.reactions[sourceId] = 'lunge'
       const energySpent = prevEnergy != null && energyNow < prevEnergy
       commit({ ...step, energyPulse: energySpent })
-      return
     }
 
-    // Segment the flat batch on each `enemyActed`, then play the segments on a timeline.
-    const segments: { actorId: string; events: GameEvent[] }[] = []
-    let cur: { actorId: string; events: GameEvent[] } | null = null
-    for (const e of lastEvents) {
-      if (e.type === 'enemyActed') {
-        cur = { actorId: e.id, events: [] }
-        segments.push(cur)
-      } else if (cur) {
-        cur.events.push(e)
-      }
+    // hand control back to the party — unless the fight just ended on this very step (game over /
+    // victory takes over the screen, so "Your Turn" would be wrong).
+    if (endedTurn && !combatEnded) {
+      timersRef.current.push(setTimeout(() => commit({ cue: 'party' }), HIT_DELAY + 40))
     }
-    commit({ cue: 'enemy' })
-    let t = 0
-    for (const seg of segments) {
-      const at = t
-      timersRef.current.push(setTimeout(() => commit({ reactions: { [seg.actorId]: 'lunge' } }), at))
-      timersRef.current.push(setTimeout(() => commit(bundle(seg.events)), at + HIT_DELAY))
-      t += STEP_MS
-    }
-    timersRef.current.push(setTimeout(() => commit({ cue: 'party' }), t + HIT_DELAY))
   }, [tick])
 
   // clear pending timers on unmount

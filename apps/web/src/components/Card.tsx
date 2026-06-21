@@ -44,20 +44,29 @@ export function CardView({
   // clearly; the lower description may sit under the bottom edge) rather than flying up the screen
   const lifted = { x: fan.x, y: 18, rotate: 0, scale: 1.06, zIndex: 50, opacity: 1 }
   const rest = { x: fan.x, y: fan.y + REST_TUCK, rotate: fan.rotate, scale: 1, zIndex: z, opacity: 1 }
-  // Play exit: an aimed/launched (drag-played) card fades quietly (the slinging copy carries the motion);
-  // reduced motion fades; otherwise launch toward the target (enemy) or up (self).
-  const exit = aiming || launched
-    ? { opacity: 0, scale: 0.9, transition: { duration: 0.12 } }
-    : reduced
-    ? { opacity: 0, transition: { duration: 0.12 } }
-    : {
-        opacity: 0,
-        x: flyTo ? flyTo.x : fan.x,
-        y: flyTo ? flyTo.y : -190,
-        scale: flyTo ? 0.55 : 0.7,
-        rotate: 0,
-        transition: { duration: flyTo ? 0.36 : 0.28 },
-      }
+  // Exit resolves through a variant so it can read AnimatePresence's `custom` flag at removal time
+  // (the frozen exit snapshot can't otherwise tell a turn-end discard from a single play):
+  //   • turn-end discard (custom.ending) → the whole hand just slides DOWN past the bottom edge,
+  //     never flying up off the top (cf. the player's request).
+  //   • a single play → aimed/launched (drag) fades (the slinging copy carries the motion);
+  //     reduced motion fades; otherwise it launches toward the target (enemy) or up (self).
+  const exitVariant = (custom?: { ending?: boolean }) => {
+    if (custom?.ending) {
+      return reduced
+        ? { opacity: 0, transition: { duration: 0.12 } }
+        : { opacity: 0, x: fan.x, y: fan.y + REST_TUCK + 260, rotate: fan.rotate, scale: 0.96, transition: { duration: 0.32, ease: 'easeIn' as const } }
+    }
+    if (aiming || launched) return { opacity: 0, scale: 0.9, transition: { duration: 0.12 } }
+    if (reduced) return { opacity: 0, transition: { duration: 0.12 } }
+    return {
+      opacity: 0,
+      x: flyTo ? flyTo.x : fan.x,
+      y: flyTo ? flyTo.y : -190,
+      scale: flyTo ? 0.55 : 0.7,
+      rotate: 0,
+      transition: { duration: flyTo ? 0.36 : 0.28 },
+    }
+  }
   return (
     <motion.button
       className={['card', card.layer, 'rarity-' + card.rarity, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : '', aiming ? 'aiming' : '', launched ? 'launched' : ''].join(' ')}
@@ -66,7 +75,8 @@ export function CardView({
       disabled={!playable && !selected}
       initial={{ opacity: 0, x: fan.x, y: 130, rotate: fan.rotate }}
       animate={selected ? lifted : rest}
-      exit={exit}
+      variants={{ exit: exitVariant }}
+      exit="exit"
       whileHover={playable && !selected && !aiming && !launched ? lifted : undefined}
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
     >
