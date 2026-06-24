@@ -299,6 +299,8 @@ export interface CombatantView {
   id: string
   nameKey: string
   displayName?: string
+  /** stable type key (hero/companion/thief/goliath/…) — selects the battle sprite art */
+  archetype: string
   faction: 'party' | 'enemy'
   isHuman: boolean
   isDemon: boolean
@@ -394,6 +396,7 @@ export function selectCombat(state: GameState): CombatView | null {
       id: x.id,
       nameKey: x.faction === 'enemy' ? `enemy.${x.archetype}` : `enemy.${x.archetype}`,
       displayName: x.faction === 'party' ? heroName(x.memberId ?? '') : undefined,
+      archetype: x.archetype,
       faction: x.faction,
       isHuman: x.isHuman,
       isDemon: x.isDemon ?? false,

@@ -1,7 +1,17 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { resolveAsset } from '@bible/assets'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
+
+// The pilgrim at a seat: the real hero sprite, falling back to the kneeling-figure emoji until the art
+// is present (mirrors the combat CombatSprite onError fallback). All heroes share the 'hero' sprite.
+function SeatSprite() {
+  const url = resolveAsset('sprite/hero')
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <span className="seat-token">🧎</span>
+  return <img className="seat-token seat-sprite" src={url} alt="" draggable={false} onError={() => setFailed(true)} />
+}
 
 // The fire: created pilgrims sit in a ring around a campfire (Diablo-II-style character select,
 // Bible-flavoured). Pick a pilgrim, then choose the adventure. An empty seat adds a new pilgrim.
@@ -64,7 +74,7 @@ export function HeroSelectScreen() {
               style={style}
               onClick={() => { setSelected(slot.id); setConfirmForget(false) }}
             >
-              <span className="seat-token">🧎</span>
+              <SeatSprite />
               <span className="seat-name">{slot.character.name}</span>
               <span className="seat-lvl">
                 {t('ui.common.level')} {slot.character.level}

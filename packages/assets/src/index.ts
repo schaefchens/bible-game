@@ -45,6 +45,25 @@ export function setAssetBase(base: string): void {
   assetBase = base || '/'
 }
 
+// Battle character sprites, keyed by combatant archetype. Drop a matching transparent PNG into
+// apps/web/public/assets and it renders; until then the combat screen falls back to emoji.
+const SPRITE_FILES: Record<string, string> = {
+  'sprite/hero': 'sprite-hero.png',
+  'sprite/companion': 'sprite-companion.png',
+  'sprite/thief': 'sprite-thief.png',
+  'sprite/robber': 'sprite-robber.png',
+  'sprite/bandit': 'sprite-bandit.png',
+  'sprite/demon': 'sprite-demon.png',
+  'sprite/philistineSoldier': 'sprite-philistine-soldier.png',
+  'sprite/philistineArcher': 'sprite-philistine-archer.png',
+  'sprite/shieldBearer': 'sprite-shield-bearer.png',
+  'sprite/philistineChampion': 'sprite-philistine-champion.png',
+  'sprite/dagonZealot': 'sprite-dagon-zealot.png',
+  'sprite/idolSpirit': 'sprite-idol-spirit.png',
+  'sprite/spiritOfDread': 'sprite-spirit-of-dread.png',
+  'sprite/goliath': 'sprite-goliath.png',
+}
+
 // Registry values are file names relative to the public "assets/" folder; resolveAsset prefixes the base.
 const REGISTRY: Record<string, string> = {
   // Milestone-1 art (kept for fallback / older content)
@@ -71,6 +90,8 @@ const REGISTRY: Record<string, string> = {
   'music/prayer': 'bg-music-prayer.mp3',
   // Jericho road — every bg by stem
   ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `${stem}.png`])),
+  // Battle character sprites, by archetype
+  ...SPRITE_FILES,
 }
 
 /** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.png" or "/game/assets/x.png"). */

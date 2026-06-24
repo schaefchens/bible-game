@@ -14,6 +14,7 @@ import { CardListModal } from '../components/CardListModal'
 import { CardPickModal, type PickSpec } from '../components/CardPickModal'
 import { useCombatFeedback, type UnitFloat, type UnitReaction } from './useCombatFeedback'
 import { useCardDrag } from './useCardDrag'
+import { spriteUrl, spriteEmoji, spriteScale } from '../sprites'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
 
@@ -364,6 +365,27 @@ function reactionAnim(reaction: UnitReaction | undefined, side: 'party' | 'enemy
   }
 }
 
+// The combatant's figure: the registered PNG for its archetype, or the emoji placeholder when no art
+// is registered/present (the 404 of a not-yet-added sprite trips onError → fallback, so dropping a PNG
+// into public/assets "lights it up" with no code change). Static art; the .sprite-react wrapper +
+// .sprite CSS rules animate it (lunge/hit/idle-breathe/bob/death).
+function CombatSprite({ c }: { c: CombatantView }) {
+  const url = spriteUrl(c)
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <span className="sprite">{spriteEmoji(c)}</span>
+  const scale = spriteScale(c)
+  return (
+    <img
+      className="sprite sprite-img"
+      src={url}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+      style={scale !== 1 ? { height: (c.row === 'back' ? 150 : 200) * scale } : undefined}
+    />
+  )
+}
+
 // A combatant standing on the field: figure (with reaction + impact flash + rising numbers) + nameplate.
 // Module-level so it has a stable identity across CombatScreen re-renders — its Framer animations would
 // otherwise re-fire on every state change.
@@ -405,23 +427,27 @@ function CombatUnit({
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}
       onClick={(e) => onUnitClick(c, side, e)}
     >
-      {side === 'enemy' && c.alive && c.intentKind && (
-        <div className="intent">
-          {INTENT_ICON[c.intentKind] ?? '❔'}
-          {c.intentKind === 'attackMulti' && c.intentValue ? (
-            <b>{c.intentValue}×{c.intentHits ?? 1}</b>
-          ) : c.intentValue ? (
-            <b>{c.intentValue}</b>
-          ) : c.intentStacks ? (
-            <b>{c.intentStacks}</b>
-          ) : null}
-        </div>
-      )}
-      {!c.alive && <div className="unit-defeated" title={c.subdued ? 'subdued' : 'defeated'}>{c.subdued ? '💫' : '💀'}</div>}
+      {/* over-head stack: name (always) + intent pill (alive enemy) / defeated marker — all ABOVE the head */}
+      <div className="unit-overhead">
+        {side === 'enemy' && c.alive && c.intentKind && (
+          <div className="intent">
+            {INTENT_ICON[c.intentKind] ?? '❔'}
+            {c.intentKind === 'attackMulti' && c.intentValue ? (
+              <b>{c.intentValue}×{c.intentHits ?? 1}</b>
+            ) : c.intentValue ? (
+              <b>{c.intentValue}</b>
+            ) : c.intentStacks ? (
+              <b>{c.intentStacks}</b>
+            ) : null}
+          </div>
+        )}
+        {!c.alive && <div className="unit-defeated" title={c.subdued ? 'subdued' : 'defeated'}>{c.subdued ? '💫' : '💀'}</div>}
+        <div className="unit-name">{c.displayName ?? t(c.nameKey)}</div>
+      </div>
       <div className="unit-figure">
         {predicted !== null && <div className="dmg-predict">−{predicted}</div>}
         <motion.div className="sprite-react" key={reaction?.seq ?? 'idle'} animate={reactionAnim(reaction, side, reduced)} transition={{ duration: 0.34 }}>
-          <span className="sprite">{spriteGlyph(c)}</span>
+          <CombatSprite c={c} />
           {showFlash && <motion.div className={'hit-flash ' + reaction!.kind} initial={{ opacity: 0.8 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />}
         </motion.div>
         {/* impact burst when a party member is struck — gives an enemy hit the same punch as the
@@ -439,7 +465,6 @@ function CombatUnit({
         </AnimatePresence>
       </div>
       <div className="unit-plate">
-        <div className="unit-name">{c.displayName ?? t(c.nameKey)}</div>
         <div className="hp-bar">
           <div className="hp-fill" style={{ width: `${hpPct}%` }} />
           <span className="hp-text">{c.hp}/{c.maxHp}</span>
@@ -453,11 +478,4 @@ function CombatUnit({
       </div>
     </motion.div>
   )
-}
-
-function spriteGlyph(c: CombatantView): string {
-  if (c.faction === 'party') return '🧍'
-  if (c.isDemon) return '👹'
-  if (c.isHuman) return '🥷'
-  return '🐺'
 }
