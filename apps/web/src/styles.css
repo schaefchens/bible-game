@@ -536,6 +536,14 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .card.rarity-common::before { border-color: #9aa4ad; }
 .card.rarity-uncommon::before { border-color: #5fa0d8; }
 .card.rarity-rare::before { border-color: var(--gold-bright); box-shadow: inset 0 0 10px rgba(244,231,161,0.4); }
+/* colour the card-art to the card's rarity ("special" colour, mirrors the frame border): --art-hue/--art-sat
+   tint the glyph monochrome, --art-bg1/--art-bg2/--art-glow tint the panel behind it. All inherit down from
+   the .card root. starter/common read near-grey, uncommon=blue, rare/verse=gold. */
+.card.rarity-starter { --art-hue: 0deg; --art-sat: 0.3; --art-bg1: #3a362e; --art-bg2: #19150f; --art-glow: rgba(150,140,118,0.16); }
+.card.rarity-common { --art-hue: 165deg; --art-sat: 0.28; --art-bg1: #3a4048; --art-bg2: #15181c; --art-glow: rgba(165,178,190,0.18); }
+.card.rarity-uncommon { --art-hue: 168deg; --art-sat: 1.2; --art-bg1: #2c4860; --art-bg2: #131c27; --art-glow: rgba(95,160,216,0.26); }
+.card.rarity-rare { --art-hue: 8deg; --art-sat: 0.7; --art-bg1: #4a4030; --art-bg2: #211c12; --art-glow: rgba(244,231,161,0.26); }
+.card.verse { --art-hue: 8deg; --art-sat: 0.7; --art-bg1: #4a4030; --art-bg2: #211c12; --art-glow: rgba(244,231,161,0.26); }
 .card.unplayable { filter: grayscale(0.55) brightness(0.66); cursor: default; }
 .card.selected { box-shadow: 0 0 0 2px var(--gold-bright), 0 12px 24px rgba(0,0,0,0.6); }
 .card.spirit { border-color: #6f93b8; }
@@ -561,12 +569,12 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 /* Slay-the-Spire card body: title band on top, big art in the middle, description at the bottom. */
 .card-name { font-size: 0.76rem; font-weight: 700; color: var(--gold-bright); background: linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12)); padding: 3px 12px; border-radius: 5px; line-height: 1.12; }
 /* placeholder emoji art: centred glyph over the layer gradient + a faint layer-tinted glow behind it */
+/* placeholder emoji art: centred glyph over a panel tinted to the card's rarity colour + a faint glow behind it.
+   Panel colours come from --art-bg1/--art-bg2/--art-glow (set per rarity on .card.rarity-*); fallbacks = common. */
 .card-art { height: 80px; flex: none; border-radius: 7px; margin: 4px 0 5px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 0 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
-  background: radial-gradient(circle at 50% 44%, rgba(150,210,120,0.22), transparent 66%), linear-gradient(135deg, #3a4a30, #1c2416); }
-.card-art.spirit { background: radial-gradient(circle at 50% 44%, rgba(120,180,255,0.24), transparent 66%), linear-gradient(135deg, #34506a, #1c2840); }
-.card-art.both { background: radial-gradient(circle at 50% 44%, rgba(244,231,161,0.24), transparent 66%), linear-gradient(135deg, #4a4030, #2a2416); }
-/* the glyph: slightly desaturated + a soft glyph-shaped drop-shadow so it sits on the muted frame */
-.card-art-glyph { font-size: 2.4rem; line-height: 1; filter: saturate(0.8) drop-shadow(0 2px 3px rgba(0,0,0,0.55)); }
+  background: radial-gradient(circle at 50% 44%, var(--art-glow, rgba(165,178,190,0.18)), transparent 66%), linear-gradient(135deg, var(--art-bg1, #3a4048), var(--art-bg2, #15181c)); }
+/* the glyph: grayscale+sepia, then hue-rotated to the card's rarity colour for a muted monochrome look, + a soft drop-shadow */
+.card-art-glyph { font-size: 2.4rem; line-height: 1; filter: grayscale(1) sepia(1) saturate(var(--art-sat, 0.3)) hue-rotate(var(--art-hue, 165deg)) brightness(1.05) contrast(1.05) drop-shadow(0 2px 3px rgba(0,0,0,0.55)); }
 .hand-fan .card-art-glyph, .card-ghost .card-art-glyph { font-size: 2.8rem; }
 /* description sits BELOW the art, centred horizontally + vertically in the space beneath it */
 .card-text { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.64rem; color: #c9c3b0; line-height: 1.18; padding: 0 2px; overflow: hidden; }
