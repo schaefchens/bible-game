@@ -85,6 +85,12 @@ export function Hud() {
             </div>
           )}
         </div>
+        {/* Energy is a combat resource — keep it with the character info on the left (combat-only). */}
+        {combat && (
+          <span className="hud-energy" title={t('ui.combat.energy')} aria-label={t('ui.combat.energy')}>
+            ⚡ {combat.energy.current}/{combat.energy.max}
+          </span>
+        )}
       </div>
       {/* where the pilgrim is — adventure + current node. Lives in the shared top bar so it's also
           visible during battle (the HUD renders on both the map and the combat screen). */}
@@ -103,11 +109,6 @@ export function Hud() {
       )}
       <div className="hud-bar-right">
         <span className="hud-coin">🪙 {summary.gold}</span>
-        {combat && (
-          <span className="hud-energy" title={t('ui.combat.energy')} aria-label={t('ui.combat.energy')}>
-            ⚡ {combat.energy.current}/{combat.energy.max}
-          </span>
-        )}
         <div className="hud-icons">
           <button
             className="hud-icon-btn"
