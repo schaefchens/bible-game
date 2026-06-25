@@ -12,11 +12,12 @@ interface WorldCard {
   tagKey?: string
   unlockedBy?: string
 }
-// Progression: tutorial (world-02) → Valley of Elah (world-03) → The Road to Jericho (world-01).
+// Progression: tutorial (world-02) → both Valley of Elah (world-03) and The Road to Jericho (world-01)
+// unlock together once the tutorial is completed.
 const WORLDS: WorldCard[] = [
   { id: 'world-02', titleKey: 'ui.worldSelect.world02.title', subtitleKey: 'ui.worldSelect.world02.subtitle', bg: 'bg-rest-old-cistern.png', tagKey: 'ui.worldSelect.tutorialTag' },
   { id: 'world-03', titleKey: 'ui.worldSelect.world03.title', subtitleKey: 'ui.worldSelect.world03.subtitle', bg: 'bg-combat-rocky-pass.png', unlockedBy: 'world-02' },
-  { id: 'world-01', titleKey: 'ui.worldSelect.world01.title', subtitleKey: 'ui.worldSelect.world01.subtitle', bg: 'bg-road-dusty-road.png', unlockedBy: 'world-03' },
+  { id: 'world-01', titleKey: 'ui.worldSelect.world01.title', subtitleKey: 'ui.worldSelect.world01.subtitle', bg: 'bg-road-dusty-road.png', unlockedBy: 'world-02' },
 ]
 
 export function WorldSelect() {
