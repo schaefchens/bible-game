@@ -403,6 +403,10 @@ body {
 .unit-shadow { position: absolute; bottom: -14px; width: 176px; height: 44px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 72%); }
 .unit-shadow::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 148px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.06); box-shadow: inset 0 0 10px rgba(0,0,0,0.4); }
 .unit.targetable .unit-shadow { background: radial-gradient(ellipse, rgba(216,185,98,0.55), transparent 70%); box-shadow: 0 0 16px rgba(216,185,98,0.5); }
+/* Active target: the persistently-selected enemy (number keys play onto it; Q/E + arrows + click move
+   it, kept across turns). Marked simply by tinting its NAME PLATE text gold — the default plate is
+   otherwise untouched (the lightest possible "selected" cue). */
+.unit.active-target .unit-name { color: var(--gold-bright); }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 @keyframes idleBreathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.015); } }
 

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { previewCardDamage } from '@bible/engine'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
-import { selectCombat, selectCombatPile, type CombatantView, type HandCardView } from '../selectors'
+import { selectCombat, selectCombatPile, type CombatView, type CombatantView, type HandCardView } from '../selectors'
 import { CardView } from '../components/Card'
 import { CardFace } from '../components/CardFace'
 import { AimPointer } from '../components/AimPointer'
@@ -13,7 +13,7 @@ import { Hud } from '../components/Hud'
 import { CardListModal } from '../components/CardListModal'
 import { CardPickModal, type PickSpec } from '../components/CardPickModal'
 import { useCombatFeedback, type UnitFloat, type UnitReaction } from './useCombatFeedback'
-import { useCardDrag } from './useCardDrag'
+import { useCardDrag, type CardDrag } from './useCardDrag'
 import { spriteUrl, spriteEmoji, spriteScale } from '../sprites'
 
 const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '⚔️', dread: '🌑', block: '🛡️', buff: '⬆️', debuff: '⬇️', clutter: '🌫️', special: '…', unknown: '❔' }
@@ -38,6 +38,19 @@ function energyOrbStyle(current: number, max: number) {
   }
 }
 
+// Live state the (register-once) keyboard handler reads at event time — published into a ref each
+// render so the listener always sees the current hand/target/drag without re-subscribing per render.
+interface KbState {
+  view: CombatView | null
+  aliveEnemies: CombatantView[]
+  resolvedTargetId: string | null
+  primaryPartyId: string | undefined
+  drag: CardDrag
+  reduced: boolean
+  /** a panel/overlay (deck, bag, item-carry, pile/pick modal) owns the keys → battle hotkeys stand down */
+  overlayOpen: boolean
+}
+
 export function CombatScreen() {
   const { t } = useTranslation()
   const state = useGame((s) => s.state)
@@ -46,9 +59,15 @@ export function CombatScreen() {
   const itemInteraction = useGame((s) => s.itemInteraction)
   const aimItemAt = useGame((s) => s.aimItemAt)
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
+  const deckOpen = useGame((s) => s.deckOpen)
+  const inventoryOpen = useGame((s) => s.inventoryOpen)
   const fb = useCombatFeedback()
   const drag = useCardDrag()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
+  // The persistently-selected enemy (active target): set by clicking/tapping an enemy or cycling with
+  // Q/E / arrow keys, played onto by the number keys, and remembered across turns (this screen stays
+  // mounted for the whole battle). Never trusted raw — `resolvedTargetId` re-derives a live target.
+  const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
   // a bottom-corner pile to inspect (read-only), and a "pick cards" prompt for hone/cast-off/prepare
   const [pileModal, setPileModal] = useState<'draw' | 'discard' | 'exhaust' | null>(null)
   const [pickModal, setPickModal] = useState<{ iid: string; pick: PickSpec } | null>(null)
@@ -62,6 +81,8 @@ export function CombatScreen() {
   // Screen shake (battlefield only — never the clickable hand) and the energy-orb spend pulse.
   const shakeControls = useAnimationControls()
   const energyControls = useAnimationControls()
+  // Latest values for the keyboard handler (see KbState) — refreshed every render below.
+  const kbRef = useRef<KbState>({ view: null, aliveEnemies: [], resolvedTargetId: null, primaryPartyId: undefined, drag, reduced: false, overlayOpen: false })
 
   // Auto-begin the action phase each round: the engine opens combat (and every new round) in a brief
   // "decision" window before the hand is drawn — draw it automatically so the player never presses ▶.
@@ -101,6 +122,88 @@ export function CombatScreen() {
     const id = setTimeout(() => dispatch({ type: 'combat/advanceEnemyTurn' }), ENEMY_STEP_GAP)
     return () => clearTimeout(id)
   }, [enemyPhaseActive, enemyStepIndex, dispatch])
+
+  // Keyboard control of the battle. Registered ONCE (the listener reads live state from kbRef, so it
+  // never re-subscribes as the hand/target change). dispatch + the useState setters are stable, so we
+  // close over them directly. Keys: 1-9 play the hand card at that slot on the active target (Alt →
+  // cast on the player, which is impossible for enemy-only cards → blocked); Q/E and ←/→ cycle the
+  // active target; Enter or F ends the turn. Layered like GlobalHotkeys: it stands down for typing fields,
+  // open panels/modals, an in-flight card, the enemy turn, and never swallows keys it doesn't consume.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const s = kbRef.current
+      if (!s.view) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (e.metaKey || e.ctrlKey) return // Alt is OURS (cast-on-player) — don't bail on it
+      if (s.view.outcome !== 'ongoing') return
+      if (s.overlayOpen || document.querySelector('.modal-overlay')) return // a panel/modal owns the keys
+      if (s.drag.aimingIid || s.drag.ghost || s.drag.launchedIid) return // a card is mid-flight
+
+      const key = e.key
+      // Cycle the active target (kept across turns) — allowed any time it's our fight.
+      if (key === 'q' || key === 'Q' || key === 'e' || key === 'E' || key === 'ArrowLeft' || key === 'ArrowRight') {
+        const back = key === 'q' || key === 'Q' || key === 'ArrowLeft'
+        const alive = s.aliveEnemies
+        if (alive.length) {
+          const cur = alive.findIndex((c) => c.id === s.resolvedTargetId)
+          const next = alive[(((cur < 0 ? 0 : cur) + (back ? -1 : 1)) + alive.length) % alive.length]
+          if (next) setActiveTargetId(next.id)
+        }
+        e.preventDefault()
+        return
+      }
+
+      // The rest act only on the player's action turn.
+      if (s.view.phase !== 'partyAction') return
+
+      if (key === 'Enter' || key === 'f' || key === 'F') {
+        if (e.repeat) return
+        setHandDiscarding(true)
+        dispatch({ type: s.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' })
+        e.preventDefault()
+        return
+      }
+
+      if (key >= '1' && key <= '9') {
+        if (e.repeat) return // a held digit must not autofire the whole hand
+        const card = s.view.hand[Number(key) - 1]
+        if (!card || card.unplayable) return
+        if (s.view.energy.current < card.cost) return // unaffordable → no-op (mirrors clickCard)
+        if (card.pick) { setPending(null); setPickModal({ iid: card.iid, pick: card.pick }); e.preventDefault(); return }
+        const enemyOnly = card.target === 'enemy' || card.target === 'allEnemies'
+        if (e.altKey && enemyOnly) { e.preventDefault(); return } // can't cast an enemy-only card on the player → blocked
+        setPending(null)
+        if (card.target === 'enemy') {
+          if (s.resolvedTargetId) s.drag.sling(card, s.resolvedTargetId) // animated arc; dispatches playCard on landing
+        } else {
+          // self / allAllies / allEnemies / ally / none — engine honours targetId only for 'ally'
+          dispatch({ type: 'combat/playCard', iid: card.iid, targetId: e.altKey ? s.primaryPartyId : undefined })
+        }
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dispatch])
+
+  // Resolve the active target each render so it self-heals when the chosen foe dies/leaves, then
+  // publish the live snapshot the keyboard handler reads. (Plain statements — safe before the guard.)
+  const aliveEnemies = view ? view.enemies.filter((c) => c.alive) : []
+  const resolvedTargetId =
+    activeTargetId && aliveEnemies.some((c) => c.id === activeTargetId)
+      ? activeTargetId
+      : (aliveEnemies[0]?.id ?? null) // default = first living enemy
+  const primaryPartyId = view?.party.find((c) => c.alive)?.id // "the player" (the lone hero today)
+  kbRef.current = {
+    view,
+    aliveEnemies,
+    resolvedTargetId,
+    primaryPartyId,
+    drag,
+    reduced: fb.reduced,
+    overlayOpen: !!(deckOpen || inventoryOpen || itemInteraction || pileModal || pickModal),
+  }
 
   if (!view) return null
 
@@ -143,6 +246,7 @@ export function CombatScreen() {
     }
   }
   const clickEnemy = (id: string, isHuman: boolean) => {
+    setActiveTargetId(id) // clicking/tapping an enemy makes it the active target (kept across turns)
     if (pending?.kind === 'card') {
       const card = view.hand.find((h) => h.iid === pending.iid)
       if (card) drag.sling(card, id) // same arc throw + landing-synced damage as a drag-played card
@@ -218,6 +322,7 @@ export function CombatScreen() {
               float={fb.floats[c.id]}
               predicted={c.alive && pendingCard ? targetPreview(c.id) : null}
               targetable={enemyTargetable && c.alive}
+              activeTarget={resolvedTargetId === c.id && view.outcome === 'ongoing'}
               dropHighlight={drag.hoveredEnemyId === c.id}
               onUnitClick={onUnitClick}
             />
@@ -295,7 +400,7 @@ export function CombatScreen() {
         <div className="hud-right">
           {/* End Turn: reduced motion resolves the enemy turn instantly (batch); otherwise hand off to
               the UI-paced stepped turn (begin → the self-clocking effect advances one enemy at a time) */}
-          <button className={'btn end-turn' + (endTurnReady ? ' ready' : '')} onClick={() => { setHandDiscarding(true); dispatch({ type: fb.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' }) }}>{t('ui.combat.endTurn')}</button>
+          <button className={'btn end-turn' + (endTurnReady ? ' ready' : '')} title={`${t('ui.combat.endTurn')} (Enter / F)`} onClick={() => { setHandDiscarding(true); dispatch({ type: fb.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' }) }}>{t('ui.combat.endTurn')}</button>
           {/* the single right-side pile shows discarded AND exhausted cards (count + viewer combined) */}
           <button type="button" className="card-stack discard" onClick={() => setPileModal('discard')} title={t('ui.combat.discard')}><span className="stack-count">{view.discardCount + view.exhaustCount}</span><label>{t('ui.combat.discard')}</label></button>
         </div>
@@ -398,6 +503,7 @@ function CombatUnit({
   float,
   predicted,
   targetable,
+  activeTarget,
   dropHighlight,
   onUnitClick,
 }: {
@@ -409,6 +515,8 @@ function CombatUnit({
   float?: UnitFloat
   predicted: number | null
   targetable: boolean
+  // the persistently-selected enemy (keyboard/click target) — wears a steady reticle
+  activeTarget?: boolean
   // a card is being dragged over this enemy — glow it as a drop target
   dropHighlight?: boolean
   onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
@@ -421,7 +529,7 @@ function CombatUnit({
       layout
       data-cid={c.id}
       data-faction={c.faction}
-      className={['unit', side, c.row, tgt ? 'targetable' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
+      className={['unit', side, c.row, tgt ? 'targetable' : '', activeTarget ? 'active-target' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}
