@@ -22,16 +22,18 @@ export interface CardFaceProps {
   /** scaled values for interpolating the card text (dmg/block/heal/chance) */
   values?: Record<string, number>
   selected?: boolean
+  /** the keyboard cursor is on this card (a raised ring, distinct from `selected`) */
+  focused?: boolean
   disabled?: boolean
   onClick?: () => void
 }
 
-export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, damage, miracle, selected, disabled, onClick }: CardFaceProps) {
+export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, damage, miracle, selected, focused, disabled, onClick }: CardFaceProps) {
   const { t } = useTranslation()
   return (
     <button
       type="button"
-      className={['card', 'card-face', layer, 'rarity-' + (rarity ?? 'common'), selected ? 'selected' : '', verse ? 'verse' : ''].join(' ')}
+      className={['card', 'card-face', layer, 'rarity-' + (rarity ?? 'common'), selected ? 'selected' : '', focused ? 'focused' : '', verse ? 'verse' : ''].join(' ')}
       onClick={onClick}
       disabled={disabled || !onClick}
     >

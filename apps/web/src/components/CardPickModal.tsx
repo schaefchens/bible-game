@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useGame } from '../store/gameStore'
@@ -24,14 +24,62 @@ export function CardPickModal({ playedIid, pick, onClose }: { playedIid: string;
   const dispatch = useGame((s) => s.dispatch)
   const candidates = useMemo(() => selectCardPickCandidates(state, playedIid, pick.kind), [state, playedIid, pick.kind])
   const [sel, setSel] = useState<string[]>([])
+  // the keyboard cursor (which card is highlighted for Q/E + arrow navigation)
+  const [cursor, setCursor] = useState(0)
+  const rowRef = useRef<HTMLDivElement>(null)
 
-  const toggle = (iid: string) =>
-    setSel((s) => (s.includes(iid) ? s.filter((x) => x !== iid) : s.length < pick.count ? [...s, iid] : s))
-
-  const confirm = () => {
-    dispatch({ type: 'combat/playCard', iid: playedIid, cardTargetIids: sel })
+  const confirmWith = (selection: string[]) => {
+    dispatch({ type: 'combat/playCard', iid: playedIid, cardTargetIids: selection })
     onClose()
   }
+  const confirm = () => confirmWith(sel)
+
+  // Toggle the card at index `i`; reaching the required count commits the pick (mouse: just toggles).
+  const toggle = (iid: string) =>
+    setSel((s) => (s.includes(iid) ? s.filter((x) => x !== iid) : s.length < pick.count ? [...s, iid] : s))
+  const pickAt = (i: number) => {
+    const card = candidates[i]
+    if (!card) return
+    const next = sel.includes(card.iid)
+      ? sel.filter((x) => x !== card.iid)
+      : sel.length < pick.count
+        ? [...sel, card.iid]
+        : sel
+    if (next.length === pick.count) confirmWith(next) // the final pick → confirm + close
+    else setSel(next)
+  }
+
+  // Keep the keyboard cursor scrolled into view as it moves through the (wrapping/scrolling) row.
+  useEffect(() => {
+    ;(rowRef.current?.children[cursor] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' })
+  }, [cursor])
+
+  // Keyboard control: Q/E or ←/→ (also ↑/↓) move the cursor; F/Enter picks the card under it (the
+  // final pick confirms + closes); Esc closes like the ✕.
+  useEffect(() => {
+    const n = candidates.length
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const key = e.key
+      if (key === 'Escape') { e.preventDefault(); onClose(); return }
+      if (!n) return
+      if (key === 'q' || key === 'Q' || key === 'ArrowLeft' || key === 'ArrowUp') {
+        setCursor((c) => (c - 1 + n) % n); e.preventDefault(); return
+      }
+      if (key === 'e' || key === 'E' || key === 'ArrowRight' || key === 'ArrowDown') {
+        setCursor((c) => (c + 1) % n); e.preventDefault(); return
+      }
+      if (key === 'Enter' || key === 'f' || key === 'F') {
+        if (e.repeat) return
+        pickAt(cursor)
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [candidates, sel, cursor, pick.count, onClose, dispatch, playedIid])
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -48,8 +96,8 @@ export function CardPickModal({ playedIid, pick, onClose }: { playedIid: string;
         {candidates.length === 0 ? (
           <p className="muted deck-modal-empty">{t('ui.cardPick.none')}</p>
         ) : (
-          <div className="card-row">
-            {candidates.map((c) => (
+          <div className="card-row" ref={rowRef}>
+            {candidates.map((c, i) => (
               <CardFace
                 key={c.iid}
                 cost={c.cost}
@@ -60,6 +108,7 @@ export function CardPickModal({ playedIid, pick, onClose }: { playedIid: string;
                 verse={c.verse}
                 rarity={c.rarity}
                 selected={sel.includes(c.iid)}
+                focused={i === cursor}
                 onClick={() => toggle(c.iid)}
               />
             ))}
