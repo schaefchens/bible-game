@@ -23,6 +23,7 @@ import { SleepOverlay } from './components/SleepOverlay'
 import { PrayOverlay } from './components/PrayOverlay'
 import { DeckModal } from './components/DeckModal'
 import { InventoryLayer } from './components/InventoryLayer'
+import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
@@ -78,6 +79,9 @@ export function App() {
         <SleepOverlay />
         <PrayOverlay />
       </div>
+
+      {/* global keyboard accelerators for the HUD buttons (d=deck, m=audio, Esc=menu); renders nothing */}
+      <GlobalHotkeys />
 
       {/* System-level (unscaled, viewport-anchored) — readable regardless of the game's scale. */}
       <UpdateBanner />

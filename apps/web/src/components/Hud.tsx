@@ -112,7 +112,7 @@ export function Hud() {
           <button
             className="hud-icon-btn"
             onClick={() => toggleInventory()}
-            title={t('ui.inventory.title')}
+            title={`${t('ui.inventory.title')} (B)`}
             aria-label={t('ui.inventory.title')}
           >
             🎒
@@ -120,7 +120,7 @@ export function Hud() {
           <button
             className="hud-icon-btn"
             onClick={() => setDeckOpen(true)}
-            title={t('ui.deck.title')}
+            title={`${t('ui.deck.title')} (D)`}
             aria-label={t('ui.deck.title')}
           >
             📚
@@ -128,7 +128,7 @@ export function Hud() {
           <button
             className="hud-icon-btn"
             onClick={() => cycleAudioMode()}
-            title={t(`ui.audio.mode.${audioMode}`)}
+            title={`${t(`ui.audio.mode.${audioMode}`)} (M)`}
             aria-label={t('ui.settings.audio')}
           >
             {AUDIO_ICON[audioMode]}
@@ -137,7 +137,7 @@ export function Hud() {
           <button
             className="hud-icon-btn"
             onClick={() => dispatch({ type: 'navigate', screen: 'start' })}
-            title={t('ui.common.menu')}
+            title={`${t('ui.common.menu')} (Esc)`}
             aria-label={t('ui.common.menu')}
           >
             ☰
