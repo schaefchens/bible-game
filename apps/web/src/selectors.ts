@@ -228,6 +228,17 @@ export interface MapView {
   unplaced: boolean
 }
 
+/** The pilgrim's current whereabouts — the adventure (world) + the node they stand on. Available off
+ *  the map too (e.g. during combat) so the top bar can always show "where am I". */
+export interface LocationView { worldId: string; nodeNameKey: string | null; nodeType: NodeType | null }
+export function selectLocation(state: GameState): LocationView | null {
+  const run = state.run
+  if (!run) return null
+  const currentId = run.world.current
+  const node = currentId ? run.content.worlds[run.worldId]?.map?.nodes[currentId] : undefined
+  return { worldId: run.worldId, nodeNameKey: node?.nameKey ?? null, nodeType: node?.type ?? null }
+}
+
 export function selectMap(state: GameState): MapView | null {
   const run = state.run
   if (!run) return null

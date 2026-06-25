@@ -159,6 +159,11 @@ body {
 .hud-bar-left { display: flex; align-items: center; gap: 0.5rem; }
 .hud-bar-right { display: flex; align-items: center; gap: 0.5rem; }
 .hud-icons { display: flex; align-items: center; gap: 0.35rem; }
+/* centre block: where the pilgrim is (adventure · node) on ONE line, shown on the map AND in battle */
+.hud-bar-center { flex: 1 1 auto; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 0.6rem; }
+.hud-adventure { font-size: 0.82rem; font-weight: 700; color: var(--gold-bright); }
+.hud-loc-sep { color: var(--muted); margin: 0 0.4rem; opacity: 0.7; }
+.hud-loc-node { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
 /* hero portrait: a gold-framed disc holding a placeholder initial (swap the glyph for an <img> later) */
 .hud-portrait-wrap { position: relative; flex: none; }
@@ -282,7 +287,6 @@ body {
 }
 .map-banner.guide { background: rgba(20,46,32,0.92); border: 1px solid #7fe6a6; color: #b6f4cf; }
 .map-banner.notice { background: rgba(54,20,18,0.94); border: 1px solid rgba(206,74,62,0.9); color: #f4c4be; }
-.map-footer { position: absolute; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; justify-content: flex-end; align-items: center; padding: 0.5rem max(1.1rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(1.1rem, env(safe-area-inset-left)); background: linear-gradient(0deg, rgba(20,22,14,0.78), transparent); }
 
 /* the pilgrim's figure — a board-game pawn standing on the current node, walking the trail on travel */
 .player-token { position: absolute; width: 50px; height: 50px; z-index: 6; pointer-events: none; display: flex; align-items: center; justify-content: center; }
@@ -537,14 +541,14 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .card::before { content: ''; position: absolute; inset: 3px; border-radius: 9px; border: 1px solid #9aa4ad; pointer-events: none; }
 .card.rarity-starter::before { border-color: #6f6a5a; }
 .card.rarity-common::before { border-color: #9aa4ad; }
-.card.rarity-uncommon::before { border-color: #5fa0d8; }
+.card.rarity-uncommon::before { border-color: #9b78d6; }
 .card.rarity-rare::before { border-color: var(--gold-bright); box-shadow: inset 0 0 10px rgba(244,231,161,0.4); }
 /* colour the card-art to the card's rarity ("special" colour, mirrors the frame border): --art-hue/--art-sat
    tint the glyph monochrome, --art-bg1/--art-bg2/--art-glow tint the panel behind it. All inherit down from
    the .card root. starter/common read near-grey, uncommon=blue, rare/verse=gold. */
 .card.rarity-starter { --art-hue: 0deg; --art-sat: 0.3; --art-bg1: #3a362e; --art-bg2: #19150f; --art-glow: rgba(150,140,118,0.16); }
 .card.rarity-common { --art-hue: 165deg; --art-sat: 0.28; --art-bg1: #3a4048; --art-bg2: #15181c; --art-glow: rgba(165,178,190,0.18); }
-.card.rarity-uncommon { --art-hue: 168deg; --art-sat: 1.2; --art-bg1: #2c4860; --art-bg2: #131c27; --art-glow: rgba(95,160,216,0.26); }
+.card.rarity-uncommon { --art-hue: 240deg; --art-sat: 1.15; --art-bg1: #443561; --art-bg2: #181227; --art-glow: rgba(155,120,214,0.26); }
 .card.rarity-rare { --art-hue: 8deg; --art-sat: 0.7; --art-bg1: #4a4030; --art-bg2: #211c12; --art-glow: rgba(244,231,161,0.26); }
 .card.verse { --art-hue: 8deg; --art-sat: 0.7; --art-bg1: #4a4030; --art-bg2: #211c12; --art-glow: rgba(244,231,161,0.26); }
 .card.unplayable { filter: grayscale(0.55) brightness(0.66); cursor: default; }
@@ -623,6 +627,13 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .deck-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; }
 .deck-modal-head h3 { margin: 0; }
 .deck-modal-empty { text-align: center; padding: 1.6rem 0; }
+/* card-pick / pile modals: pin the title + footer buttons, scroll ONLY the cards. These carry both
+   .world-panel and .deck-modal, so this 3-class rule beats both single-class overflow-y:auto rules. */
+.panel.world-panel.deck-modal { display: flex; flex-direction: column; overflow: hidden; }
+.panel.world-panel.deck-modal .deck-modal-head,
+.panel.world-panel.deck-modal .row.gap { flex: none; }
+.panel.world-panel.deck-modal .card-row { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 4px 2px; }
+.panel.world-panel.deck-modal .deck-modal-empty { flex: 1 1 auto; }
 .modal-card { position: relative; }
 .modal-card.unplayable { opacity: 0.55; filter: grayscale(0.5); }
 .modal-card.honed .card { border-color: var(--gold-bright); box-shadow: 0 0 10px rgba(201, 176, 99, 0.5); }
@@ -696,6 +707,12 @@ input[type='range']::-moz-range-thumb:hover { background: var(--gold-bright); }
 /* ---- HUD audio toggle ---- */
 .hud-icon-btn { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(180deg, #2a3326, #1a2016); border: 1px solid var(--panel-edge); color: var(--ink); font-size: 0.9rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s; }
 .hud-icon-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); border-color: var(--gold-bright); }
+.hud-icon-btn.danger { border-color: #7a3b34; }
+.hud-icon-btn.danger:hover { border-color: #c0453c; }
+/* abandon-run confirm (portalled from the HUD) */
+.panel.hud-abandon-modal { width: 360px; text-align: center; }
+.hud-abandon-modal h3 { margin-bottom: 0.4rem; }
+.hud-abandon-modal .row.gap { justify-content: center; }
 
 /* ---- start-screen support link (subtle, bottom-centered) ---- */
 .support-link { position: absolute; bottom: 0.7rem; left: 50%; transform: translateX(-50%); font-size: 0.76rem; color: var(--muted); opacity: 0.5; text-decoration: none; white-space: nowrap; transition: opacity 0.2s, color 0.2s; }

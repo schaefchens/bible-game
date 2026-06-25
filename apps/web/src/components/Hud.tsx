@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { potencyTier, type AudioMode } from '@bible/engine'
 import { useGame } from '../store/gameStore'
-import { heroSummary } from '../selectors'
+import { heroSummary, selectLocation } from '../selectors'
 
 // The 3-state audio toggle cycled from the HUD: music+sfx → sfx only → silent.
 const AUDIO_ICON: Record<AudioMode, string> = { on: '🎵', sfxOnly: '🔊', off: '🔇' }
@@ -21,6 +22,9 @@ export function Hud() {
   const { t } = useTranslation()
   const state = useGame((s) => s.state)
   const summary = useMemo(() => heroSummary(state), [state])
+  const location = useMemo(() => selectLocation(state), [state])
+  const abandon = useGame((s) => s.abandon)
+  const [confirmAbandon, setConfirmAbandon] = useState(false)
   const spirit = state.run?.spirit.spirit ?? 0
   // Energy + Grace exist only during a battle; the bar degrades gracefully off-combat (map/scene).
   const combat = useGame((s) => s.state.combat)
@@ -81,6 +85,15 @@ export function Hud() {
           )}
         </div>
       </div>
+      {/* where the pilgrim is — adventure + current node. Lives in the shared top bar so it's also
+          visible during battle (the HUD renders on both the map and the combat screen). */}
+      {location && (
+        <div className="hud-bar-center">
+          <span className="hud-adventure">{t(`ui.worldSelect.${location.worldId.replace('-', '')}.title`)}</span>
+          {location.nodeNameKey && <span className="hud-loc-sep">·</span>}
+          {location.nodeNameKey && <span className="hud-loc-node">{t(location.nodeNameKey)}</span>}
+        </div>
+      )}
       <div className="hud-bar-right">
         <span className="hud-coin">🪙 {summary.gold}</span>
         {combat && (
@@ -113,8 +126,33 @@ export function Hud() {
           >
             {AUDIO_ICON[audioMode]}
           </button>
+          {/* abandon the run — moved here from the old map bottom bar. Guarded by a confirm. */}
+          <button
+            className="hud-icon-btn danger"
+            onClick={() => setConfirmAbandon(true)}
+            title={t('ui.map.abandon')}
+            aria-label={t('ui.map.abandon')}
+          >
+            🏳️
+          </button>
         </div>
       </div>
+      {/* portalled to <body> so the overlay escapes the HUD's z-index:5 stacking context and covers
+          the whole screen (fixed) above everything, on the map and in battle alike. */}
+      {confirmAbandon &&
+        createPortal(
+          <div className="modal-overlay" style={{ position: 'fixed', zIndex: 100 }} onClick={() => setConfirmAbandon(false)}>
+            <div className="panel narrow hud-abandon-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>{t('ui.map.abandon')}</h3>
+              <p className="muted">{t('ui.map.abandonConfirm')}</p>
+              <div className="row gap">
+                <button className="btn small" onClick={() => setConfirmAbandon(false)}>{t('ui.common.no')}</button>
+                <button className="btn danger small" onClick={() => void abandon()}>{t('ui.common.yes')}</button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </header>
   )
 }

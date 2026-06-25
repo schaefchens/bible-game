@@ -86,13 +86,11 @@ export function MapScreen() {
     return m?.regions ?? []
   }, [state])
   const dispatch = useGame((s) => s.dispatch)
-  const abandon = useGame((s) => s.abandon)
   const lastEvents = useGame((s) => s.lastEvents)
   const tick = useGame((s) => s.tick)
   const currentRef = useRef<HTMLButtonElement | null>(null)
   const [travel, setTravel] = useState<Travel | null>(null)
   const [arrival, setArrival] = useState<Arrival | null>(null)
-  const [confirmAbandon, setConfirmAbandon] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false) // the legend key starts collapsed to save space
   // a transient line of feedback (e.g. "this battle bars the way") that fades after a moment
   const [notice, setNotice] = useState<string | null>(null)
@@ -353,19 +351,6 @@ export function MapScreen() {
         </svg>
       </div>
 
-      <footer className="map-footer">
-        {confirmAbandon ? (
-          <span className="row gap">
-            <span className="muted small">{t('ui.map.abandonConfirm')}</span>
-            <button className="btn danger small" onClick={() => void abandon()}>{t('ui.common.yes')}</button>
-            <button className="btn small" onClick={() => setConfirmAbandon(false)}>{t('ui.common.no')}</button>
-          </span>
-        ) : (
-          <button className="btn danger small" onClick={() => setConfirmAbandon(true)}>
-            {t('ui.map.abandon')}
-          </button>
-        )}
-      </footer>
     </div>
   )
 }
