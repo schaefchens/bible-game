@@ -592,14 +592,21 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .upgrade-arrow { font-size: 1.8rem; font-weight: 700; color: var(--gold-bright); }
 /* shop — same scroll model as the deck modal: fixed head + footer, a single scrolling body (no
    whole-panel scroll, no nested scroll regions / double scrollbars). */
-.shop-panel { width: 860px; max-height: 660px; display: flex; flex-direction: column; overflow: hidden; }
+/* fixed height (not just max-height) so the panel doesn't shrink to content — gives the items column
+   real vertical space to push the bottom-pinned remove button down, and a stable, no-scroll size. */
+.shop-panel { width: 860px; height: 660px; display: flex; flex-direction: column; overflow: hidden; }
 .shop-head { flex: none; }
 .shop-head h2 { margin: 0 0 0.2rem; }
-.shop-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 6px 6px; }
+.shop-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 6px 6px; }
 /* split: cards (wide, ~2/3) on the left, items (narrow, ~1/3) on the right */
-.shop-split { display: grid; grid-template-columns: 2fr 1fr; gap: 1.2rem; align-items: start; }
+/* min-height:100% makes the split fill the whole shop body, so the items column stretches to the
+   full height (not just the taller column) and its bottom-pinned button reaches the actual bottom. */
+.shop-split { display: grid; grid-template-columns: 2fr 1fr; gap: 1.2rem; align-items: stretch; min-height: 100%; }
 .shop-col { min-width: 0; }
-.shop-col-items { border-left: 1px solid var(--panel-edge); padding-left: 1.2rem; }
+.shop-col-items { display: flex; flex-direction: column; border-left: 1px solid var(--panel-edge); padding-left: 1.2rem; }
+/* pin the remove-a-card button to the BOTTOM of the items column, separated from the goods above.
+   Scoped past `.btn.block { margin: .4rem 0 }` so the auto top-margin actually wins. */
+.shop-col-items .shop-remove-btn { margin-top: auto; }
 /* items shown as a bag-style icon grid (icon tile + price), not full-width buttons */
 .shop-item-grid { justify-content: flex-start; gap: 12px; }
 .shop-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }

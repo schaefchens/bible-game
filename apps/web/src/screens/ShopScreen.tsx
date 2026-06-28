@@ -113,6 +113,10 @@ export function ShopScreen() {
                     })}
                   </div>
                 )}
+                {/* remove-a-card lives under the goods so the footer is a single button (less height → no scroll) */}
+                <button className="btn block shop-remove-btn" disabled={view.deck.length === 0} onClick={() => setRemoving(true)}>
+                  {t('ui.shop.remove', { price: view.removePrice })}
+                </button>
               </div>
             </div>
           )}
@@ -123,14 +127,9 @@ export function ShopScreen() {
           {removing ? (
             <button className="btn block" onClick={() => setRemoving(false)}>{t('ui.shop.back')}</button>
           ) : (
-            <div className="choices">
-              <button className="btn block" disabled={view.deck.length === 0} onClick={() => setRemoving(true)}>
-                {t('ui.shop.remove', { price: view.removePrice })}
-              </button>
-              <button className="btn primary block" onClick={() => dispatch({ type: 'world/leaveShop' })}>
-                {t('ui.shop.leave')}
-              </button>
-            </div>
+            <button className="btn primary block" onClick={() => dispatch({ type: 'world/leaveShop' })}>
+              {t('ui.shop.leave')}
+            </button>
           )}
         </div>
       </div>
