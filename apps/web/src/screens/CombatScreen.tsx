@@ -20,8 +20,8 @@ const INTENT_ICON: Record<string, string> = { attack: '⚔️', attackMulti: '�
 // chips for buffs/debuffs on a combatant (lastStand keeps its own badge). 'buff' = green, 'debuff' = red tint.
 const STATUS_ICON: Record<string, string> = { strength: '💪', dexterity: '🤚', poison: '☠️', weak: '💢', vulnerable: '🎯', bound: '⛓️' }
 const STATUS_KIND: Record<string, 'buff' | 'debuff'> = { strength: 'buff', dexterity: 'buff', poison: 'debuff', weak: 'debuff', vulnerable: 'debuff', bound: 'debuff' }
-// persistent powers (Armor of God) — gold chips, distinct from the buff/debuff status chips
-const POWER_ICON: Record<string, string> = { steadfast: '🪨', belt_of_truth: '🥋', breastplate: '🛡️', shield_of_faith: '✝️', helmet_salvation: '⛑️', sword_of_spirit: '⚔️', gospel_shod: '👞', zeal: '🔥' }
+// persistent powers — gold chips, distinct from the buff/debuff status chips (match the card art)
+const POWER_ICON: Record<string, string> = { steadfast: '🗿', menace: '😠', bulwark: '🏰', bastion: '🗼', momentum: '🌀', whetstone: '🔪', adrenaline: '⚡', fury: '🔥' }
 
 // Pause between each enemy's action during the UI-paced enemy turn (one engine step per gap). Long
 // enough to read the lunge → hit → HP-drop → damage float before the next foe steps up.

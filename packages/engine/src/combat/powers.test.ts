@@ -5,16 +5,16 @@ import { ensureActing, endTurn, playCard, startCombat, type CombatInit } from '.
 import { statusStacks } from './damage'
 import type { Combatant } from './types'
 
-// Phase-2 persistent-power engine: gainPower install/stack + the Armor of God hooks/pipeline reads.
+// Phase-2 persistent-power engine: gainPower install/stack + the power hooks/pipeline reads.
 
 const C: Record<string, CardDef> = {
   steadfastPow: { id: 'steadfastPow', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'steadfast', stacks: 1 }] },
-  breastplate: { id: 'breastplate', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'breastplate', stacks: 3 }] },
-  belt: { id: 'belt', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'belt_of_truth', stacks: 1 }] },
-  helmet: { id: 'helmet', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'helmet_salvation', stacks: 1 }] },
-  gospel: { id: 'gospel', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'gospel_shod', stacks: 1 }] },
-  sword: { id: 'sword', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'sword_of_spirit', stacks: 2 }] },
-  shield: { id: 'shield', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'shield_of_faith', stacks: 4 }] },
+  bulwark: { id: 'bulwark', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'bulwark', stacks: 3 }] },
+  belt: { id: 'belt', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'menace', stacks: 1 }] },
+  helmet: { id: 'helmet', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'momentum', stacks: 1 }] },
+  gospel: { id: 'gospel', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'adrenaline', stacks: 1 }] },
+  sword: { id: 'sword', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'whetstone', stacks: 2 }] },
+  shield: { id: 'shield', type: 'power', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'gainPower', power: 'bastion', stacks: 4 }] },
   strike: { id: 'strike', type: 'attack', layer: 'flesh', cost: 1, target: 'enemy', nameKey: '', textKey: '', effects: [{ kind: 'damage', amount: 6 }] },
   flurry: { id: 'flurry', type: 'attack', layer: 'flesh', cost: 1, target: 'enemy', nameKey: '', textKey: '', effects: [{ kind: 'damage', amount: 3, hits: 2 }] },
   guard: { id: 'guard', type: 'skill', layer: 'flesh', cost: 1, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'block', amount: 5 }] },
@@ -39,11 +39,11 @@ const pad = (...defs: string[]): string[] => { const d = [...defs]; while (d.len
 
 describe('gainPower install / stack', () => {
   it('installs a power and stacks it when replayed', () => {
-    let c = begin(init(pad('breastplate', 'breastplate')))
-    c = playCard(c, iid(c, 'breastplate'), undefined, 0).combat
-    expect(c.combatants.hero!.powers?.find((p) => p.id === 'breastplate')?.stacks).toBe(3)
-    c = playCard(c, iid(c, 'breastplate'), undefined, 0).combat
-    expect(c.combatants.hero!.powers?.find((p) => p.id === 'breastplate')?.stacks).toBe(6)
+    let c = begin(init(pad('bulwark', 'bulwark')))
+    c = playCard(c, iid(c, 'bulwark'), undefined, 0).combat
+    expect(c.combatants.hero!.powers?.find((p) => p.id === 'bulwark')?.stacks).toBe(3)
+    c = playCard(c, iid(c, 'bulwark'), undefined, 0).combat
+    expect(c.combatants.hero!.powers?.find((p) => p.id === 'bulwark')?.stacks).toBe(6)
   })
 })
 
@@ -58,14 +58,14 @@ describe('onRoundStart powers', () => {
     expect(statusStacks(c.combatants.hero!, 'strength')).toBe(2)
   })
 
-  it('Breastplate grants Block at round start (scaled), after the block reset', () => {
-    let c = begin(init(pad('breastplate')))
-    c = playCard(c, iid(c, 'breastplate'), undefined, 0).combat
+  it('Bulwark grants Block at round start (scaled), after the block reset', () => {
+    let c = begin(init(pad('bulwark')))
+    c = playCard(c, iid(c, 'bulwark'), undefined, 0).combat
     c = endTurn(c, 0).combat // round 2 begins → block reset to 0, then +3
     expect(c.combatants.hero!.block).toBe(3)
   })
 
-  it('Belt of Truth weakens the front enemy each round', () => {
+  it('Menace weakens the front enemy each round', () => {
     let c = begin(init(pad('belt')))
     c = playCard(c, iid(c, 'belt'), undefined, 0).combat
     c = endTurn(c, 0).combat
@@ -74,7 +74,7 @@ describe('onRoundStart powers', () => {
 })
 
 describe('onCardPlayed / onAttackPlayed powers', () => {
-  it('Helmet of Salvation draws on every 3rd card played', () => {
+  it('Momentum draws on every 3rd card played', () => {
     let c = begin(init(pad('helmet', 'guard', 'guard')))
     c = playCard(c, iid(c, 'helmet'), undefined, 0).combat // card #1
     c = playCard(c, iid(c, 'guard'), undefined, 0).combat // #2
@@ -82,7 +82,7 @@ describe('onCardPlayed / onAttackPlayed powers', () => {
     expect(r.events.some((e) => e.type === 'cardDrawn')).toBe(true)
   })
 
-  it('Gospel of Peace refunds 1 Energy on the FIRST attack each turn only', () => {
+  it('Adrenaline refunds 1 Energy on the FIRST attack each turn only', () => {
     let c = begin(init(pad('gospel', 'strike', 'strike')))
     c = playCard(c, iid(c, 'gospel'), undefined, 0).combat
     const e0 = c.energy.current
@@ -93,7 +93,7 @@ describe('onCardPlayed / onAttackPlayed powers', () => {
   })
 })
 
-describe('Sword of the Spirit (pipeline read)', () => {
+describe('Whetstone (pipeline read)', () => {
   it('adds to single-hit attacks but NOT multi-hit', () => {
     let c = begin(init(pad('sword', 'strike', 'flurry')))
     c = playCard(c, iid(c, 'sword'), undefined, 0).combat // +2 sword
@@ -104,10 +104,10 @@ describe('Sword of the Spirit (pipeline read)', () => {
   })
 })
 
-describe('Shield of Faith (pipeline read)', () => {
+describe('Bastion (pipeline read)', () => {
   it('blunts the first HP hit each round by stacks×scale, once per round', () => {
     let c = begin(init(pad('shield'), { enemies: [foe({ id: 'a', stats: { maxHp: 100, attack: 10, speed: 2 } }), foe({ id: 'b', side: 'right', stats: { maxHp: 100, attack: 10, speed: 1 } })] }))
-    c = playCard(c, iid(c, 'shield'), undefined, 0).combat // shield_of_faith 4
+    c = playCard(c, iid(c, 'shield'), undefined, 0).combat // bastion 4
     const hp0 = c.combatants.hero!.hp
     c = endTurn(c, 0).combat // foe a hits 10→6 (shield), foe b hits 10 (full)
     expect(c.combatants.hero!.hp).toBe(hp0 - 6 - 10)

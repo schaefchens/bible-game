@@ -151,7 +151,7 @@ function resolveTargets(
 }
 
 /** Apply raw damage to a target: block absorption, Divine Protection, HP, and death routing.
- *  `fromDot` (poison) is internal affliction: it skips the physical pipeline (no strength/weak/
+ *  `fromDot` (poison) is internal expose: it skips the physical pipeline (no strength/weak/
  *  vulnerable/row, no lastStand mitigation) AND skips the block pool — only HP — but still routes a
  *  lethal tick through killCombatant, so poisoning a human to death griefs Spirit like any blow. */
 function damageTarget(
@@ -181,11 +181,11 @@ function damageTarget(
       events.push({ type: 'shieldNegated', targetId })
     }
   }
-  // Shield of Faith power: the FIRST HP-damaging hit each round on a party member is blunted by
+  // Bastion power: the FIRST HP-damaging hit each round on a party member is blunted by
   // stacks×scale (a flat reduction, like Strength/Dexterity reads — not a hook). Once per round.
   let usedShield = false
-  if (!opts.fromDot && target.faction === 'party' && hpDamage > 0 && !c.shieldUsedThisRound.includes(targetId) && powerStacks(target, 'shield_of_faith') > 0) {
-    hpDamage = Math.max(0, hpDamage - powerStacks(target, 'shield_of_faith') * target.scale)
+  if (!opts.fromDot && target.faction === 'party' && hpDamage > 0 && !c.shieldUsedThisRound.includes(targetId) && powerStacks(target, 'bastion') > 0) {
+    hpDamage = Math.max(0, hpDamage - powerStacks(target, 'bastion') * target.scale)
     usedShield = true
     events.push({ type: 'shieldNegated', targetId })
   }
@@ -391,7 +391,7 @@ function applyEffect(
       const hits = op.hits ?? 1
       const baseScaled = spiritScaled(card, op.amount, spirit, source.scale)
       if (baseScaled <= 0) return step(combat, [{ type: 'cardFizzled', iid: '', defId: card.id, reason: 'lowSpirit' }])
-      // Sword of the Spirit: a flat per-attack damage floor (×scale), added to the base so it amplifies
+      // Whetstone: a flat per-attack damage floor (×scale), added to the base so it amplifies
       // through Vulnerable. Single-hit attacks only — multi-hit gets its payoff from Strength instead.
       const base = baseScaled + swordBonus(card, source, hits)
       for (const tid of targets) {

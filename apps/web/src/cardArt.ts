@@ -28,6 +28,28 @@ const CARD_ART: Record<string, string> = {
   sharpen: '⚒️',
   cast_off: '🪶',
   prepare: '🛤️',
+  // flesh — debuffs (ids keep old names; display is plain — see i18n)
+  venom: '🐍', // Venom
+  miasma: '🌫️', // Miasma
+  expose: '🩸', // Expose
+  cripple: '🩼', // Cripple
+  shackle: '🔗', // Shackle
+  // flesh — buffs / persistent powers
+  sure_hands: '🧤', // Sure Hands (dexterity)
+  menace: '😠', // Menace
+  bulwark: '🏰', // Bulwark
+  bastion: '🗼', // Bastion
+  momentum: '🌀', // Momentum
+  whetstone: '🔪', // Whetstone
+  adrenaline: '⚡', // Adrenaline
+  fury: '🔥', // Fury
+  embolden: '🦁', // Embolden
+  // flesh — scaling payoffs
+  rupture: '💥', // Rupture
+  shield_bash: '🤜', // Shield Bash
+  shield_wall: '🚧', // Shield Wall
+  deathblow: '💀', // Deathblow
+  foresight: '🔮', // Foresight
   // enemy clutter
   spike: '🌵',
   // spirit — verses (miracles)

@@ -64,7 +64,7 @@ export type GameEvent =
   | { type: 'protected'; targetId: CombatantId; turns: number; chance: number }
   | { type: 'shieldNegated'; targetId: CombatantId }
   | { type: 'statusApplied'; targetId: CombatantId; status: StatusId; stacks: number }
-  // persistent powers (Armor of God): installed on play, and fired when a hook triggers
+  // persistent powers: installed on play, and fired when a hook triggers
   | { type: 'powerGained'; targetId: CombatantId; power: PowerId; stacks: number }
   | { type: 'powerTriggered'; sourceId: CombatantId; power: PowerId }
   | { type: 'energyChanged'; current: number; max: number }

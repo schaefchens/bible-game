@@ -5,7 +5,7 @@ import type { ProfileState, RunState } from '@bible/engine'
 // validated structurally; run snapshots are validated shallowly (we produced them via the engine
 // and they embed a large self-describing ContentBundle — deep mirroring would be brittle).
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 const SettingsSchema = z.object({
   locale: z.enum(['en', 'de']),

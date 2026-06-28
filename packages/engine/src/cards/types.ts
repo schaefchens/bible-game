@@ -17,18 +17,18 @@ export type TargetKind = 'enemy' | 'allEnemies' | 'ally' | 'self' | 'allAllies' 
  *  - 'weak'/'vulnerable' decay 1/round; 'bound' is spent by skipping a turn (executeIntent). */
 export type StatusId = 'weak' | 'vulnerable' | 'strength' | 'dexterity' | 'poison' | 'bound' | 'lastStand'
 
-/** Persistent powers (the Armor of God). Unlike statuses, powers NEVER decay and react to events via
- *  hooks (combat/powers.ts) — they are what make cards combine into an engine. 'sword_of_spirit' and
- *  'shield_of_faith' are pipeline reads (damage / damageTarget), not hooks; the rest fire on a hook. */
+/** Persistent powers. Unlike statuses, powers NEVER decay and react to events via
+ *  hooks (combat/powers.ts) — they are what make cards combine into an engine. 'whetstone' and
+ *  'bastion' are pipeline reads (damage / damageTarget), not hooks; the rest fire on a hook. */
 export type PowerId =
   | 'steadfast'
-  | 'belt_of_truth'
-  | 'breastplate'
-  | 'shield_of_faith'
-  | 'helmet_salvation'
-  | 'sword_of_spirit'
-  | 'gospel_shod'
-  | 'zeal'
+  | 'menace'
+  | 'bulwark'
+  | 'bastion'
+  | 'momentum'
+  | 'whetstone'
+  | 'adrenaline'
+  | 'fury'
 
 export type FruitAffinity = 'mercy' | 'faith' | 'knowledge'
 

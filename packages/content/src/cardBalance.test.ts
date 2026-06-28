@@ -15,18 +15,18 @@ describe('card balance invariants', () => {
     }
   })
 
-  it('0-cost engine cards are copy-capped (focus, cheerful_giver)', () => {
+  it('0-cost engine cards are copy-capped (focus, foresight)', () => {
     expect(CARDS.focus?.maxCopies).toBe(1)
-    expect(CARDS.cheerful_giver?.maxCopies).toBe(1)
+    expect(CARDS.foresight?.maxCopies).toBe(1)
   })
 
   it('the draw/energy powers are copy-capped to keep their payoff bounded', () => {
-    expect(CARDS.helmet_salvation?.maxCopies).toBe(1)
-    expect(CARDS.gospel_shod?.maxCopies).toBe(1)
+    expect(CARDS.momentum?.maxCopies).toBe(1)
+    expect(CARDS.adrenaline?.maxCopies).toBe(1)
   })
 
   it('poison cards carry a Spirit toll (pure temptation — a Spirit run avoids them)', () => {
-    for (const id of ['plague_boils', 'swarm_locusts']) {
+    for (const id of ['venom', 'miasma']) {
       const card = CARDS[id]!
       const toll = card.effects.find((e) => e.kind === 'spiritShift')
       expect(toll, `${id} should grieve Spirit`).toBeTruthy()

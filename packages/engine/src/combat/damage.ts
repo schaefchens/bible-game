@@ -19,10 +19,10 @@ export const powerStacks = (c: Combatant, id: PowerId): number =>
  *  Centralized so every block path stays consistent. */
 export const dexterityBlockBonus = (source: Combatant): number => statusStacks(source, 'dexterity') * source.scale
 
-/** Sword of the Spirit's flat damage bonus — single-hit attacks only (multi-hit relies on Strength).
+/** Whetstone's flat damage bonus — single-hit attacks only (multi-hit relies on Strength).
  *  Shared by applyEffect + preview so the previewed number can never drift from the real hit. */
 export const swordBonus = (card: Pick<CardDef, 'type'>, source: Combatant, hits: number): number =>
-  card.type === 'attack' && hits === 1 ? powerStacks(source, 'sword_of_spirit') * source.scale : 0
+  card.type === 'attack' && hits === 1 ? powerStacks(source, 'whetstone') * source.scale : 0
 
 /** The pre-pipeline base for a `damageScaling` op, shared by applyEffect + preview so the previewed
  *  number can never drift. `block` reads the SOURCE's (already-scaled) block; the other metrics are raw

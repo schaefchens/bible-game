@@ -114,4 +114,18 @@ describe('migrateSave', () => {
     expect(() => migrateSave({ schemaVersion: 999, profile: profileWithHeroes().profile, runs: {} })).toThrow(/newer/)
     expect(() => migrateSave(42)).toThrow()
   })
+
+  it('v1→v2 remaps renamed card ids in run decks and the hero pool', () => {
+    const prof = profileWithHeroes('A').profile
+    ;(prof.slots[0]!.character as { pool: string[] }).pool = ['belt_of_truth', 'strike']
+    const v1 = {
+      schemaVersion: 1,
+      profile: prof,
+      runs: { r1: { seed: 's', worldId: 'world-01', heroMemberId: 'm', deckByMember: { m: ['plague_boils', 'strike', 'sword_of_spirit'] } } },
+    }
+    const out = migrateSave(v1)
+    expect(out.schemaVersion).toBe(2)
+    expect((out.runs.r1 as { deckByMember: Record<string, string[]> }).deckByMember.m).toEqual(['venom', 'strike', 'whetstone'])
+    expect(out.profile.slots[0]!.character.pool).toEqual(['menace', 'strike'])
+  })
 })

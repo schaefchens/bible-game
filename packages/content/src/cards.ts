@@ -33,11 +33,11 @@ export const CARDS: Record<string, CardDef> = {
   //     carries a hidden spiritShift toll, so a Spirit/miracle run avoids them (low Spirit dims the
   //     verse miracles) while a flesh run uses them freely. Plain, non-biblical names/text by design
   //     (only the spirit/verse cards carry scripture). ---
-  plague_boils: { id: 'plague_boils', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.plague_boils.name', textKey: 'card.plague_boils.text', descKey: 'card.plague_boils.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 4 }, { kind: 'spiritShift', amount: -15, reason: 'sowedAffliction' }] },
-  swarm_locusts: { id: 'swarm_locusts', type: 'skill', layer: 'flesh', cost: 2, target: 'allEnemies', nameKey: 'card.swarm_locusts.name', textKey: 'card.swarm_locusts.text', descKey: 'card.swarm_locusts.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 2, target: 'allEnemies' }, { kind: 'spiritShift', amount: -25, reason: 'sowedAffliction' }] },
-  affliction: { id: 'affliction', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.affliction.name', textKey: 'card.affliction.text', descKey: 'card.affliction.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'vulnerable', stacks: 2 }] },
-  hardened_heart: { id: 'hardened_heart', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.hardened_heart.name', textKey: 'card.hardened_heart.text', descKey: 'card.hardened_heart.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'weak', stacks: 2 }, { kind: 'applyStatus', status: 'vulnerable', stacks: 1 }] },
-  bind_strongman: { id: 'bind_strongman', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.bind_strongman.name', textKey: 'card.bind_strongman.text', descKey: 'card.bind_strongman.desc', rarity: 'rare', maxCopies: 1, effects: [{ kind: 'applyStatus', status: 'bound', stacks: 1 }] },
+  venom: { id: 'venom', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.venom.name', textKey: 'card.venom.text', descKey: 'card.venom.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 4 }, { kind: 'spiritShift', amount: -15, reason: 'sowedAffliction' }] },
+  miasma: { id: 'miasma', type: 'skill', layer: 'flesh', cost: 2, target: 'allEnemies', nameKey: 'card.miasma.name', textKey: 'card.miasma.text', descKey: 'card.miasma.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 2, target: 'allEnemies' }, { kind: 'spiritShift', amount: -25, reason: 'sowedAffliction' }] },
+  expose: { id: 'expose', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.expose.name', textKey: 'card.expose.text', descKey: 'card.expose.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'vulnerable', stacks: 2 }] },
+  cripple: { id: 'cripple', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.cripple.name', textKey: 'card.cripple.text', descKey: 'card.cripple.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'weak', stacks: 2 }, { kind: 'applyStatus', status: 'vulnerable', stacks: 1 }] },
+  shackle: { id: 'shackle', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.shackle.name', textKey: 'card.shackle.text', descKey: 'card.shackle.desc', rarity: 'rare', maxCopies: 1, effects: [{ kind: 'applyStatus', status: 'bound', stacks: 1 }] },
   sure_hands: { id: 'sure_hands', type: 'skill', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.sure_hands.name', textKey: 'card.sure_hands.text', descKey: 'card.sure_hands.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'dexterity', stacks: 1, target: 'self' }] },
 
   // --- enemy-injected clutter (never owned/bought): a "thorn" that only clogs the deck (Matt 13:22).
@@ -71,29 +71,29 @@ export const CARDS: Record<string, CardDef> = {
 
   // --- persistent powers. Each installs a power that reacts every round / on card-play / in the damage
   //     pipeline (see combat/powers.ts). Replaying a power stacks it; the draw/energy powers
-  //     (helmet_salvation, gospel_shod) are maxCopies:1 to keep their payoff bounded.
+  //     (momentum, adrenaline) are maxCopies:1 to keep their payoff bounded.
   //     (IDs keep their old armour-set names internally; display names are plain — see i18n.) ---
-  belt_of_truth: { id: 'belt_of_truth', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.belt_of_truth.name', textKey: 'card.belt_of_truth.text', descKey: 'card.belt_of_truth.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'belt_of_truth', stacks: 1 }] },
-  breastplate: { id: 'breastplate', type: 'power', layer: 'flesh', cost: 2, target: 'self', nameKey: 'card.breastplate.name', textKey: 'card.breastplate.text', descKey: 'card.breastplate.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'breastplate', stacks: 3 }] },
-  shield_of_faith: { id: 'shield_of_faith', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.shield_of_faith.name', textKey: 'card.shield_of_faith.text', descKey: 'card.shield_of_faith.desc', rarity: 'rare', effects: [{ kind: 'gainPower', power: 'shield_of_faith', stacks: 4 }] },
-  helmet_salvation: { id: 'helmet_salvation', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.helmet_salvation.name', textKey: 'card.helmet_salvation.text', descKey: 'card.helmet_salvation.desc', rarity: 'uncommon', maxCopies: 1, effects: [{ kind: 'gainPower', power: 'helmet_salvation', stacks: 1 }] },
-  sword_of_spirit: { id: 'sword_of_spirit', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.sword_of_spirit.name', textKey: 'card.sword_of_spirit.text', descKey: 'card.sword_of_spirit.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'sword_of_spirit', stacks: 2 }] },
-  gospel_shod: { id: 'gospel_shod', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.gospel_shod.name', textKey: 'card.gospel_shod.text', descKey: 'card.gospel_shod.desc', rarity: 'common', maxCopies: 1, effects: [{ kind: 'gainPower', power: 'gospel_shod', stacks: 1 }] },
-  zeal: { id: 'zeal', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.zeal.name', textKey: 'card.zeal.text', descKey: 'card.zeal.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'zeal', stacks: 1 }] },
+  menace: { id: 'menace', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.menace.name', textKey: 'card.menace.text', descKey: 'card.menace.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'menace', stacks: 1 }] },
+  bulwark: { id: 'bulwark', type: 'power', layer: 'flesh', cost: 2, target: 'self', nameKey: 'card.bulwark.name', textKey: 'card.bulwark.text', descKey: 'card.bulwark.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'bulwark', stacks: 3 }] },
+  bastion: { id: 'bastion', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.bastion.name', textKey: 'card.bastion.text', descKey: 'card.bastion.desc', rarity: 'rare', effects: [{ kind: 'gainPower', power: 'bastion', stacks: 4 }] },
+  momentum: { id: 'momentum', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.momentum.name', textKey: 'card.momentum.text', descKey: 'card.momentum.desc', rarity: 'uncommon', maxCopies: 1, effects: [{ kind: 'gainPower', power: 'momentum', stacks: 1 }] },
+  whetstone: { id: 'whetstone', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.whetstone.name', textKey: 'card.whetstone.text', descKey: 'card.whetstone.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'whetstone', stacks: 2 }] },
+  adrenaline: { id: 'adrenaline', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.adrenaline.name', textKey: 'card.adrenaline.text', descKey: 'card.adrenaline.desc', rarity: 'common', maxCopies: 1, effects: [{ kind: 'gainPower', power: 'adrenaline', stacks: 1 }] },
+  fury: { id: 'fury', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.fury.name', textKey: 'card.fury.text', descKey: 'card.fury.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'fury', stacks: 1 }] },
   // Temperance is an INSTANT party buff (not a power): immediate Strength + Block to all allies.
-  temperance: { id: 'temperance', type: 'skill', layer: 'flesh', cost: 1, target: 'allAllies', nameKey: 'card.temperance.name', textKey: 'card.temperance.text', descKey: 'card.temperance.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'strength', stacks: 1, target: 'allAllies' }, { kind: 'block', amount: 3, target: 'allAllies' }] },
+  embolden: { id: 'embolden', type: 'skill', layer: 'flesh', cost: 1, target: 'allAllies', nameKey: 'card.embolden.name', textKey: 'card.embolden.text', descKey: 'card.embolden.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'strength', stacks: 1, target: 'allAllies' }, { kind: 'block', amount: 3, target: 'allAllies' }] },
 
   // --- scaling payoffs: attacks/blocks that grow with an accumulated metric (the engine payoffs) ---
   // Converts stacked Poison into burst WITHOUT consuming it (the rot keeps ticking).
-  outstretched_hand: { id: 'outstretched_hand', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.outstretched_hand.name', textKey: 'card.outstretched_hand.text', descKey: 'card.outstretched_hand.desc', rarity: 'uncommon', effects: [{ kind: 'damageScaling', per: 'poisonOnTarget', amount: 4, coeff: 1 }] },
+  rupture: { id: 'rupture', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.rupture.name', textKey: 'card.rupture.text', descKey: 'card.rupture.desc', rarity: 'uncommon', effects: [{ kind: 'damageScaling', per: 'poisonOnTarget', amount: 4, coeff: 1 }] },
   // Deals damage equal to your Block (non-consuming, coeff-capped) — the turtle payoff. Rare.
-  body_of_christ: { id: 'body_of_christ', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.body_of_christ.name', textKey: 'card.body_of_christ.text', descKey: 'card.body_of_christ.desc', rarity: 'rare', effects: [{ kind: 'damageScaling', per: 'block', amount: 0, coeff: 1 }] },
+  shield_bash: { id: 'shield_bash', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.shield_bash.name', textKey: 'card.shield_bash.text', descKey: 'card.shield_bash.desc', rarity: 'rare', effects: [{ kind: 'damageScaling', per: 'block', amount: 0, coeff: 1 }] },
   // Rewards being played LATE in a turn (after other cards) — bridges block + play-many tempo.
   shield_wall: { id: 'shield_wall', type: 'skill', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.shield_wall.name', textKey: 'card.shield_wall.text', descKey: 'card.shield_wall.desc', rarity: 'common', effects: [{ kind: 'blockScaling', per: 'cardsPlayedThisTurn', amount: 3, coeff: 2, target: 'self' }] },
   // Finisher: an execute that doubles against a near-dead foe.
   deathblow: { id: 'deathblow', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.deathblow.name', textKey: 'card.deathblow.text', descKey: 'card.deathblow.desc', rarity: 'uncommon', effects: [{ kind: 'execute', amount: 12, bonus: 12, below: 0.2 }] },
   // 0-cost cantrip: replaces itself and advances the card-count engines (Helmet / Shield Wall). maxCopies:1.
-  cheerful_giver: { id: 'cheerful_giver', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: 'card.cheerful_giver.name', textKey: 'card.cheerful_giver.text', descKey: 'card.cheerful_giver.desc', rarity: 'common', maxCopies: 1, effects: [{ kind: 'draw', count: 1 }] },
+  foresight: { id: 'foresight', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: 'card.foresight.name', textKey: 'card.foresight.text', descKey: 'card.foresight.desc', rarity: 'common', maxCopies: 1, effects: [{ kind: 'draw', count: 1 }] },
 }
 
 /** Cards available to draw/buy from the pool at level 1 (the existing non-starter library). */
@@ -109,30 +109,30 @@ export const CARD_POOL_START: string[] = [
   'cast_off',
   'prepare',
   // effects & buffs — the first player debuff/DoT/buff cards (the rest unlock by level)
-  'plague_boils',
-  'affliction',
+  'venom',
+  'expose',
   'sure_hands',
   // persistent powers — the engine cards (heavier powers unlock by level)
-  'belt_of_truth',
-  'sword_of_spirit',
-  'gospel_shod',
-  'temperance',
+  'menace',
+  'whetstone',
+  'adrenaline',
+  'embolden',
   // scaling payoffs
-  'outstretched_hand',
+  'rupture',
   'shield_wall',
-  'cheerful_giver',
+  'foresight',
   'deathblow',
 ]
 
 /** Cards added to the hero's pool upon reaching each level. Spirit cards are NOT here — they are
  *  earned only by solving scripture (study at a fireplace) and persist via ownedVerseCardIds. */
 export const CARD_UNLOCKS_BY_LEVEL: Record<number, string[]> = {
-  2: ['riposte', 'swarm_locusts'],
-  3: ['exhort', 'hardened_heart', 'helmet_salvation'],
-  4: ['bind_strongman', 'breastplate'],
-  5: ['steadfast', 'zeal'],
-  6: ['shield_of_faith'],
-  7: ['body_of_christ'],
+  2: ['riposte', 'miasma'],
+  3: ['exhort', 'cripple', 'momentum'],
+  4: ['shackle', 'bulwark'],
+  5: ['steadfast', 'fury'],
+  6: ['bastion'],
+  7: ['shield_bash'],
 }
 
 /** Max run-deck size; reward/shop adds are blocked at the cap. */

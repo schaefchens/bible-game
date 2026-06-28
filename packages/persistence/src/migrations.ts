@@ -6,8 +6,42 @@ import { CURRENT_SCHEMA_VERSION, SaveFileSchema, type SaveFile } from './schema'
 
 type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 
+// v1→v2: the flesh buff/effect/power cards were renamed to plain ids that match their display names.
+// Remap any persisted old card id (in run decks, the hero pool, shop stock, …) to its new id.
+const CARD_ID_RENAMES: Record<string, string> = {
+  plague_boils: 'venom',
+  swarm_locusts: 'miasma',
+  affliction: 'expose',
+  hardened_heart: 'cripple',
+  bind_strongman: 'shackle',
+  belt_of_truth: 'menace',
+  breastplate: 'bulwark',
+  shield_of_faith: 'bastion',
+  helmet_salvation: 'momentum',
+  sword_of_spirit: 'whetstone',
+  gospel_shod: 'adrenaline',
+  zeal: 'fury',
+  temperance: 'embolden',
+  outstretched_hand: 'rupture',
+  body_of_christ: 'shield_bash',
+  cheerful_giver: 'foresight',
+}
+
+/** Deep-walk a save, replacing any string that exactly matches a renamed card id (path-agnostic, so it
+ *  catches deckByMember, the hero pool, shop states, etc.). Object keys are left untouched. */
+function remapCardIds(v: unknown): unknown {
+  if (typeof v === 'string') return CARD_ID_RENAMES[v] ?? v
+  if (Array.isArray(v)) return v.map(remapCardIds)
+  if (v && typeof v === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = remapCardIds(val)
+    return out
+  }
+  return v
+}
+
 const MIGRATIONS: Record<number, Migration> = {
-  // 1: (raw) => ({ ...raw, schemaVersion: 2, /* ... */ }),
+  1: (raw) => ({ ...(remapCardIds(raw) as Record<string, unknown>), schemaVersion: 2 }),
 }
 
 export function migrateSave(raw: unknown): SaveFile {
