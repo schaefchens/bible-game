@@ -27,11 +27,12 @@ export const CARDS: Record<string, CardDef> = {
   // "Prepare ye the way" (Isa 40:3) — set a chosen card on top of the draw pile, drawn first next round.
   prepare: { id: 'prepare', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: 'card.prepare.name', textKey: 'card.prepare.text', descKey: 'card.prepare.desc', rarity: 'uncommon', effects: [{ kind: 'topDeck', count: 1 }] },
 
-  // --- effects & buffs: enemy debuffs + poison DoT (Plagues of Egypt) and the dexterity buff. weak/
-  //     vulnerable already work in the damage pipeline; these are the first PLAYER cards to wield them.
-  //     poison ticks at round resolve (stacks×scale, bypassing block) and is LETHAL. Sowing affliction
-  //     is a TEMPTATION: each poison card carries a spiritShift toll, so a Spirit/miracle run avoids
-  //     them (low Spirit dims the verse miracles) while a flesh run uses them freely. ---
+  // --- effects & buffs: enemy debuffs + poison DoT + the dexterity buff. weak/vulnerable already work
+  //     in the damage pipeline; these are the first PLAYER cards to wield them. poison ticks at round
+  //     resolve (stacks×scale, bypassing block) and is LETHAL. Poison cards are a TEMPTATION: each
+  //     carries a hidden spiritShift toll, so a Spirit/miracle run avoids them (low Spirit dims the
+  //     verse miracles) while a flesh run uses them freely. Plain, non-biblical names/text by design
+  //     (only the spirit/verse cards carry scripture). ---
   plague_boils: { id: 'plague_boils', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.plague_boils.name', textKey: 'card.plague_boils.text', descKey: 'card.plague_boils.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 4 }, { kind: 'spiritShift', amount: -15, reason: 'sowedAffliction' }] },
   swarm_locusts: { id: 'swarm_locusts', type: 'skill', layer: 'flesh', cost: 2, target: 'allEnemies', nameKey: 'card.swarm_locusts.name', textKey: 'card.swarm_locusts.text', descKey: 'card.swarm_locusts.desc', rarity: 'uncommon', effects: [{ kind: 'applyStatus', status: 'poison', stacks: 2, target: 'allEnemies' }, { kind: 'spiritShift', amount: -25, reason: 'sowedAffliction' }] },
   affliction: { id: 'affliction', type: 'skill', layer: 'flesh', cost: 1, target: 'enemy', nameKey: 'card.affliction.name', textKey: 'card.affliction.text', descKey: 'card.affliction.desc', rarity: 'common', effects: [{ kind: 'applyStatus', status: 'vulnerable', stacks: 2 }] },
@@ -68,9 +69,10 @@ export const CARDS: Record<string, CardDef> = {
   // Steadfast is now a TRUE persistent power: 4 Block now + a power granting +1 Strength every round.
   steadfast: { id: 'steadfast', type: 'power', layer: 'flesh', cost: 2, target: 'self', nameKey: 'card.steadfast.name', textKey: 'card.steadfast.text', descKey: 'card.steadfast.desc', rarity: 'uncommon', effects: [{ kind: 'block', amount: 4 }, { kind: 'gainPower', power: 'steadfast', stacks: 1 }] },
 
-  // --- persistent powers: the Armor of God (Eph 6). Each installs a power that reacts every round /
-  //     on card-play / in the damage pipeline (see combat/powers.ts). Replaying a power stacks it;
-  //     Helmet & Gospel-Shod are maxCopies:1 to keep their draw/energy bounded. ---
+  // --- persistent powers. Each installs a power that reacts every round / on card-play / in the damage
+  //     pipeline (see combat/powers.ts). Replaying a power stacks it; the draw/energy powers
+  //     (helmet_salvation, gospel_shod) are maxCopies:1 to keep their payoff bounded.
+  //     (IDs keep their old armour-set names internally; display names are plain — see i18n.) ---
   belt_of_truth: { id: 'belt_of_truth', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.belt_of_truth.name', textKey: 'card.belt_of_truth.text', descKey: 'card.belt_of_truth.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'belt_of_truth', stacks: 1 }] },
   breastplate: { id: 'breastplate', type: 'power', layer: 'flesh', cost: 2, target: 'self', nameKey: 'card.breastplate.name', textKey: 'card.breastplate.text', descKey: 'card.breastplate.desc', rarity: 'uncommon', effects: [{ kind: 'gainPower', power: 'breastplate', stacks: 3 }] },
   shield_of_faith: { id: 'shield_of_faith', type: 'power', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.shield_of_faith.name', textKey: 'card.shield_of_faith.text', descKey: 'card.shield_of_faith.desc', rarity: 'rare', effects: [{ kind: 'gainPower', power: 'shield_of_faith', stacks: 4 }] },
@@ -88,7 +90,7 @@ export const CARDS: Record<string, CardDef> = {
   body_of_christ: { id: 'body_of_christ', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.body_of_christ.name', textKey: 'card.body_of_christ.text', descKey: 'card.body_of_christ.desc', rarity: 'rare', effects: [{ kind: 'damageScaling', per: 'block', amount: 0, coeff: 1 }] },
   // Rewards being played LATE in a turn (after other cards) — bridges block + play-many tempo.
   shield_wall: { id: 'shield_wall', type: 'skill', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.shield_wall.name', textKey: 'card.shield_wall.text', descKey: 'card.shield_wall.desc', rarity: 'common', effects: [{ kind: 'blockScaling', per: 'cardsPlayedThisTurn', amount: 3, coeff: 2, target: 'self' }] },
-  // Finisher: an execute that doubles against a near-dead foe (David's finishing stroke, 1 Sam 17:51).
+  // Finisher: an execute that doubles against a near-dead foe.
   deathblow: { id: 'deathblow', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.deathblow.name', textKey: 'card.deathblow.text', descKey: 'card.deathblow.desc', rarity: 'uncommon', effects: [{ kind: 'execute', amount: 12, bonus: 12, below: 0.2 }] },
   // 0-cost cantrip: replaces itself and advances the card-count engines (Helmet / Shield Wall). maxCopies:1.
   cheerful_giver: { id: 'cheerful_giver', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: 'card.cheerful_giver.name', textKey: 'card.cheerful_giver.text', descKey: 'card.cheerful_giver.desc', rarity: 'common', maxCopies: 1, effects: [{ kind: 'draw', count: 1 }] },
@@ -110,7 +112,7 @@ export const CARD_POOL_START: string[] = [
   'plague_boils',
   'affliction',
   'sure_hands',
-  // persistent powers (Armor of God) — the engine cards (heavier powers unlock by level)
+  // persistent powers — the engine cards (heavier powers unlock by level)
   'belt_of_truth',
   'sword_of_spirit',
   'gospel_shod',
@@ -150,14 +152,7 @@ export const HERO_START_DECK: string[] = [
   'sharpen',
   'cast_off',
   'prepare',
-  // effects & buffs — seeded so poison/debuff/dexterity are immediately playable/testable.
-  // (Easily removed: these are also in CARD_POOL_START for normal acquisition.)
-  'plague_boils',
-  'affliction',
-  'sure_hands',
-  // persistent powers — seeded so the engine (round-start block + attack-damage floor) is visible
-  // immediately. (Easily removed: breastplate unlocks at L4, sword_of_spirit is in CARD_POOL_START.)
-  'breastplate',
-  'sword_of_spirit',
+  // New buff/effect/power cards are NOT seeded — they are earned through deckbuilding (rewards / shops /
+  // level unlocks), like every other pool card.
   // No spirit cards by default — miracle cards are earned by solving scripture (study at a fireplace).
 ]
