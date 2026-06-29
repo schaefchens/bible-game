@@ -56,6 +56,12 @@ interface GameStore {
   /** transient UI flag: the victory cinematic is playing — the battlefield is held (defeated foes +
    *  the golden light-bloom) before the reward screen is revealed. */
   winning: boolean
+  /** transient UI flag: the studio-logo intro (StartupSequence) is playing. Set once at boot from
+   *  the playStartupLogo setting; while true the title music is held so only the intro's ambient
+   *  bed + stings are heard. Cleared by endBoot() when the intro finishes or is skipped. */
+  booting: boolean
+  /** end the studio-logo intro → reveal the title screen and let its music fade in */
+  endBoot: () => void
   /** transient UI flag: the sleep cinematic (fade-to-black + cue) is playing */
   sleeping: boolean
   setSleeping: (sleeping: boolean) => void
@@ -109,12 +115,14 @@ export const useGame = create<GameStore>((set, get) => ({
   resumableIds: [],
   dying: false,
   winning: false,
+  booting: false,
   sleeping: false,
   praying: false,
   deckOpen: false,
   inventoryOpen: false,
   itemInteraction: null,
 
+  endBoot: () => set({ booting: false }),
   setSleeping: (sleeping) => set({ sleeping }),
   setPraying: (praying) => set({ praying }),
   setDeckOpen: (deckOpen) => set({ deckOpen }),
@@ -183,6 +191,10 @@ export const useGame = create<GameStore>((set, get) => ({
       set({ state: { ...newGame(), profile: file.profile }, resumableIds })
       void i18n.changeLanguage(file.profile.settings.locale)
     }
+    // Arm the studio-logo intro for this launch from the (now-hydrated) setting. Done here, before
+    // first paint, so the overlay shows immediately and toggling the setting mid-session never
+    // re-arms it. A missing/older save defaults the setting to true via defaultSettings().
+    set({ booting: get().state.profile.settings.playStartupLogo })
   },
 
   resume: async (characterId) => {

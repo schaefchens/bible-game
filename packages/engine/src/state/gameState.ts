@@ -38,6 +38,8 @@ export interface Settings {
   /** when false, music plays at a flat volume (the slider value) instead of ducking/boosting per context */
   dynamicMusic: boolean
   reducedMotion: boolean
+  /** play the AAA-style studio-logo intro (logo cards → fake loading) on launch before the title */
+  playStartupLogo: boolean
 }
 
 export const defaultSettings = (): Settings => ({
@@ -47,6 +49,7 @@ export const defaultSettings = (): Settings => ({
   audioMode: 'on',
   dynamicMusic: true,
   reducedMotion: false,
+  playStartupLogo: true,
 })
 
 export interface CharacterSlot {

@@ -15,6 +15,9 @@ export function MusicController() {
   const musicVolume = useGame((s) => s.state.profile.settings.musicVolume)
   const audioMode = useGame((s) => s.state.profile.settings.audioMode)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
+  // While the studio-logo intro plays, hold the title track so only the intro's ambient bed + stings
+  // are heard; when the intro ends (endBoot), this re-runs and the title music fades in normally.
+  const booting = useGame((s) => s.booting)
 
   useEffect(() => {
     musicManager.unlock()
@@ -33,8 +36,8 @@ export function MusicController() {
   }, [reducedMotion])
 
   useEffect(() => {
-    musicManager.apply(resolveAsset(ref ?? undefined) ?? null, level)
-  }, [ref, level])
+    musicManager.apply(booting ? null : resolveAsset(ref ?? undefined) ?? null, level)
+  }, [ref, level, booting])
 
   return null
 }

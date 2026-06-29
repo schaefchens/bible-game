@@ -18,6 +18,7 @@ export function SettingsScreen() {
   const audioMode = useGame((s) => s.state.profile.settings.audioMode)
   const dynamicMusic = useGame((s) => s.state.profile.settings.dynamicMusic)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
+  const playStartupLogo = useGame((s) => s.state.profile.settings.playStartupLogo)
   const setLocale = useGame((s) => s.setLocale)
   const setMusicVolume = useGame((s) => s.setMusicVolume)
   const setSfxVolume = useGame((s) => s.setSfxVolume)
@@ -98,6 +99,16 @@ export function SettingsScreen() {
             onClick={() => dispatch({ type: 'updateSettings', settings: { reducedMotion: !reducedMotion } })}
           >
             {reducedMotion ? t('ui.common.yes') : t('ui.common.no')}
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <span className="settings-label">{t('ui.settings.playStartupLogo')}</span>
+          <button
+            className={'btn small' + (playStartupLogo ? ' active' : '')}
+            onClick={() => dispatch({ type: 'updateSettings', settings: { playStartupLogo: !playStartupLogo } })}
+          >
+            {playStartupLogo ? t('ui.common.yes') : t('ui.common.no')}
           </button>
         </div>
 

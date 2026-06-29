@@ -84,6 +84,7 @@ const REGISTRY: Record<string, string> = {
   'music/battle-elah-boss': 'bg-music-battle-elah-boss.mp3',
   'music/inn': 'bg-music-inn.mp3',
   'music/sleep': 'bg-music-sleep.mp3', // one-shot cue (~10s) for the sleep cinematic
+  'music/startup': 'bg-music-startup.mp3', // calm ambient bed under the studio-logo intro (StartupSequence)
   // Registered + available; not yet assigned to any node/encounter (wire later as needed).
   'music/battle-intense': 'bg-music-battle-intense.mp3',
   'music/battle-calm': 'bg-music-battle-calm.mp3',
@@ -106,6 +107,17 @@ const REGISTRY: Record<string, string> = {
   'sfx/death-monster': 'sfx-death-monster.mp3',
   'sfx/death-goliath': 'sfx-death-goliath.mp3',
   'sfx/incapacitate': 'sfx-incapacitate.mp3',
+  // Studio-logo intro stings (StartupSequence). One-shots; gated/scaled like other SFX.
+  'sfx/logo-whoosh': 'sfx-logo-whoosh.mp3',
+  'sfx/logo-whoosh-soft': 'sfx-logo-whoosh-soft.mp3',
+  'sfx/logo-sheep': 'sfx-logo-sheep.mp3',
+  'sfx/logo-ding': 'sfx-logo-ding.mp3',
+  // Studio-logo intro art (StartupSequence). All four ship real graphics; any unregistered ref falls
+  // back to a styled CSS card (same image-or-fallback pattern as the battle sprites).
+  'logo/lamm': 'logo-lamm.png',
+  'logo/god': 'logo-god.png',
+  'logo/claude': 'logo-claude.svg',
+  'logo/misselle': 'logo-misselle.webp',
   // Jericho road — every bg by stem
   ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `${stem}.png`])),
   // Battle character sprites, by archetype

@@ -26,6 +26,7 @@ import { DeckModal } from './components/DeckModal'
 import { InventoryLayer } from './components/InventoryLayer'
 import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
+import { StartupSequence } from './components/StartupSequence'
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
@@ -51,6 +52,8 @@ export function App() {
   const praying = useGame((s) => s.praying)
   const deckOpen = useGame((s) => s.deckOpen)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
+  const booting = useGame((s) => s.booting)
+  const endBoot = useGame((s) => s.endBoot)
   const Screen = SCREENS[screen] ?? StartScreen
 
   return (
@@ -88,6 +91,10 @@ export function App() {
 
       {/* System-level (unscaled, viewport-anchored) — readable regardless of the game's scale. */}
       <UpdateBanner />
+
+      {/* The AAA-style studio-logo intro: a full-viewport black overlay (above everything, outside
+          the scaled stage) shown once per launch when enabled. Reveals the title screen on finish. */}
+      {booting && <StartupSequence onComplete={endBoot} />}
     </div>
   )
 }

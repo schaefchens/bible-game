@@ -15,6 +15,7 @@ const SettingsSchema = z.object({
   audioMode: z.enum(['on', 'sfxOnly', 'off']).default('on'),
   dynamicMusic: z.boolean().default(true),
   reducedMotion: z.boolean(),
+  playStartupLogo: z.boolean().default(true),
 })
 
 const CharacterSchema = z.object({

@@ -969,3 +969,78 @@ body.holding-item, body.holding-item * { cursor: none; }
   position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom));
   font-size: 0.72rem; color: var(--muted); opacity: 0.5; letter-spacing: 0.03em;
 }
+
+/* ---------- studio-logo intro (StartupSequence) ---------- */
+/* Full-viewport black cinematic above everything (incl. the update banner at z:200), outside the
+   scaled stage so it fills the real screen. gate → logos → loading, then fades out to reveal the title. */
+.startup {
+  position: fixed; inset: 0; z-index: 1000;
+  background: #000; color: var(--ink); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; user-select: none; -webkit-user-select: none;
+}
+
+/* "tap to begin" gate */
+.startup-gate { text-align: center; }
+.startup-gate-text {
+  color: var(--gold); font-size: 1.15rem; letter-spacing: 0.34em; text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(216,185,98,0.35); animation: startup-pulse 2.6s ease-in-out 0.4s infinite;
+}
+@keyframes startup-pulse { 0%, 100% { opacity: 0.26; } 50% { opacity: 0.85; } }
+
+/* one logo card, centered; framer-motion cross-fades successive cards */
+.startup-card {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.4rem; padding: 6vh 6vw; text-align: center; will-change: opacity, transform;
+}
+
+/* styled fallback glyph (shown when no graphic is registered for the card) */
+.startup-glyph { font-size: clamp(4rem, 16vh, 9rem); line-height: 1; filter: drop-shadow(0 6px 20px rgba(0,0,0,0.6)); }
+.startup-card.v-studio .startup-glyph { color: var(--gold-bright); }
+.startup-card.v-plain .startup-glyph { color: var(--gold); }
+.startup-card.v-divine .startup-glyph { color: #fff; text-shadow: 0 0 30px rgba(255,240,190,0.85), 0 0 72px rgba(244,231,161,0.5); }
+
+/* the divine card's radiant halo */
+.startup-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, rgba(255,247,214,0.5) 0%, rgba(244,231,161,0.22) 22%, rgba(196,150,70,0.08) 45%, transparent 66%);
+  animation: startup-breathe 5.5s ease-in-out infinite;
+}
+@keyframes startup-breathe { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+
+/* real graphics */
+.startup-img { display: block; object-fit: contain; }
+/* self-contained logos on a LIGHT background: let their background melt into the black via an edge mask */
+.startup-img.t-feather {
+  width: min(64vh, 80vw); height: auto; max-height: 74vh;
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 48%, #000 66%, transparent 100%);
+          mask-image: radial-gradient(ellipse 75% 75% at 50% 48%, #000 66%, transparent 100%);
+}
+/* cinematic graphic already on a DARK background: show it large/full-bleed (its own edges blend) */
+.startup-img.t-bleed { width: min(94vw, 150vh); height: auto; max-height: 84vh; }
+/* transparent logo / wordmark: shown as-is, modest size, a soft shadow for legibility on black */
+.startup-img.t-plain { width: min(48vh, 66vw); height: auto; max-height: 32vh; filter: drop-shadow(0 4px 22px rgba(0,0,0,0.7)); }
+/* portraits / photos: a rounded, bordered card */
+.startup-img.t-framed {
+  width: min(38vh, 70vw); height: auto; max-height: 48vh; border-radius: 16px;
+  border: 1px solid rgba(216,185,98,0.5);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.4), 0 0 40px rgba(216,185,98,0.12);
+}
+
+/* caption block */
+.startup-text { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.startup-tagline { color: var(--gold); font-size: 0.95rem; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8; }
+.startup-caption { color: var(--gold-bright); font-size: clamp(1.6rem, 4.5vh, 2.6rem); letter-spacing: 0.06em; text-shadow: 0 2px 18px rgba(216,185,98,0.3); }
+.startup-card.v-divine .startup-caption { color: #fff; text-shadow: 0 0 24px rgba(255,240,190,0.7); }
+.startup-sub { color: var(--gold); font-style: italic; font-size: 1rem; opacity: 0.8; letter-spacing: 0.08em; }
+
+/* fake loading screen */
+.startup-loading { position: absolute; left: 0; right: 0; bottom: 12vh; display: flex; flex-direction: column; align-items: center; gap: 0.9rem; }
+.startup-bar { width: min(360px, 60vw); height: 3px; border-radius: 999px; background: rgba(216,185,98,0.18); overflow: hidden; }
+.startup-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright)); box-shadow: 0 0 12px rgba(244,231,161,0.6); }
+.startup-loading-text { color: var(--gold); font-size: 0.8rem; letter-spacing: 0.26em; text-transform: uppercase; opacity: 0.7; }
+
+/* reduced motion: drop the looping pulse/breathe animations */
+.app.reduced-motion .startup-gate-text { animation: none; opacity: 0.72; }
+.app.reduced-motion .startup-glow { animation: none; }
