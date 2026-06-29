@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import type { CombatState, GameEvent } from '@bible/engine'
 import { useGame } from '../store/gameStore'
+import { sfxManager } from '../audio/sfxManager'
+import { strikeSound, blockSound, deathSound, incapacitateSound, isWindupSound, sfxOpts } from '../audio/combatSfx'
 
 // Combat feedback (juice) derived from the engine's event stream. The store applies one dispatch
 // synchronously and exposes the resulting (state, lastEvents, tick) snapshot — `state` is already the
@@ -38,6 +40,8 @@ type FxStep = {
   reactions: Record<string, ReactionKind>
   floats: Record<string, { tone: 'dmg' | 'heal'; amount: number }>
   bigHit: boolean
+  // SFX keys to fire WHEN this step commits (so audio lands with the visual, incl. the +HIT_DELAY beat)
+  sounds: string[]
 }
 
 export function useCombatFeedback(): CombatFeedback {
@@ -74,11 +78,15 @@ export function useCombatFeedback(): CombatFeedback {
     prevEnergyRef.current = energyNow
     if (!lastEvents.length) return
 
-    // Turn a list of events into a single fx bundle (reactions + rising numbers + a big-hit flag).
-    const bundle = (events: GameEvent[]): FxStep => {
+    // Turn a list of events into a single fx bundle (reactions + rising numbers + a big-hit flag + the
+    // SFX to fire on commit). `attackerArchetype` keys the strike sound to the blow's source where known.
+    const bundle = (events: GameEvent[], attackerArchetype?: string): FxStep => {
       const reactions: Record<string, ReactionKind> = {}
       const floats: Record<string, { tone: 'dmg' | 'heal'; amount: number }> = {}
       let bigHit = false
+      const sounds: string[] = []
+      let struck = false // dedupe to ONE strike + ONE block clang per batch (a flurry is one beat here)
+      let clanged = false
       for (const e of events) {
         if (e.type === 'damageDealt') {
           if (e.amount > 0) {
@@ -87,22 +95,31 @@ export function useCombatFeedback(): CombatFeedback {
             const tgt = combat.combatants[e.targetId]
             // shake the field when the PARTY takes a meaningful hit
             if (tgt && tgt.faction === 'party' && e.amount >= Math.max(6, tgt.maxHp * 0.12)) bigHit = true
+            if (!struck) { sounds.push(strikeSound(attackerArchetype)); struck = true }
           } else if (e.blocked > 0 && reactions[e.targetId] == null) {
             reactions[e.targetId] = 'block'
+            // a blow fully absorbed by Block → shield clang (blockGained, i.e. raising guard, is silent)
+            if (!clanged) { sounds.push(blockSound()); clanged = true }
           }
         } else if (e.type === 'healed' && e.amount > 0) {
           reactions[e.targetId] = 'heal'
           floats[e.targetId] = { tone: 'heal', amount: (floats[e.targetId]?.amount ?? 0) + e.amount }
         } else if (e.type === 'blockGained' && e.amount > 0 && reactions[e.targetId] == null) {
           reactions[e.targetId] = 'block'
+        } else if (e.type === 'combatantDied') {
+          if (e.mode === 'killed') sounds.push(deathSound(combat.combatants[e.id]))
+          else if (e.mode === 'subdued') sounds.push(incapacitateSound())
         }
       }
-      return { reactions, floats, bigHit }
+      return { reactions, floats, bigHit, sounds }
     }
 
     type Commit = Partial<FxStep> & { energyPulse?: boolean; cue?: TurnCueKind }
     const commit = (c: Commit) => {
       const s = ++seqRef.current
+      // fire SFX in lockstep with the visual this commit applies (immediate, or the +HIT_DELAY beat).
+      // The manager no-ops when audioMode === 'off' and scales by audioVolume.
+      if (c.sounds) for (const key of c.sounds) sfxManager.play(key, sfxOpts(key))
       setFb((prev) => {
         const reactions = { ...prev.reactions }
         const floats = { ...prev.floats }
@@ -129,13 +146,17 @@ export function useCombatFeedback(): CombatFeedback {
     // the reduced-motion batch enemy turn, or a no-actor resolve step) commits in one shot.
     const actor = lastEvents.find((e): e is Extract<GameEvent, { type: 'enemyActed' }> => e.type === 'enemyActed')
     if (actor && !reduced) {
-      commit({ reactions: { [actor.id]: 'lunge' } })
-      const step = bundle(lastEvents)
-      timersRef.current.push(setTimeout(() => commit(step), HIT_DELAY))
+      const step = bundle(lastEvents, combat.combatants[actor.id]?.archetype)
+      // a ranged attacker looses at the wind-up: play its release sound WITH the lunge so the arrow is
+      // heard flying, then lands. Melee thuds + death cries stay on the impact beat (+HIT_DELAY).
+      const windup = step.sounds.filter(isWindupSound)
+      const onImpact = step.sounds.filter((s) => !isWindupSound(s))
+      commit({ reactions: { [actor.id]: 'lunge' }, sounds: windup })
+      timersRef.current.push(setTimeout(() => commit({ ...step, sounds: onImpact }), HIT_DELAY))
     } else {
-      const step = bundle(lastEvents)
-      // the played card's owner (a party member) lunges toward the field
+      // the played card's owner (a party member) lunges toward the field — and keys its strike sound
       const sourceId = playedSourceId(combat, lastEvents)
+      const step = bundle(lastEvents, sourceId ? combat.combatants[sourceId]?.archetype : undefined)
       if (sourceId && step.reactions[sourceId] == null) step.reactions[sourceId] = 'lunge'
       const energySpent = prevEnergy != null && energyNow < prevEnergy
       commit({ ...step, energyPulse: energySpent })
