@@ -94,6 +94,7 @@ interface GameStore {
   deleteHero: (characterId: string) => void
   setLocale: (locale: Locale) => void
   setMusicVolume: (volume: number) => void
+  setSfxVolume: (volume: number) => void
   /** cycle the HUD audio toggle: music+sfx → sfx only → silent → … */
   cycleAudioMode: () => void
   /** dismiss the story overlay; if it's the world's outro, finish the run and return to the title */
@@ -228,6 +229,11 @@ export const useGame = create<GameStore>((set, get) => ({
   setMusicVolume: (volume) => {
     const clamped = volume < 0 ? 0 : volume > 1 ? 1 : volume
     get().dispatch({ type: 'updateSettings', settings: { musicVolume: clamped } })
+  },
+
+  setSfxVolume: (volume) => {
+    const clamped = volume < 0 ? 0 : volume > 1 ? 1 : volume
+    get().dispatch({ type: 'updateSettings', settings: { audioVolume: clamped } })
   },
 
   cycleAudioMode: () => {

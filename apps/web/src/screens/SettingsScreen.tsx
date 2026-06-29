@@ -14,11 +14,13 @@ export function SettingsScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const locale = useGame((s) => s.state.profile.settings.locale)
   const musicVolume = useGame((s) => s.state.profile.settings.musicVolume)
+  const sfxVolume = useGame((s) => s.state.profile.settings.audioVolume)
   const audioMode = useGame((s) => s.state.profile.settings.audioMode)
   const dynamicMusic = useGame((s) => s.state.profile.settings.dynamicMusic)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
   const setLocale = useGame((s) => s.setLocale)
   const setMusicVolume = useGame((s) => s.setMusicVolume)
+  const setSfxVolume = useGame((s) => s.setSfxVolume)
   const cycleAudioMode = useGame((s) => s.cycleAudioMode)
   const { needRefresh, checking, reload, checkForUpdate } = useSw()
 
@@ -53,6 +55,22 @@ export function SettingsScreen() {
               aria-label={t('ui.settings.musicVolume')}
             />
             <span className="muted volume-pct">{Math.round(musicVolume * 100)}%</span>
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <span className="settings-label">{t('ui.settings.sfxVolume')}</span>
+          <div className="row gap-sm volume-control">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={sfxVolume}
+              onChange={(e) => setSfxVolume(Number(e.target.value))}
+              aria-label={t('ui.settings.sfxVolume')}
+            />
+            <span className="muted volume-pct">{Math.round(sfxVolume * 100)}%</span>
           </div>
         </div>
 
