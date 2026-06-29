@@ -19,6 +19,7 @@ import { VerseModal } from './components/VerseModal'
 import { DialogueOverlay } from './components/DialogueOverlay'
 import { StoryScroll } from './components/StoryScroll'
 import { MusicController } from './components/MusicController'
+import { SfxController } from './components/SfxController'
 import { SleepOverlay } from './components/SleepOverlay'
 import { PrayOverlay } from './components/PrayOverlay'
 import { DeckModal } from './components/DeckModal'
@@ -57,6 +58,8 @@ export function App() {
       {/* Persistent, screen-agnostic background-music driver (renders nothing). Outside the keyed
           screen layer so it never remounts on a screen change. */}
       <MusicController />
+      {/* Sibling SFX driver: unlocks audio + preloads combat sounds; plays one-shots fired by combat. */}
+      <SfxController />
 
       {/* The game is laid out at a fixed design size and uniformly scaled to fit (transform: scale
           via --ui-scale on .stage), so the UI looks identical on every screen — only the scale
