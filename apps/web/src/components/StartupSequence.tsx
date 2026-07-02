@@ -173,8 +173,7 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-    // advance reads phase via ref, so this listener never needs re-binding.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // advance reads phase via ref, so this listener is bound once and never needs re-binding.
   }, [])
 
   const card = LOGO_CARDS[index]!
