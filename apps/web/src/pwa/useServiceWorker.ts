@@ -33,8 +33,14 @@ export function useServiceWorker(): SwState {
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined
+    // Background update checks reject when sw.js can't be fetched (offline / flaky network / the tab
+    // outliving a deploy). That's expected — swallow it so it isn't an uncaught promise rejection; we
+    // retry on the next interval/focus. (The manual checkForUpdate surfaces its error deliberately.)
+    const safeUpdate = (reg: ServiceWorkerRegistration | undefined): void => {
+      void reg?.update().catch(() => {})
+    }
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void registrationRef.current?.update()
+      if (document.visibilityState === 'visible') safeUpdate(registrationRef.current)
     }
 
     updateSWRef.current = registerSW({
@@ -50,11 +56,11 @@ export function useServiceWorker(): SwState {
         registrationRef.current = registration
         if (!registration) return
         // (a) check once now (covers a long-lived returning tab)…
-        void registration.update()
+        safeUpdate(registration)
         // (b) …then on an interval (skip while installing / offline)…
         intervalId = setInterval(() => {
           if (registration.installing || !navigator.onLine) return
-          void registration.update()
+          safeUpdate(registration)
         }, UPDATE_POLL_MS)
         // (c) …and whenever the tab regains focus.
         document.addEventListener('visibilitychange', onVisible)

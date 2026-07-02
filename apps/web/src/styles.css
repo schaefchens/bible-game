@@ -847,6 +847,13 @@ input[type='range']::-moz-range-thumb:hover { background: var(--gold-bright); }
 .world-cards .world-card { flex: 0 0 300px; height: 200px; margin: 0; }
 .world-card-body .btn { margin-top: 0.5rem; }
 .world-card.locked { filter: grayscale(0.65) brightness(0.7); }
+/* per-card offline-download control (button / progress / "✓ Offline ready" badge) */
+.world-download { margin-top: 0.5rem; min-height: 1.6rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.world-download .btn.small { align-self: flex-start; }
+.world-offline-badge { font-size: 0.72rem; letter-spacing: 0.05em; color: #9fe0b0; }
+.world-dl-progress { display: flex; flex-direction: column; gap: 0.25rem; }
+.world-dl-progress .startup-bar { width: 100%; }
+.world-dl-progress .muted { font-size: 0.72rem; }
 .world-tag { display: inline-block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold-bright); border: 1px solid var(--panel-edge); border-radius: 6px; padding: 0.1rem 0.45rem; margin-bottom: 0.35rem; background: rgba(0,0,0,0.45); }
 /* small screens: stack into a single-column list */
 @media (max-width: 680px) {

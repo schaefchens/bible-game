@@ -65,6 +65,9 @@ export interface ProfileState {
   nextCreateSeq: number
   /** worlds whose boss has been defeated — persistent across runs; gates later adventures */
   completedWorlds: string[]
+  /** worlds the player explicitly downloaded for offline play (persisted intent; the UI re-verifies
+   *  it against actual Cache Storage since the browser may evict) */
+  downloadedWorlds: string[]
 }
 
 /** The active adventure. The persistent deck is `deckByMember`; combat derives its pool from it. */

@@ -29,6 +29,7 @@ export function newGame(): GameState {
     lastSelectedId: null,
     nextCreateSeq: 1,
     completedWorlds: [],
+    downloadedWorlds: [],
   }
   return { version: GAME_STATE_VERSION, screen: 'start', profile, run: null, combat: null, prompt: null }
 }
@@ -60,6 +61,12 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
       )
     case 'navigate':
       return ok({ ...state, screen: cmd.screen }, [{ type: 'screenChanged', screen: cmd.screen }])
+    case 'setWorldDownloaded': {
+      const cur = state.profile.downloadedWorlds
+      const next = cmd.downloaded ? (cur.includes(cmd.worldId) ? cur : [...cur, cmd.worldId]) : cur.filter((w) => w !== cmd.worldId)
+      if (next === cur) return ok(state, [])
+      return ok({ ...state, profile: { ...state.profile, downloadedWorlds: next } }, [])
+    }
     case 'startRun':
       return startRun(state, cmd.characterId, cmd.worldId, cmd.seed, cmd.content)
     case 'abandonRun':

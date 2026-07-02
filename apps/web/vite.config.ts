@@ -61,7 +61,9 @@ export default defineConfig(({ command, isPreview }) => ({
             handler: 'CacheFirst',
             options: {
               cacheName: 'wis-images-v1',
-              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              // Sized to hold every image (57 today) + headroom for future art / multi-world offline
+              // downloads. 1-year age so downloaded adventures aren't silently time-evicted.
+              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
@@ -71,7 +73,9 @@ export default defineConfig(({ command, isPreview }) => ({
             handler: 'CacheFirst',
             options: {
               cacheName: 'wis-audio-v1',
-              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              // Must exceed the ~33 mp3s or a full offline download LRU-evicts itself. 1-year age so
+              // downloaded adventures persist. rangeRequests stays on (<audio> issues Range requests).
+              expiration: { maxEntries: 48, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
               rangeRequests: true,
             },

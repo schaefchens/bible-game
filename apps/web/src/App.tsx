@@ -1,7 +1,8 @@
-import { type ComponentType } from 'react'
+import { type ComponentType, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import type { ScreenId } from '@bible/engine'
 import { useGame } from './store/gameStore'
+import { getShellUrls, swActive, warmCache } from './pwa/offlineCache'
 import { StartScreen } from './screens/StartScreen'
 import { HeroSelectScreen } from './screens/HeroSelectScreen'
 import { HeroCreation } from './screens/HeroCreation'
@@ -27,6 +28,11 @@ import { InventoryLayer } from './components/InventoryLayer'
 import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
 import { StartupSequence } from './components/StartupSequence'
+
+// Warm the intro + start-menu "shell" into the SW cache once per app load, so the installed app opens
+// offline. Lives here (not in StartupSequence) so it runs even when the intro is disabled. Fire-and-
+// forget; a module-level guard avoids a duplicate run under React StrictMode's dev double-mount.
+let shellWarmed = false
 
 const SCREENS: Record<ScreenId, ComponentType> = {
   start: StartScreen,
@@ -55,6 +61,12 @@ export function App() {
   const booting = useGame((s) => s.booting)
   const endBoot = useGame((s) => s.endBoot)
   const Screen = SCREENS[screen] ?? StartScreen
+
+  useEffect(() => {
+    if (shellWarmed || !swActive() || !navigator.onLine) return
+    shellWarmed = true
+    void warmCache(getShellUrls())
+  }, [])
 
   return (
     <div className={`app${dialogueActive ? ' dialogue-open' : ''}${storyActive ? ' story-open' : ''}${praying ? ' praying' : ''}${reducedMotion ? ' reduced-motion' : ''}`}>

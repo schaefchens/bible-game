@@ -31,6 +31,7 @@ export type Command =
   | { type: 'selectHero'; id: CharacterId }
   | { type: 'updateSettings'; settings: Partial<Settings> }
   | { type: 'navigate'; screen: ScreenId }
+  | { type: 'setWorldDownloaded'; worldId: string; downloaded: boolean }
   | { type: 'startRun'; characterId: CharacterId; worldId: string; seed: string; content: ContentBundle }
   | { type: 'abandonRun' }
   // ---- leveling ----

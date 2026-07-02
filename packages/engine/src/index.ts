@@ -194,6 +194,7 @@ export {
   type EnemyTemplate,
   type AmbushTable,
 } from './content/bundle'
+export { enumerateWorldAssetRefs } from './content/enumerateAssets'
 
 // ---- world / map / scene ----
 export { canMove, isQuiet, edgeBetween, nodeVisible, mapEntrances, type Visit, type MoveCheck } from './map/movement'

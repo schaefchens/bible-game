@@ -47,6 +47,8 @@ export const ProfileSchema = z.object({
   nextCreateSeq: z.number(),
   // .default([]) so saves written before world-gating existed still validate (load uses .parse()).
   completedWorlds: z.array(z.string()).default([]),
+  // .default([]) so saves written before offline-download existed still validate.
+  downloadedWorlds: z.array(z.string()).default([]),
 })
 
 // Run snapshots: validate just enough to trust the envelope; the body is engine-produced and

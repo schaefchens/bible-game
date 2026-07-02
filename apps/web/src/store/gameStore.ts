@@ -105,6 +105,8 @@ interface GameStore {
   cycleAudioMode: () => void
   /** dismiss the story overlay; if it's the world's outro, finish the run and return to the title */
   dismissStory: () => void
+  /** persist that a world's assets are downloaded for offline play (or clear the flag) */
+  setWorldDownloaded: (worldId: string, downloaded: boolean) => void
 }
 
 export const useGame = create<GameStore>((set, get) => ({
@@ -123,6 +125,7 @@ export const useGame = create<GameStore>((set, get) => ({
   itemInteraction: null,
 
   endBoot: () => set({ booting: false }),
+  setWorldDownloaded: (worldId, downloaded) => get().dispatch({ type: 'setWorldDownloaded', worldId, downloaded }),
   setSleeping: (sleeping) => set({ sleeping }),
   setPraying: (praying) => set({ praying }),
   setDeckOpen: (deckOpen) => set({ deckOpen }),
