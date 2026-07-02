@@ -120,11 +120,14 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
       return
     }
     const tm = timingRef.current
+    const c = LOGO_CARDS[i]!
     setIndex(i)
     setImgError(false)
-    setCardVisible(true) // fade in
-    fireStings(LOGO_CARDS[i]!)
-    after(tm.fade + tm.hold, () => {
+    setCardVisible(false) // hold on black until the reveal…
+    fireStings(c) // …stings fire on enter (t=0) — e.g. the light-switch click
+    const reveal = reducedMotion ? 0 : c.revealDelayMs ?? 0
+    after(reveal, () => setCardVisible(true)) // …then the card "turns on"
+    after(reveal + tm.fade + tm.hold, () => {
       setCardVisible(false) // …linger, then fade out
       after(tm.fade + tm.gap, () => playCard(i + 1)) // …a beat of black, then the next
     })
@@ -204,6 +207,26 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
           transition={{ duration: fadeS, ease: 'easeInOut' }}
         >
           {card.variant === 'divine' && !url && <div className="startup-glow" aria-hidden />}
+          {/* studio card: a warm light "turns on" at the center and shines outward to reveal the logo —
+              a point of light that flares + expands, then settles into the resting glow. */}
+          {card.variant === 'studio' && (
+            <motion.div
+              className="startup-light"
+              aria-hidden
+              initial={{ opacity: 0, scale: 0.04 }}
+              animate={{
+                // brightness pops to full almost instantly (a point of light "turns on"), then settles…
+                opacity: cardVisible ? (reducedMotion ? 0.55 : [0, 1, 0.55]) : 0,
+                // …while the point expands outward — the scale is the visible motion, not a fade.
+                // Stay collapsed to a point while hidden so the expansion triggers on reveal (not at mount).
+                scale: cardVisible ? 1 : 0.04,
+              }}
+              transition={{
+                opacity: { duration: reducedMotion ? 0 : 1.05, ease: 'easeOut', times: [0, 0.14, 1] },
+                scale: { duration: reducedMotion ? 0 : 1.05, ease: 'easeOut' },
+              }}
+            />
+          )}
           {url ? (
             <img
               className={`startup-img t-${card.imageTreatment ?? 'framed'}`}

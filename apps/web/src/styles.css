@@ -1018,8 +1018,16 @@ body.holding-item, body.holding-item * { cursor: none; }
   -webkit-mask-image: radial-gradient(ellipse closest-side at 50% 49%, #000 78%, transparent 100%);
           mask-image: radial-gradient(ellipse closest-side at 50% 49%, #000 78%, transparent 100%);
 }
-/* a faint warm wash behind the cream studio logo so its edges blend into a glow, not into pure black */
-.startup-card.v-studio { background: radial-gradient(ellipse 60% 60% at 50% 49%, rgba(244,236,217,0.09), transparent 60%); }
+/* the studio card's light source: a warm radial that flares on and expands outward (animated by
+   framer-motion: scale 0.1→1, brighten then settle) so the logo is revealed as if a light turns on.
+   `screen` blend makes it add light over the black; transform-origin keeps it growing from the center. */
+.startup-light {
+  position: absolute; inset: 0; pointer-events: none; transform-origin: 50% 48%; mix-blend-mode: screen;
+  /* a more defined disc (brighter core, quicker falloff) so its edge is visible travelling outward */
+  background: radial-gradient(circle at 50% 48%,
+    rgba(255,251,242,0.95) 0%, rgba(251,242,214,0.82) 24%, rgba(245,231,165,0.55) 40%,
+    rgba(224,193,104,0.22) 54%, transparent 66%);
+}
 
 /* cinematic graphic already on a DARK background: size it large and feather the edges so the side
    seams dissolve into black (keeps the 16:9 aspect — no distortion, no cropping of the dove/text). */

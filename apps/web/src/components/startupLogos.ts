@@ -42,6 +42,9 @@ export interface LogoCard {
   /** glyph shown big on the styled fallback card */
   glyph: string
   variant: LogoVariant
+  /** hold the card on black for this long after it enters before revealing it — lets an entrance cue
+   *  (e.g. the light-switch click) land first, so the visual "turns on" with the sound. Default 0. */
+  revealDelayMs?: number
   stings: LogoSting[]
 }
 
@@ -56,9 +59,10 @@ export const LOGO_CARDS: LogoCard[] = [
     taglineKey: 'ui.startup.tagline.lamm',
     glyph: '🐑',
     variant: 'studio',
+    revealDelayMs: 30, // let the switch click sound before the light turns on
     stings: [
-      { key: 'sfx/logo-whoosh' },
-      { key: 'sfx/logo-sheep', delayMs: 380, gain: 0.85 },
+      { key: 'sfx/light-switch' }, // the click that "turns on" the studio light
+      { key: 'sfx/logo-sheep', delayMs: 1100, gain: 0.8 }, // a soft baa once the lamb is lit
     ],
   },
   {
