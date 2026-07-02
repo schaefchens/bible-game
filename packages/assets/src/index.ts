@@ -115,8 +115,8 @@ const REGISTRY: Record<string, string> = {
   'sfx/light-switch': 'sfx-light-switch.mp3', // studio-light click → triggers the Lamm light-on bloom
   // Studio-logo intro art (StartupSequence). All four ship real graphics; any unregistered ref falls
   // back to a styled CSS card (same image-or-fallback pattern as the battle sprites).
-  'logo/lamm': 'logo-lamm.png',
-  'logo/god': 'logo-god.png',
+  'logo/lamm': 'logo-lamm.webp',
+  'logo/god': 'logo-god.webp',
   'logo/claude': 'logo-claude.svg',
   'logo/misselle': 'logo-misselle.webp',
   // Jericho road — every bg by stem
