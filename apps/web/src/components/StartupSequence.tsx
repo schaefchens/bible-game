@@ -36,6 +36,7 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
   const [index, setIndex] = useState(0)
   const [cardVisible, setCardVisible] = useState(false)
   const [imgError, setImgError] = useState(false)
+  const [ready, setReady] = useState(false) // intro assets prefetched → gate shows "tap to begin"
 
   // Mutable bits the timers + global listeners read, kept in refs so their closures never go stale.
   const phaseRef = useRef<Phase>('gate')
@@ -44,9 +45,12 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
   onCompleteRef.current = onComplete
   const timingRef = useRef(timing)
   timingRef.current = timing
+  const readyRef = useRef(false)
+  readyRef.current = ready
 
   const begun = useRef(false)
   const finished = useRef(false)
+  const pendingStart = useRef(false) // user tapped while still loading → begin as soon as ready
   const timers = useRef<number[]>([])
   const ambientEl = useRef<HTMLAudioElement | null>(null)
   const ambientFade = useRef<number | null>(null)
@@ -59,9 +63,32 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
     timers.current = []
   }
 
-  // Preload the sting buffers up front so the first whoosh isn't delayed by a fetch/decode.
+  // Prefetch the intro assets while the gate shows "Loading…": the sting buffers, the ambient bed,
+  // and every logo image. When it all resolves, `ready` flips and the gate switches to "tap to begin"
+  // — so the cinematic never pops in mid-fade. (onerror/catch still resolve, so a missing asset can't
+  // wedge the gate.) Only runs when the intro is enabled, since the component mounts only then.
   useEffect(() => {
+    let cancelled = false
     sfxManager.preload(LOGO_STING_KEYS)
+    const imgs = LOGO_CARDS.map((c) => resolveAsset(c.assetRef))
+      .filter((u): u is string => Boolean(u))
+      .map(
+        (u) =>
+          new Promise<void>((res) => {
+            const img = new Image()
+            img.onload = () => res()
+            img.onerror = () => res()
+            img.src = u
+          }),
+      )
+    const bedUrl = resolveAsset('music/startup')
+    const bed = bedUrl ? fetch(bedUrl).then(() => undefined, () => undefined) : Promise.resolve()
+    void Promise.all([...imgs, bed]).then(() => {
+      if (!cancelled) setReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Teardown: stop every timer and the ambient bed if we unmount mid-intro.
@@ -162,9 +189,16 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
   // One input handler: tap/key starts the intro from the gate, or skips it once running.
   const advance = (): void => {
     const p = phaseRef.current
-    if (p === 'gate') begin()
-    else if (p === 'logos' || p === 'loading') finish()
+    if (p === 'gate') {
+      if (readyRef.current) begin()
+      else pendingStart.current = true // tapped early — start the moment prefetch finishes
+    } else if (p === 'logos' || p === 'loading') finish()
   }
+
+  // Honour an early tap: once the assets are ready, begin automatically.
+  useEffect(() => {
+    if (ready && pendingStart.current) begin()
+  }, [ready])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -193,7 +227,9 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
     >
       {phase === 'gate' && (
         <div className="startup-gate">
-          <span className="startup-gate-text">{t('ui.startup.tapToBegin')}</span>
+          <span className={`startup-gate-text${ready ? '' : ' loading'}`}>
+            {t(ready ? 'ui.startup.tapToBegin' : 'ui.startup.loading')}
+          </span>
         </div>
       )}
 

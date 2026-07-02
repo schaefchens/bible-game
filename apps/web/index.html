@@ -13,6 +13,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Walk in the Spirit" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <style>
+      /* Paint black from the very first frame, before the CSS/JS bundle loads, so a slow load never
+         flashes white — the studio intro and the app are dark. */
+      html, body { margin: 0; background: #000; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

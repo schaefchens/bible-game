@@ -987,6 +987,8 @@ body.holding-item, body.holding-item * { cursor: none; }
   text-shadow: 0 0 18px rgba(216,185,98,0.35); animation: startup-pulse 2.6s ease-in-out 0.4s infinite;
 }
 @keyframes startup-pulse { 0%, 100% { opacity: 0.26; } 50% { opacity: 0.85; } }
+/* while assets prefetch, the gate reads "Loading…" — dimmer + a touch quicker pulse than the ready cue */
+.startup-gate-text.loading { color: var(--muted); animation-duration: 1.5s; }
 
 /* one logo card, centered; framer-motion cross-fades successive cards */
 .startup-card {
