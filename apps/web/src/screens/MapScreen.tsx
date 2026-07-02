@@ -240,7 +240,7 @@ export function MapScreen() {
       {notice && <div className="map-banner notice">{notice}</div>}
 
       <div className="map-scroll">
-        <div className={`map-canvas${travel ? ' traveling' : ''}`} style={{ width: W, height: H, '--map-tile': bgUrl('bg-map-parchment.png') } as CSSProperties}>
+        <div className={`map-canvas${travel ? ' traveling' : ''}`} style={{ width: W, height: H, '--map-tile': bgUrl('bg-map-parchment.webp') } as CSSProperties}>
           <svg className="map-edges" width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none">
             {edges.map((e) => (
               <path key={e.id} d={arc(e.a, e.b, e.id)} className={`edge ${e.kind}`} />

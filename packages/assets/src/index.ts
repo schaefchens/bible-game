@@ -6,7 +6,7 @@
 // so content can name the exact image. Combat encounters use the "-sideview" stem for the battle
 // and the plain stem for the reward.
 
-// Every bg-*.png under apps/web/public/assets, by file stem.
+// Every bg-*.webp under apps/web/public/assets, by file stem.
 const JERICHO_BG = [
   'bg-road-dusty-road',
   'bg-waypoint-olive-grove',
@@ -48,20 +48,20 @@ export function setAssetBase(base: string): void {
 // Battle character sprites, keyed by combatant archetype. Drop a matching transparent PNG into
 // apps/web/public/assets and it renders; until then the combat screen falls back to emoji.
 const SPRITE_FILES: Record<string, string> = {
-  'sprite/hero': 'sprite-hero.png',
-  'sprite/companion': 'sprite-companion.png',
-  'sprite/thief': 'sprite-thief.png',
-  'sprite/robber': 'sprite-robber.png',
-  'sprite/bandit': 'sprite-bandit.png',
-  'sprite/demon': 'sprite-demon.png',
-  'sprite/philistineSoldier': 'sprite-philistine-soldier.png',
-  'sprite/philistineArcher': 'sprite-philistine-archer.png',
-  'sprite/shieldBearer': 'sprite-shield-bearer.png',
-  'sprite/philistineChampion': 'sprite-philistine-champion.png',
-  'sprite/dagonZealot': 'sprite-dagon-zealot.png',
-  'sprite/idolSpirit': 'sprite-idol-spirit.png',
-  'sprite/spiritOfDread': 'sprite-spirit-of-dread.png',
-  'sprite/goliath': 'sprite-goliath.png',
+  'sprite/hero': 'sprite-hero.webp',
+  'sprite/companion': 'sprite-companion.webp',
+  'sprite/thief': 'sprite-thief.webp',
+  'sprite/robber': 'sprite-robber.webp',
+  'sprite/bandit': 'sprite-bandit.webp',
+  'sprite/demon': 'sprite-demon.webp',
+  'sprite/philistineSoldier': 'sprite-philistine-soldier.webp',
+  'sprite/philistineArcher': 'sprite-philistine-archer.webp',
+  'sprite/shieldBearer': 'sprite-shield-bearer.webp',
+  'sprite/philistineChampion': 'sprite-philistine-champion.webp',
+  'sprite/dagonZealot': 'sprite-dagon-zealot.webp',
+  'sprite/idolSpirit': 'sprite-idol-spirit.webp',
+  'sprite/spiritOfDread': 'sprite-spirit-of-dread.webp',
+  'sprite/goliath': 'sprite-goliath.webp',
 }
 
 // Registry values are file names relative to the public "assets/" folder; resolveAsset prefixes the base.
@@ -70,12 +70,12 @@ const REGISTRY: Record<string, string> = {
   'scene/forest-house-inside': '002-2-forest-house-inside.jpg',
   'scene/forest-house-outside': '002-1-forest-house-outside.jpg',
   'scene/merchant-place': '001-merchant-place.jpg',
-  'battlefield/forest': '004-battlefield-forest.png',
-  'battlefield/enchanted-forest': '004-battlefield-enchanted-forest.png',
-  'battlefield/hill': '004-battlefield-on-hill.png',
-  'battlefield/crossroads': '004-battlefield-open-crossroads.png',
-  'battlefield/seaside': '004-battlefield-seaside.png',
-  'battlefield/open-road': '005-battlefield-open-road.png',
+  'battlefield/forest': '004-battlefield-forest.webp',
+  'battlefield/enchanted-forest': '004-battlefield-enchanted-forest.webp',
+  'battlefield/hill': '004-battlefield-on-hill.webp',
+  'battlefield/crossroads': '004-battlefield-open-crossroads.webp',
+  'battlefield/seaside': '004-battlefield-seaside.webp',
+  'battlefield/open-road': '005-battlefield-open-road.webp',
   // Background music (looping tracks). Resolved to URLs the same way as images.
   'music/startscreen': 'bg-music-startscreen.mp3',
   'music/map': 'bg-music-map.mp3',
@@ -120,12 +120,12 @@ const REGISTRY: Record<string, string> = {
   'logo/claude': 'logo-claude.svg',
   'logo/misselle': 'logo-misselle.webp',
   // Jericho road — every bg by stem
-  ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `${stem}.png`])),
+  ...Object.fromEntries(JERICHO_BG.map((stem) => [stem, `${stem}.webp`])),
   // Battle character sprites, by archetype
   ...SPRITE_FILES,
 }
 
-/** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.png" or "/game/assets/x.png"). */
+/** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.webp" or "/game/assets/x.webp"). */
 export function resolveAsset(ref: string | undefined): string | undefined {
   const file = ref ? REGISTRY[ref] : undefined
   return file ? `${assetBase}assets/${file}` : undefined

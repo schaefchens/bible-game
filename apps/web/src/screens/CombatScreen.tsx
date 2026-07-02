@@ -338,7 +338,7 @@ export function CombatScreen() {
     !view.hand.some((c) => !c.unplayable && view.energy.current >= c.cost)
 
   return (
-    <div className="screen combat" style={{ backgroundImage: assetBg(view.battleBg) ?? bgUrl('004-battlefield-enchanted-forest.png') }}>
+    <div className="screen combat" style={{ backgroundImage: assetBg(view.battleBg) ?? bgUrl('004-battlefield-enchanted-forest.webp') }}>
       <div className="scrim" />
       <Hud />
 

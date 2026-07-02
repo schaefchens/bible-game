@@ -43,7 +43,7 @@ export function HeroSelectScreen() {
   }
 
   return (
-    <div className="screen hero-fire centered" style={{ backgroundImage: bgUrl('bg-menu-fireplace.png') }}>
+    <div className="screen hero-fire centered" style={{ backgroundImage: bgUrl('bg-menu-fireplace.webp') }}>
       <div className="scrim" />
       <h2 className="fire-title">{t('ui.heroSelect.title')}</h2>
       <p className="fire-flavor muted">{t('ui.heroSelect.flavor')}</p>
