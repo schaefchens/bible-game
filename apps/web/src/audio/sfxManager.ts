@@ -38,24 +38,35 @@ class SfxManager {
     const onGesture = () => {
       const ctx = this.ensureCtx()
       void ctx?.resume()
-      // iOS warms its audio output only on the first playback, delaying the FIRST real sound (why the
-      // light-switch sting can land late on iPhone). Push a 1-sample silent buffer through on the
-      // unlocking gesture so the pipeline is already hot when the first sting fires.
-      if (ctx && !this.primed) {
-        this.primed = true
-        try {
-          const src = ctx.createBufferSource()
-          src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
-          src.connect(ctx.destination)
-          src.start(0)
-        } catch {
-          /* ignore — the real sounds still play once the context resumes */
-        }
-      }
     }
     window.addEventListener('pointerdown', onGesture)
     window.addEventListener('keydown', onGesture)
     window.addEventListener('touchstart', onGesture)
+  }
+
+  /** Resume the audio context AND wait until it's running, warming the output once with a 1-sample
+   *  silent buffer. Call (awaited) inside a user gesture BEFORE the first cue-critical sound, so that
+   *  sound fires into an already-running context instead of a suspended one — otherwise on iOS the
+   *  first sting (the studio light-switch) plays late while the context is still resuming. */
+  async ensureRunning(): Promise<void> {
+    const ctx = this.ensureCtx()
+    if (!ctx) return
+    try {
+      await ctx.resume()
+    } catch {
+      /* ignore — sounds still play once it resumes on its own */
+    }
+    if (!this.primed) {
+      this.primed = true
+      try {
+        const src = ctx.createBufferSource()
+        src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
+        src.connect(ctx.destination)
+        src.start(0)
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   private ensureCtx(): AudioContext | null {

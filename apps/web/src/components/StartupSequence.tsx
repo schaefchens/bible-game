@@ -178,12 +178,15 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
     after(timingRef.current.out, () => onCompleteRef.current())
   }
 
-  const begin = (): void => {
+  const begin = async (): Promise<void> => {
     if (begun.current) return
     begun.current = true
-    // Inside the user gesture: unlock audio + start the ambient bed, then run the cards.
+    // Inside the user gesture: unlock, then RESUME the audio context (awaited) so the first sting fires
+    // into an already-running context — otherwise on iOS the light-switch click lands late while the
+    // context is still resuming. Then start the ambient bed and run the cards.
     sfxManager.unlock()
     musicManager.unlock()
+    await sfxManager.ensureRunning()
     startAmbient()
     setPhase('logos')
     playCard(0)
@@ -193,14 +196,14 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
   const advance = (): void => {
     const p = phaseRef.current
     if (p === 'gate') {
-      if (readyRef.current) begin()
+      if (readyRef.current) void begin()
       else pendingStart.current = true // tapped early — start the moment prefetch finishes
     } else if (p === 'logos' || p === 'loading') finish()
   }
 
   // Honour an early tap: once the assets are ready, begin automatically.
   useEffect(() => {
-    if (ready && pendingStart.current) begin()
+    if (ready && pendingStart.current) void begin()
   }, [ready])
 
   useEffect(() => {
