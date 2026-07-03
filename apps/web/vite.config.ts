@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
@@ -9,6 +10,21 @@ const pkgJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.ur
   version: string
 }
 
+// Short commit SHA baked into the build so Settings shows the real revision. CI may pass VITE_GIT_SHA;
+// otherwise derive it from git here (a "-dirty" suffix flags an uncommitted build), falling back to
+// 'dev' only when no git repo is available (e.g. building from a source tarball).
+const gitSha =
+  process.env.VITE_GIT_SHA ??
+  (() => {
+    try {
+      const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+      const dirty = execSync('git status --porcelain', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() !== ''
+      return dirty ? `${sha}-dirty` : sha
+    } catch {
+      return 'dev'
+    }
+  })()
+
 // Internal @bible/* packages ship TypeScript source; alias them so Vite transpiles them as app
 // source (rather than serving raw .ts from a node_modules symlink).
 // The production build is served under "/game/" (override via VITE_BASE); the dev server stays at "/".
@@ -19,7 +35,7 @@ export default defineConfig(({ command, isPreview }) => ({
     // Build identity surfaced in Settings (see SettingsScreen). __GIT_SHA__ is injected by CI
     // (VITE_GIT_SHA), otherwise "dev". The actual update prompt is driven by the service worker.
     __APP_VERSION__: JSON.stringify(pkgJson.version),
-    __GIT_SHA__: JSON.stringify(process.env.VITE_GIT_SHA ?? 'dev'),
+    __GIT_SHA__: JSON.stringify(gitSha),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [
