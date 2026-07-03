@@ -84,9 +84,8 @@ export async function isFullyCached(urls: string[]): Promise<boolean> {
  *  settled URL (monotonic → total).
  *
  *  `failed` counts only REAL problems (network error / 5xx) — a 404 is treated as "genuinely absent"
- *  and does NOT count as a failure: some registered refs legitimately have no file (e.g. the companion
- *  sprite → emoji fallback), and such assets can't and needn't be cached to play offline. So a download
- *  with only 404s still completes. */
+ *  and does NOT count as a failure: a registered ref may legitimately have no file (it falls back to an
+ *  emoji/placeholder in-game) and can't/needn't be cached. So a download with only 404s still completes. */
 export async function warmCache(urls: string[], opts: WarmOptions = {}): Promise<WarmProgress> {
   const { onProgress, concurrency = 6, signal } = opts
   const total = urls.length

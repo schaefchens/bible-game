@@ -32,9 +32,11 @@ export function enumerateWorldAssetRefs(bundle: ContentBundle, worldId: string):
     if (r) refs.add(r)
   }
 
-  // Party sprites appear in every fight; overworld music plays on the map (ducked/boosted by context).
+  // The hero sprite is in every fight; overworld music plays on the map (ducked/boosted by context).
+  // NOTE: no current content adds a companion to the party, and `sprite/companion` has no art file
+  // (it would render as an emoji), so warming it is skipped to avoid a guaranteed 404. If a companion
+  // mechanic is introduced, enumerate its sprite from the party/encounter data at that point.
   add('sprite/hero')
-  add('sprite/companion')
   add(map.musicKey ?? 'music/map')
 
   // Reachable content ids, drained to a fixpoint below (a script command can reference more content).

@@ -69,7 +69,7 @@ describe('enumerateWorldAssetRefs', () => {
   it('walks scripts transitively across every content kind', () => {
     const refs = new Set(enumerateWorldAssetRefs(scriptOnly, 'w'))
     // always-present + world-level
-    for (const r of ['sprite/hero', 'sprite/companion', 'music/world', 'music/sleep', 'music/prayer', 'bg-node-sc', 'bg-outro']) {
+    for (const r of ['sprite/hero', 'music/world', 'music/sleep', 'music/prayer', 'bg-node-sc', 'bg-outro']) {
       expect(refs.has(r)).toBe(true)
     }
     // reachable ONLY via scripts (the transitive proof)
