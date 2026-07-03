@@ -13,7 +13,7 @@ export function SfxController() {
 
   useEffect(() => {
     sfxManager.unlock()
-    sfxManager.preload(ALL_COMBAT_SFX)
+    void sfxManager.preload(ALL_COMBAT_SFX)
   }, [])
 
   useEffect(() => {

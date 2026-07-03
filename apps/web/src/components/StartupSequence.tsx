@@ -69,7 +69,10 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
   // wedge the gate.) Only runs when the intro is enabled, since the component mounts only then.
   useEffect(() => {
     let cancelled = false
-    sfxManager.preload(LOGO_STING_KEYS)
+    // Await the sting DECODE (not just fetch) as part of readiness so the light-switch click is ready
+    // to fire the instant the gate is tapped — otherwise on iOS the first sting can decode late and
+    // land after the light-on animation.
+    const stings = sfxManager.preload(LOGO_STING_KEYS)
     const imgs = LOGO_CARDS.map((c) => resolveAsset(c.assetRef))
       .filter((u): u is string => Boolean(u))
       .map(
@@ -83,7 +86,7 @@ export function StartupSequence({ onComplete }: { onComplete: () => void }) {
       )
     const bedUrl = resolveAsset('music/startup')
     const bed = bedUrl ? fetch(bedUrl).then(() => undefined, () => undefined) : Promise.resolve()
-    void Promise.all([...imgs, bed]).then(() => {
+    void Promise.all([...imgs, bed, stings]).then(() => {
       if (!cancelled) setReady(true)
     })
     return () => {

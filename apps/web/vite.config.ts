@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { AUDIO_CACHE_MAX_ENTRIES, IMAGE_CACHE_MAX_ENTRIES } from './src/pwa/cacheCaps'
 
 const pkg = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 const pkgJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
@@ -77,9 +78,9 @@ export default defineConfig(({ command, isPreview }) => ({
             handler: 'CacheFirst',
             options: {
               cacheName: 'wis-images-v1',
-              // Sized to hold every image (57 today) + headroom for future art / multi-world offline
-              // downloads. 1-year age so downloaded adventures aren't silently time-evicted.
-              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              // maxEntries set high so it never binds (quota is the real limit); a tight cap would
+              // silently evict a downloaded adventure. cacheCaps.test.ts guards count ≤ cap. 1-yr age.
+              expiration: { maxEntries: IMAGE_CACHE_MAX_ENTRIES, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
@@ -89,9 +90,9 @@ export default defineConfig(({ command, isPreview }) => ({
             handler: 'CacheFirst',
             options: {
               cacheName: 'wis-audio-v1',
-              // Must exceed the ~33 mp3s or a full offline download LRU-evicts itself. 1-year age so
-              // downloaded adventures persist. rangeRequests stays on (<audio> issues Range requests).
-              expiration: { maxEntries: 48, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              // High cap so a full offline download can't LRU-evict itself; guarded by cacheCaps.test.ts.
+              // 1-yr age; rangeRequests stays on (<audio> issues Range requests during playback).
+              expiration: { maxEntries: AUDIO_CACHE_MAX_ENTRIES, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
               rangeRequests: true,
             },

@@ -14,6 +14,20 @@ function walkScript(script: Script | undefined, visit: (cmd: ScriptCmd) => void)
   }
 }
 
+// Compile-time drift guard: `visit` (below) follows only the content-referencing ScriptCmd keys. If the
+// script DSL grows a new key, this line fails to compile — forcing a decision about whether the new
+// command references content the offline download must warm (then add the key to KnownScriptCmdKey and,
+// if it does, collect it in `visit`). Prevents a new ScriptCmd from silently under-warming an adventure.
+type ScriptCmdKey = ScriptCmd extends unknown ? keyof ScriptCmd : never
+type KnownScriptCmdKey =
+  | 'say' | 'speaker' | 'setFlag' | 'value' | 'giveItem' | 'takeItem' | 'count' | 'giveGold'
+  | 'revealNode' | 'goToNode' | 'unlockEdge' | 'addSpirit' | 'reason' | 'grantCard' | 'bypassLimit'
+  | 'unlockCard' | 'startCombat' | 'startEvent' | 'changeScene' | 'startDialogue' | 'startStory'
+  | 'markTaken' | 'if' | 'then' | 'else'
+type UnhandledScriptCmdKey = Exclude<ScriptCmdKey, KnownScriptCmdKey>
+const _scriptCmdDriftGuard: [UnhandledScriptCmdKey] extends [never] ? true : UnhandledScriptCmdKey = true
+void _scriptCmdDriftGuard
+
 /**
  * Every AssetRef a single world/adventure needs, for offline pre-download. Returns base-agnostic refs
  * (the app maps them to URLs via @bible/assets and tolerates unknown ones — pure, no URL knowledge).

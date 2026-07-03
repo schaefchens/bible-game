@@ -74,14 +74,14 @@ function WorldCardView({ w, locked }: { w: WorldCard; locked: boolean }) {
       return
     }
     setStatus('checking')
-    // Reconcile the flag with the cache, tolerant of absent-by-design assets (a 404 ref like the
-    // companion sprite can never be cached, so we don't demand cachedCount === total). Full cache →
-    // done; flagged but the cache looks wiped (nothing there) → stale; flagged with most present →
-    // trust it (partial eviction degrades gracefully in-run).
+    // Reconcile the persisted flag against what's ACTUALLY cached. Every enumerated ref now resolves to
+    // a real file, so a complete download reaches cachedCount === total: require that for the green ✓.
+    // Flag set but the cache is incomplete (evicted, or a different device that never downloaded) →
+    // 'stale' so we offer a re-download rather than a false "offline ready". No flag → 'idle'.
     void cachedCount(urls).then((n) => {
       if (cancelled) return
       if (urls.length > 0 && n === urls.length) setStatus('done')
-      else if (downloaded) setStatus(n === 0 ? 'stale' : 'done')
+      else if (downloaded) setStatus('stale')
       else setStatus('idle')
     })
     return () => {

@@ -16,6 +16,7 @@ class SfxManager {
   private master = 0.7
   private enabled = true
   private unlockBound = false
+  private primed = false
   private buffers = new Map<string, AudioBuffer>()
   private pending = new Map<string, Promise<AudioBuffer | null>>()
   private fallback = new Map<string, HTMLAudioElement[]>()
@@ -35,7 +36,22 @@ class SfxManager {
     if (this.unlockBound) return
     this.unlockBound = true
     const onGesture = () => {
-      void this.ctx?.resume()
+      const ctx = this.ensureCtx()
+      void ctx?.resume()
+      // iOS warms its audio output only on the first playback, delaying the FIRST real sound (why the
+      // light-switch sting can land late on iPhone). Push a 1-sample silent buffer through on the
+      // unlocking gesture so the pipeline is already hot when the first sting fires.
+      if (ctx && !this.primed) {
+        this.primed = true
+        try {
+          const src = ctx.createBufferSource()
+          src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
+          src.connect(ctx.destination)
+          src.start(0)
+        } catch {
+          /* ignore — the real sounds still play once the context resumes */
+        }
+      }
     }
     window.addEventListener('pointerdown', onGesture)
     window.addEventListener('keydown', onGesture)
@@ -56,11 +72,13 @@ class SfxManager {
     return this.ctx
   }
 
-  /** Decode + cache the given sounds ahead of time so the first play isn't delayed by a fetch/decode. */
-  preload(keys: string[]): void {
+  /** Decode + cache the given sounds ahead of time so the first play isn't delayed by a fetch/decode.
+   *  Resolves once all are decoded (or failed) — callers that need the sounds READY before a cue (the
+   *  startup intro) can await it; fire-and-forget callers just ignore the promise. */
+  preload(keys: string[]): Promise<void> {
     const ctx = this.ensureCtx()
-    if (!ctx) return // fallback path lazy-creates <audio> on play()
-    for (const key of keys) void this.load(key, ctx)
+    if (!ctx) return Promise.resolve() // fallback path lazy-creates <audio> on play()
+    return Promise.all(keys.map((key) => this.load(key, ctx))).then(() => undefined)
   }
 
   private load(key: string, ctx: AudioContext): Promise<AudioBuffer | null> {

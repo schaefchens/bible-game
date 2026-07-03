@@ -75,10 +75,6 @@ export async function cachedCount(urls: string[]): Promise<number> {
   return hits.reduce((a, b) => a + b, 0)
 }
 
-export async function isFullyCached(urls: string[]): Promise<boolean> {
-  return urls.length > 0 && (await cachedCount(urls)) === urls.length
-}
-
 /** Fetch every URL (bounded concurrency) so the SW's CacheFirst routes populate their caches. Plain
  *  (non-Range) fetches so workbox stores the FULL mp3 body. Never throws. Progress increments once per
  *  settled URL (monotonic → total).
