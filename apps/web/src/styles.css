@@ -844,7 +844,10 @@ input[type='range']::-moz-range-thumb:hover { background: var(--gold-bright); }
 .panel.world-panel { width: 760px; max-height: 634px; overflow-y: auto; }
 /* side by side, scroll horizontally if they overflow */
 .world-cards { display: flex; gap: 1rem; overflow-x: auto; padding: 0.25rem 0 0.6rem; }
-.world-cards .world-card { flex: 0 0 300px; height: 200px; margin: 0; }
+/* content-driven height (min, not fixed) so the tag/title/subtitle + Enter + the offline-download
+   control always fit — no clipping when text wraps (longer in German) or the download UI appears.
+   Cards share a flex row, so align-items:stretch keeps them all as tall as the tallest. */
+.world-cards .world-card { flex: 0 0 300px; min-height: 210px; height: auto; margin: 0; }
 .world-card-body .btn { margin-top: 0.5rem; }
 .world-card.locked { filter: grayscale(0.65) brightness(0.7); }
 /* per-card offline-download control (button / progress / "✓ Offline ready" badge) */
