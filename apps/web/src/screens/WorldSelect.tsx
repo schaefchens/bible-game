@@ -87,7 +87,10 @@ function WorldCardView({ w, locked }: { w: WorldCard; locked: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [urls, downloaded])
+    // Reconcile once per world (urls is stable per card). Deliberately NOT keyed on `downloaded`: a
+    // successful download flips that flag, and re-running here would flash 'checking' + re-scan the
+    // cache right after we set 'done'. `downloaded` is read fresh at mount, which is all we need.
+  }, [urls])
 
   // Track connectivity so the Download button enables/disables live.
   useEffect(() => {
@@ -113,7 +116,9 @@ function WorldCardView({ w, locked }: { w: WorldCard; locked: boolean }) {
     setPct(0)
     const res = await warmCache(urls, {
       signal: ac.signal,
-      onProgress: ({ loaded, total }) => setPct(total ? Math.round((loaded / total) * 100) : 100),
+      onProgress: ({ loaded, total }) => {
+        if (!ac.signal.aborted) setPct(total ? Math.round((loaded / total) * 100) : 100)
+      },
     })
     if (ac.signal.aborted) return
     // Done when nothing REAL failed (404s are tolerated absent assets). Only then persist the flag.
@@ -126,7 +131,10 @@ function WorldCardView({ w, locked }: { w: WorldCard; locked: boolean }) {
    *  already-cached → enter immediately. Uncached offline play degrades gracefully. */
   const begin = async (): Promise<void> => {
     if (locked || !lastSelectedId) return
-    if (online && swActive() && status !== 'done') await download()
+    if (online && swActive() && status !== 'done') {
+      await download()
+      if (abortRef.current?.signal.aborted) return // navigated away mid-download → don't force-enter the run
+    }
     startRun(lastSelectedId, w.id)
   }
 

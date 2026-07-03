@@ -63,8 +63,8 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
       return ok({ ...state, screen: cmd.screen }, [{ type: 'screenChanged', screen: cmd.screen }])
     case 'setWorldDownloaded': {
       const cur = state.profile.downloadedWorlds
-      const next = cmd.downloaded ? (cur.includes(cmd.worldId) ? cur : [...cur, cmd.worldId]) : cur.filter((w) => w !== cmd.worldId)
-      if (next === cur) return ok(state, [])
+      if (cmd.downloaded === cur.includes(cmd.worldId)) return ok(state, []) // already in the desired state
+      const next = cmd.downloaded ? [...cur, cmd.worldId] : cur.filter((w) => w !== cmd.worldId)
       return ok({ ...state, profile: { ...state.profile, downloadedWorlds: next } }, [])
     }
     case 'startRun':

@@ -63,9 +63,21 @@ export function App() {
   const Screen = SCREENS[screen] ?? StartScreen
 
   useEffect(() => {
-    if (shellWarmed || !swActive() || !navigator.onLine) return
-    shellWarmed = true
-    void warmCache(getShellUrls())
+    const warm = (): void => {
+      if (shellWarmed || !swActive() || !navigator.onLine) return
+      shellWarmed = true
+      void warmCache(getShellUrls())
+    }
+    warm() // already-controlled tab (returning visits)
+    // On a FRESH install the SW isn't controlling the page at first mount (swActive() false), so warm
+    // once it claims control; also retry when connectivity returns. The shellWarmed guard dedups.
+    const sw = navigator.serviceWorker
+    sw?.addEventListener('controllerchange', warm)
+    window.addEventListener('online', warm)
+    return () => {
+      sw?.removeEventListener('controllerchange', warm)
+      window.removeEventListener('online', warm)
+    }
   }, [])
 
   return (
