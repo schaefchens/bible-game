@@ -3,11 +3,19 @@ import type { ContentBundle } from '../content/bundle'
 import type { GameEvent, ReduceResult } from '../events/event'
 import { LVL_MAX, totalXpForLevel } from '../leveling/scaling'
 import { reduceWorld } from '../map/reduce'
-import { createCharacter, partyMemberFromCharacter, TEST_HERO_NAME } from '../state/character'
+import {
+  createCharacter,
+  memberMaxHp,
+  partyMemberFromCharacter,
+  TEST_HERO_NAME,
+  type Character,
+  type PartyMember,
+} from '../state/character'
 import { STAT_IDS, type StatId } from '../state/stats'
 import {
   defaultSettings,
   GAME_STATE_VERSION,
+  nextLevelUpPrompt,
   type CharacterSlot,
   type GameState,
   type ProfileState,
@@ -18,7 +26,7 @@ import { initialWorldState } from '../map/types'
 import { seedRng } from '../rng/rng'
 import { initialSpiritState } from '../spirit/types'
 import { reduceVerse } from '../verse/reduce'
-import type { ItemId } from '../types'
+import type { CardDefId, ItemId, MemberId } from '../types'
 import type { Command } from './command'
 
 /** Fresh game on the start screen — no characters, no run. */
@@ -69,6 +77,8 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
     }
     case 'startRun':
       return startRun(state, cmd.characterId, cmd.worldId, cmd.seed, cmd.content)
+    case 'startCoopRun':
+      return startCoopRun(state, cmd.heroes, cmd.worldId, cmd.seed, cmd.content)
     case 'abandonRun':
       return abandonRun(state)
     case 'allocateStat':
@@ -189,6 +199,21 @@ function selectHero(state: GameState, id: string): ReduceResult {
 /** Gold every hero begins a run with — enough to reach the first shop. */
 const STARTER_GOLD = 50
 
+/** Materialize a run party member (+ its starting deck) from a permanent Character. EARN-PER-RUN:
+ *  a run begins with NO verse cards — they're (re)earned each run by studying scripture at a fireplace
+ *  (a deliberate deckbuilding choice). The "Enoch" testing hero is the exception: he starts with every
+ *  miracle (verse) card so the whole kit is reachable for testing. */
+function buildRunHero(character: Character, content: ContentBundle): { member: PartyMember; startDeck: CardDefId[] } {
+  const verseCards =
+    character.name === TEST_HERO_NAME
+      ? Object.values(content.cards)
+          .filter((c) => c.type === 'verse')
+          .map((c) => c.id)
+      : []
+  const startDeck = [...content.heroStartDeck, ...verseCards]
+  return { member: partyMemberFromCharacter(character, startDeck, content.heroGraceAbilities), startDeck }
+}
+
 function startRun(
   state: GameState,
   characterId: string,
@@ -201,16 +226,7 @@ function startRun(
   const world = content.worlds[worldId]
   if (!world) return reject(state, 'no-such-world')
 
-  // Build the hero party member from the permanent Character + the bundle's starter kit. EARN-PER-RUN:
-  // a run begins with NO verse cards — they're (re)earned each run by studying scripture at a fireplace
-  // (a deliberate deckbuilding choice). The "Enoch" testing hero is the exception: he starts with every
-  // miracle (verse) card so the whole kit is reachable for testing.
-  const verseCards =
-    slot.character.name === TEST_HERO_NAME
-      ? Object.values(content.cards).filter((c) => c.type === 'verse').map((c) => c.id)
-      : []
-  const startDeck = [...content.heroStartDeck, ...verseCards]
-  const hero = partyMemberFromCharacter(slot.character, startDeck, content.heroGraceAbilities)
+  const { member: hero, startDeck } = buildRunHero(slot.character, content)
   // Every run begins with a small purse so the first shop is reachable (STARTER_GOLD). The "Enoch"
   // testing hero also starts with a bag of usable items + a deep purse, so the inventory's
   // use/combine/shop flows can be exercised immediately (only items the bundle defines are seeded).
@@ -234,6 +250,72 @@ function startRun(
     baseGrace: 1,
   }
   const base: GameState = { ...state, run, combat: null, prompt: null, screen: 'map' }
+  return { state: base, events: [{ type: 'runStarted', worldId }] }
+}
+
+/** Co-op run start (authoritative-server only). The party is assembled from EACH player's full permanent
+ *  Character — the server has no access to the other players' local profiles. Each hero's Character is
+ *  upserted into `profile.slots` so XP writeback, stat allocation, and verse earning all resolve every
+ *  member by `characterId`. `heroes[0]` becomes the hero (party[0] / heroMemberId). Entropy (`seed`) is
+ *  supplied by the server, keeping the reducer a pure function of (state, command). */
+function startCoopRun(
+  state: GameState,
+  heroes: Character[],
+  worldId: string,
+  seed: string,
+  content: ContentBundle,
+): ReduceResult {
+  if (heroes.length === 0) return reject(state, 'no-heroes')
+  const world = content.worlds[worldId]
+  if (!world) return reject(state, 'no-such-world')
+
+  // Distinct characterIds only: `heroMemberId` is deterministic from the id, so duplicates would collide.
+  const seen = new Set<string>()
+  for (const h of heroes) {
+    if (seen.has(h.id)) return reject(state, 'duplicate-hero')
+    seen.add(h.id)
+  }
+
+  // Level parity: the whole party plays at the highest level among them, so co-op is balanced and no
+  // one is dead weight (enemies scale to this shared level). RUN-SCOPED only — the permanent Characters
+  // and their XP writeback at run end are untouched (a level-1 tag-along isn't permanently boosted).
+  const coopLevel = Math.max(1, ...heroes.map((h) => h.level))
+
+  const party: PartyMember[] = []
+  const deckByMember: Record<MemberId, CardDefId[]> = {}
+  let slots = state.profile.slots
+  for (const character of heroes) {
+    const { member, startDeck } = buildRunHero(character, content)
+    const leveled: PartyMember = { ...member, level: coopLevel }
+    party.push({ ...leveled, currentHp: memberMaxHp(leveled) }) // enter at full HP for the shared level
+    deckByMember[member.memberId] = startDeck
+    const idx = slots.findIndex((s) => s.id === character.id)
+    const slot: CharacterSlot = { id: character.id, character }
+    slots = idx >= 0 ? slots.map((s, i) => (i === idx ? slot : s)) : [...slots, slot]
+  }
+
+  // Shared purse: each player brings their starter gold into the common inventory. If any player brought
+  // the "Enoch" testing hero, seed the test bag so the shop/inventory flows stay exercisable.
+  const inventory = heroes.some((h) => h.name === TEST_HERO_NAME)
+    ? testHeroInventory(content)
+    : { ...emptyInventory(), currency: STARTER_GOLD * heroes.length }
+
+  const run: RunState = {
+    seed,
+    rng: seedRng(seed),
+    worldId,
+    content,
+    party,
+    heroMemberId: party[0]!.memberId,
+    world: { ...initialWorldState(worldId, world.map.entrance), current: '', visited: [] },
+    inventory,
+    spirit: initialSpiritState(),
+    deckByMember,
+    deckLimit: content.deckLimit ?? 20,
+    depth: world.map.nodes[world.map.entrance]?.depth ?? 0,
+    baseGrace: 1,
+  }
+  const base: GameState = { ...state, profile: { ...state.profile, slots }, run, combat: null, prompt: null, screen: 'map' }
   return { state: base, events: [{ type: 'runStarted', worldId }] }
 }
 
@@ -306,7 +388,8 @@ function allocateStat(state: GameState, memberId: string, stat: string): ReduceR
 
   let prompt = state.prompt
   if (prompt?.kind === 'levelUp' && prompt.memberId === memberId && character.unspentPoints <= 0) {
-    prompt = null
+    // this member is done — chain the shared prompt to the next member with points (co-op), else clear it
+    prompt = nextLevelUpPrompt(state.run.party, slots)
   }
 
   return ok({ ...state, profile: { ...state.profile, slots }, run: { ...state.run, party }, prompt }, [

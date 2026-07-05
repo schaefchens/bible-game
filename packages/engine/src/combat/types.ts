@@ -72,6 +72,9 @@ export interface Combatant {
 
   // --- enemies ---
   intent?: Intent
+  /** the party member this enemy's telegraphed intent will strike (co-op: which hero is in danger).
+   *  Chosen deterministically at round start so the telegraph matches execution. */
+  intentTargetId?: CombatantId
   aiProfileId?: string
   isDemon?: boolean
   /** demon hidden until revealed by Sight (not targetable / not in enemyOrder until revealed) */
@@ -142,12 +145,22 @@ export interface RewardChoice {
   /** gold + item/relic drops, each individually claimable */
   spoils: Spoil[]
   /** the card-reward options sampled from the hero's pool. `undefined` until enriched in the
-   *  run-aware layer (applyStep); `[]` when the deck is full (card step blocked → skip only). */
+   *  run-aware layer (applyStep); `[]` when the deck is full (card step blocked → skip only).
+   *  MIRRORS `cardOptionsByMember[heroMemberId]` — the single-player / hero view. */
   cardOptions?: CardDefId[]
-  /** the card defId taken this reward (if any) */
+  /** the card defId taken this reward by the hero (if any). Mirrors `cardChosenByMember[hero]`. */
   cardChosen?: CardDefId
-  /** true once the card step has been resolved (a card taken OR skipped) */
+  /** true once the HERO's card step has been resolved (a card taken OR skipped). Mirrors
+   *  `cardResolvedByMember[hero]`. */
   cardResolved: boolean
+  /** CO-OP: each living member picks their OWN card into their OWN deck. Keyed by memberId. The
+   *  hero's slice is mirrored into the singular fields above so the single-player path is unchanged.
+   *  `undefined` until enriched (applyStep). */
+  cardOptionsByMember?: Record<MemberId, CardDefId[]>
+  /** the card each member took this reward (if any). */
+  cardChosenByMember?: Record<MemberId, CardDefId>
+  /** true for each member that has resolved their card step (taken OR skipped). Missing = unresolved. */
+  cardResolvedByMember?: Record<MemberId, boolean>
   /** extra Spirit granted for a peaceful (no-human-killed) victory */
   peacefulSpiritBonus?: number
   /** righteous victories unlock unique loot */

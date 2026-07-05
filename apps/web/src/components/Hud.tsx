@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { potencyTier, type AudioMode } from '@bible/engine'
 import { useGame } from '../store/gameStore'
-import { heroSummary, selectLocation } from '../selectors'
+import { useSession } from '../store/useSession'
+import { heroSummary, selectLocation, selectParty } from '../selectors'
 
 // The 3-state audio toggle cycled from the HUD: music+sfx → sfx only → silent.
 const AUDIO_ICON: Record<AudioMode, string> = { on: '🎵', sfxOnly: '🔊', off: '🔇' }
@@ -23,6 +24,14 @@ export function Hud() {
   const state = useGame((s) => s.state)
   const summary = useMemo(() => heroSummary(state), [state])
   const location = useMemo(() => selectLocation(state), [state])
+  // Co-op: the party has >1 member — show the other players' chips; hide the SP-only abandon/menu buttons
+  // (leaving co-op goes through the MpBanner) and offer a chat toggle.
+  const mpMode = useGame((s) => s.mpMode)
+  const party = useMemo(() => selectParty(state), [state])
+  const roster = useSession((s) => s.roster)
+  const chatOpen = useSession((s) => s.chatOpen)
+  const setChatOpen = useSession((s) => s.setChatOpen)
+  const others = party.filter((m) => !m.isHero)
   const abandon = useGame((s) => s.abandon)
   const [confirmAbandon, setConfirmAbandon] = useState(false)
   const spirit = state.run?.spirit.spirit ?? 0
@@ -91,16 +100,37 @@ export function Hud() {
             ⚡ {combat.energy.current}/{combat.energy.max}
           </span>
         )}
+        {/* co-op: the other players' heroes — name, HP, and a live connection dot */}
+        {others.length > 0 && (
+          <div className="hud-party">
+            {others.map((m) => {
+              const connected = roster.find((r) => r.memberId === m.memberId)?.connected ?? true
+              const pct = Math.max(0, Math.min(100, (m.hp / m.maxHp) * 100))
+              return (
+                <div key={m.memberId} className={'hud-party-chip' + (connected ? '' : ' offline')} title={`${m.name} · ${t('ui.common.level')} ${m.level}`}>
+                  <span className={'coop-dot' + (connected ? ' on' : '')} />
+                  <span className="hud-party-name">{m.name}</span>
+                  <div className="hp-bar tiny">
+                    <div className="hp-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
       {/* current node only — the adventure name lives in the map cartouche; here it's the locator that
           carries into battle (the HUD renders on both the map and the combat screen) + the abandon button. */}
       {location && (
         <div className="hud-bar-center">
           {location.nodeNameKey && <span className="hud-loc-node">{t(location.nodeNameKey)}</span>}
-          {/* abandon sits beside the location so it reads as "abandon THIS run" (guarded by a confirm) */}
-          <button className="btn hud-abandon-btn" onClick={() => setConfirmAbandon(true)} title={t('ui.map.abandon')}>
-            {t('ui.map.abandon')}
-          </button>
+          {/* abandon sits beside the location so it reads as "abandon THIS run" (guarded by a confirm).
+              Hidden in co-op — leaving a shared run is done via the co-op banner (server-side teardown). */}
+          {!mpMode && (
+            <button className="btn hud-abandon-btn" onClick={() => setConfirmAbandon(true)} title={t('ui.map.abandon')}>
+              {t('ui.map.abandon')}
+            </button>
+          )}
         </div>
       )}
       <div className="hud-bar-right">
@@ -130,15 +160,29 @@ export function Hud() {
           >
             {AUDIO_ICON[audioMode]}
           </button>
-          {/* leave to the title/menu WITHOUT abandoning — the run stays saved, so "Continue" resumes it */}
-          <button
-            className="hud-icon-btn"
-            onClick={() => dispatch({ type: 'navigate', screen: 'start' })}
-            title={`${t('ui.common.menu')} (Esc)`}
-            aria-label={t('ui.common.menu')}
-          >
-            ☰
-          </button>
+          {/* co-op: toggle the party chat (also opens with `t`) */}
+          {mpMode && (
+            <button
+              className={'hud-icon-btn' + (chatOpen ? ' active' : '')}
+              onClick={() => setChatOpen(!chatOpen)}
+              title="Chat (T)"
+              aria-label="Chat"
+            >
+              💬
+            </button>
+          )}
+          {/* leave to the title/menu WITHOUT abandoning — the run stays saved, so "Continue" resumes it.
+              Hidden in co-op (navigate isn't a valid co-op command; leaving goes through the co-op banner). */}
+          {!mpMode && (
+            <button
+              className="hud-icon-btn"
+              onClick={() => dispatch({ type: 'navigate', screen: 'start' })}
+              title={`${t('ui.common.menu')} (Esc)`}
+              aria-label={t('ui.common.menu')}
+            >
+              ☰
+            </button>
+          )}
         </div>
       </div>
       {/* portalled to <body> so the overlay escapes the HUD's z-index:5 stacking context and covers

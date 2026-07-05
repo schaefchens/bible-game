@@ -2,26 +2,33 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
+import { myMemberId, useSession } from '../store/useSession'
 import { selectReward } from '../selectors'
 import { CardFace } from '../components/CardFace'
 
 export function RewardScreen() {
   const { t } = useTranslation()
   const state = useGame((s) => s.state)
-  const view = useMemo(() => selectReward(state), [state])
+  const mpMode = useGame((s) => s.mpMode)
+  const myMember = useSession(myMemberId)
+  // co-op: show THIS seat's own card options + resolution (each player picks into their own deck)
+  const view = useMemo(() => selectReward(state, myMember ?? undefined), [state, myMember])
   const dispatch = useGame((s) => s.dispatch)
   const [stage, setStage] = useState<'spoils' | 'cards'>('spoils')
   if (!view) return null
 
   // Two stages: claim gold/items first, then pick a card. With no spoils, jump straight to the cards.
   const showSpoils = stage === 'spoils' && view.spoils.length > 0
-  const canPickCard = !view.deckFull && view.cardOptions.length > 0
+  const canPickCard = !view.deckFull && view.cardOptions.length > 0 && !view.cardResolved
 
-  // Taking a card (or declining) resolves the reward and returns to the map in one motion.
+  // Single-player: taking a card (or declining) resolves the reward and returns to the map in one motion.
+  // Co-op: each player takes/declines their OWN card, then presses Continue — the server only leaves the
+  // reward once EVERY connected player has confirmed (so no one's pick is forfeited by a teammate).
   const takeCard = (defId: string) => {
     dispatch({ type: 'combat/takeCard', defId })
-    dispatch({ type: 'combat/leaveReward' })
+    if (!mpMode) dispatch({ type: 'combat/leaveReward' })
   }
+  const skip = () => dispatch({ type: mpMode ? 'combat/skipCard' : 'combat/leaveReward' })
   const leave = () => dispatch({ type: 'combat/leaveReward' })
 
   return (
@@ -70,15 +77,23 @@ export function RewardScreen() {
                     />
                   ))}
                 </div>
-                <button className="btn block" onClick={leave}>
+                <button className="btn block" onClick={skip}>
                   {t('ui.reward.skipCard')}
                 </button>
               </>
             ) : (
               <>
-                <p className="muted">{view.deckFull ? t('ui.reward.deckFull') : t('ui.reward.noCards')}</p>
+                <p className="muted">
+                  {view.deckFull
+                    ? t('ui.reward.deckFull')
+                    : mpMode && view.cardResolved
+                      ? 'Waiting for your party…'
+                      : view.cardOptions.length === 0
+                        ? t('ui.reward.noCards')
+                        : ''}
+                </p>
                 <button className="btn primary block" onClick={leave}>
-                  {t('ui.reward.leave')}
+                  {mpMode ? 'Continue' : t('ui.reward.leave')}
                 </button>
               </>
             )}

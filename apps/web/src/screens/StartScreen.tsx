@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { bgUrl } from '../asset'
+import { openCoop } from '../net'
 import { useGame } from '../store/gameStore'
 
 export function StartScreen() {
@@ -24,6 +25,9 @@ export function StartScreen() {
         )}
         <button className={'btn block' + (canContinue ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
           {t('ui.start.enter')}
+        </button>
+        <button className="btn block" onClick={() => openCoop()}>
+          Play Co-op
         </button>
         <button className="btn block" onClick={() => dispatch({ type: 'navigate', screen: 'settings' })}>
           {t('ui.start.settings')}

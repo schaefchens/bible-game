@@ -1073,3 +1073,78 @@ body.holding-item, body.holding-item * { cursor: none; }
 /* reduced motion: drop the looping pulse/breathe animations */
 .app.reduced-motion .startup-gate-text { animation: none; opacity: 0.72; }
 .app.reduced-motion .startup-glow { animation: none; }
+
+/* ============================================================================
+   Co-op multiplayer UI (chat, lobby, party HUD, status banner). Viewport-anchored
+   (mounted outside the scaled .stage), so these use fixed positioning + their own z-band.
+   ============================================================================ */
+
+/* ---- chat (press t) ---- */
+.chat-layer { position: fixed; left: 12px; bottom: 12px; z-index: 210; width: min(360px, 42vw); pointer-events: none; display: flex; flex-direction: column; gap: 6px; }
+.chat-log { max-height: 30vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-radius: 10px; background: rgba(0,0,0,0.42); backdrop-filter: blur(2px); pointer-events: auto; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22px); mask-image: linear-gradient(to bottom, transparent, #000 22px); }
+.chat-line { font-size: 0.86rem; line-height: 1.35; color: var(--ink); text-shadow: 0 1px 2px rgba(0,0,0,0.8); word-break: break-word; }
+.chat-line.system { color: var(--gold); opacity: 0.75; font-style: italic; }
+.chat-speaker { color: var(--gold-bright); font-weight: 700; }
+.chat-box { pointer-events: auto; }
+.chat-box .text-input { margin: 0; background: rgba(0,0,0,0.72); border-color: var(--gold); }
+
+/* ---- lobby (create / join / roster) — a full-viewport modal above everything ---- */
+.modal-overlay.coop-overlay { position: fixed; inset: 0; z-index: 300; }
+.coop-panel { width: 420px; max-width: 92vw; }
+.coop-code { color: var(--gold-bright); letter-spacing: 0.18em; font-weight: 700; }
+.coop-field { display: block; text-align: left; margin: 0.6rem 0; }
+.coop-field > span { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
+.coop-field .text-input { margin: 0; }
+.coop-error { color: var(--danger); font-size: 0.85rem; margin: 0.4rem 0; }
+.coop-join { display: flex; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
+.coop-join .text-input { margin: 0; text-transform: uppercase; letter-spacing: 0.16em; text-align: center; }
+.coop-roster { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.coop-seat { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-edge); }
+.coop-seat.offline { opacity: 0.5; }
+.coop-seat-name { font-weight: 600; }
+.coop-seat-hero { flex: 1; text-align: left; font-size: 0.82rem; }
+.coop-ready { font-size: 0.78rem; color: var(--muted); }
+.coop-ready.yes { color: #8fce8f; font-weight: 600; }
+
+/* connection dot (shared by lobby seats + HUD party chips) */
+.coop-dot { width: 9px; height: 9px; border-radius: 50%; background: #6a2a2a; box-shadow: 0 0 4px rgba(0,0,0,0.6); flex: none; }
+.coop-dot.on { background: #6fcf6f; box-shadow: 0 0 6px rgba(111,207,111,0.7); }
+
+/* ---- co-op status banner (reconnect / notices / leave) ---- */
+.mp-banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 220; display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.6rem; border-radius: 10px; background: rgba(0,0,0,0.7); border: 1px solid var(--panel-edge); font-size: 0.85rem; }
+.mp-recon { color: var(--gold-bright); }
+.mp-notice { color: var(--ink); }
+
+/* ---- multi-hero HUD party strip (the other players' heroes) ---- */
+.hud-party { display: flex; gap: 0.5rem; align-items: center; margin-left: 0.6rem; }
+.hud-party-chip { display: flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.4rem; border-radius: 8px; background: rgba(0,0,0,0.28); border: 1px solid var(--panel-edge); }
+.hud-party-chip.offline { opacity: 0.55; }
+.hud-party-name { font-size: 0.78rem; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hp-bar.tiny { width: 64px; height: 8px; border-radius: 5px; }
+
+/* ---- live co-op presence (teammate is eyeing this card / aiming at this enemy) ---- */
+/* a distinct teal glow so it never reads as the local player's gold "selected" state */
+.card.peer-eyed { box-shadow: 0 0 0 2px #58c9d6, 0 0 16px rgba(88,201,214,0.6); }
+.card-peer-tag {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: rgba(20,60,66,0.95); border: 1px solid #58c9d6; color: #d6f6fa;
+  font-size: 0.62rem; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 7px;
+  white-space: nowrap; pointer-events: none; z-index: 60;
+}
+.unit-peer-tag {
+  align-self: center; background: rgba(20,60,66,0.95); border: 1px solid #58c9d6; color: #d6f6fa;
+  font-size: 0.66rem; font-weight: 700; line-height: 1; padding: 2px 7px; border-radius: 8px; white-space: nowrap;
+}
+/* co-op: an enemy is about to strike this party member — a red danger badge over their head */
+.unit-incoming {
+  align-self: center; background: rgba(70,20,20,0.95); border: 1px solid var(--danger); color: #ffd9d4;
+  font-size: 0.66rem; font-weight: 700; line-height: 1; padding: 2px 7px; border-radius: 8px; white-space: nowrap;
+}
+/* co-op: a teammate is hovering this map node */
+.map-node.peer-hover { box-shadow: 0 0 0 2px #58c9d6, 0 0 16px rgba(88,201,214,0.6) !important; }
+.node-peer-tag {
+  position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+  background: rgba(20,60,66,0.95); border: 1px solid #58c9d6; color: #d6f6fa;
+  font-size: 0.6rem; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 7px;
+  white-space: nowrap; pointer-events: none; z-index: 20;
+}

@@ -111,5 +111,10 @@ export default defineConfig(({ command, isPreview }) => ({
       '@bible/assets': pkg('../../packages/assets/src/index.ts'),
     },
   },
-  server: { port: 5173 },
+  // Dev: proxy the co-op WebSocket to the local Node server so a plain same-origin ws://…/ws works
+  // without setting VITE_WS_URL. The server ignores the path, so /ws → :8787 is fine.
+  server: {
+    port: 5173,
+    proxy: { '/ws': { target: 'ws://localhost:8787', ws: true } },
+  },
 }))

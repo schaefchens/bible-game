@@ -36,14 +36,17 @@ export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
   const challenge = run.content.verses[challengeId]
   if (!challenge) return reject(state, 'no-such-challenge')
 
+  // The acting member earns the card into THEIR collection/deck (co-op); defaults to the hero (SP).
+  const actor = cmd.actorMemberId ?? run.heroMemberId
   const cardId = challenge.cardDefId
-  const characterId = run.party.find((m) => m.memberId === run.heroMemberId)?.characterId
+  const characterId = run.party.find((m) => m.memberId === actor)?.characterId
   const idx = state.profile.slots.findIndex((s) => s.id === characterId)
   const slot = state.profile.slots[idx]
   const patchCharacter = (patch: Partial<Character>): GameState['profile'] =>
     slot ? { ...state.profile, slots: state.profile.slots.map((s, i) => (i === idx ? { ...s, character: { ...s.character, ...patch } } : s)) } : state.profile
 
-  const locale = state.profile.settings.locale
+  // Validate in the ACTING player's own language (mixed EN/DE parties); defaults to the shared locale.
+  const locale = cmd.locale ?? state.profile.settings.locale
   const data = challenge.byLocale[locale]
   const result = checkVerseAnswers(data, locale, cmd.answers)
 
@@ -76,7 +79,7 @@ export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
 
   // per-card copy cap: spirit cards are once-per-run by default, so if the run deck already holds the
   // maximum copies, refuse the study and KEEP the fragment (not consumed). Close the modal + notice.
-  const deckNow = run.deckByMember[run.heroMemberId] ?? []
+  const deckNow = run.deckByMember[actor] ?? []
   if (!canAddCopy(run.content, deckNow, cardId)) {
     return { state: { ...state, prompt: null }, events: [{ type: 'notice', messageKey: 'verse.atMax' }] }
   }
@@ -95,7 +98,7 @@ export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
 
   // Append a copy to this run's deck. The copy cap was checked above (spirit cards are once-per-run by
   // default), so this never pushes a copy past the card's `maxCopies`.
-  const deckByMember = { ...run.deckByMember, [run.heroMemberId]: [...deckNow, cardId] }
+  const deckByMember = { ...run.deckByMember, [actor]: [...deckNow, cardId] }
 
   const out = applySpiritEvent(run.spirit, { kind: 'earnVerse' })
   const newRun = { ...takeFragment(run), deckByMember, spirit: out.state }

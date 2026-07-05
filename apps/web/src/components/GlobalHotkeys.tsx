@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useGame } from '../store/gameStore'
+import { useSession } from '../store/useSession'
 
 /**
  * Global keyboard accelerators that mirror the top-bar (HUD) buttons, so the controls are reachable
@@ -24,11 +25,13 @@ export function GlobalHotkeys() {
   const prompt = useGame((s) => Boolean(s.state.prompt))
   const cycleAudioMode = useGame((s) => s.cycleAudioMode)
   const dispatch = useGame((s) => s.dispatch)
+  const chatOpen = useSession((s) => s.chatOpen)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return // don't hijack typing
+      if (chatOpen) return // the co-op chat box owns the keyboard while open (it is not a .modal-overlay)
       if (e.metaKey || e.ctrlKey || e.altKey) return // leave browser/OS shortcuts alone
       const k = e.key.toLowerCase()
       if (k === 'd') {
@@ -45,7 +48,7 @@ export function GlobalHotkeys() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [hasRun, screen, deckOpen, setDeckOpen, inventoryOpen, itemInteraction, praying, dialogue, story, prompt, cycleAudioMode, dispatch])
+  }, [hasRun, screen, deckOpen, setDeckOpen, inventoryOpen, itemInteraction, praying, dialogue, story, prompt, cycleAudioMode, dispatch, chatOpen])
 
   return null
 }

@@ -169,17 +169,22 @@ function cardOffer(run: NonNullable<GameState['run']>, defId: string): CardOffer
   }
 }
 
-export function selectReward(state: GameState): RewardView | null {
+/** Build the reward view for a given seat's member (co-op: each player picks their OWN card). Defaults
+ *  to the hero, which is the single-player path (byte-identical to the old singular-field behaviour). */
+export function selectReward(state: GameState, memberId?: string): RewardView | null {
   const c = state.combat
   const run = state.run
   if (!c?.reward || !run) return null
   const content = run.content
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  const member = memberId ?? run.heroMemberId
+  const deck = run.deckByMember[member] ?? []
+  const options = c.reward.cardOptionsByMember?.[member] ?? (member === run.heroMemberId ? c.reward.cardOptions ?? [] : [])
+  const resolved = (c.reward.cardResolvedByMember ?? {})[member] ?? (member === run.heroMemberId && c.reward.cardResolved)
   return {
     righteous: c.reward.righteous,
     peacefulBonus: (c.reward.peacefulSpiritBonus ?? 0) > 0,
     rewardBg: c.rewardBg,
-    cardResolved: c.reward.cardResolved,
+    cardResolved: resolved,
     deckFull: deck.length >= run.deckLimit,
     spoils: c.reward.spoils.map((s) => ({
       id: s.id,
@@ -187,7 +192,7 @@ export function selectReward(state: GameState): RewardView | null {
       claimed: s.claimed,
       label: s.kind === 'money' ? `${s.amount ?? 0}` : (s.defId ? (content.items[s.defId]?.nameKey ?? s.defId) : s.kind),
     })),
-    cardOptions: (c.reward.cardOptions ?? []).map((defId) => cardOffer(run, defId)),
+    cardOptions: options.map((defId) => cardOffer(run, defId)),
   }
 }
 
@@ -338,6 +343,8 @@ export interface CombatantView {
   intentStacks?: number
   /** the status a buff/debuff intent will apply (e.g. 'vulnerable') — drives the intent description */
   intentStatus?: string
+  /** the party member id this enemy's intent will strike (co-op: shows who's in danger) */
+  intentTargetId?: string
 }
 
 export interface HandCardView {
@@ -434,6 +441,7 @@ export function selectCombat(state: GameState): CombatView | null {
       intentHits: x.intent?.hits,
       intentStacks: x.intent?.stacks,
       intentStatus: x.intent?.status,
+      intentTargetId: x.intentTargetId,
     }
   }
 
@@ -731,4 +739,27 @@ export const heroSummary = (state: GameState) => {
     maxHp: memberMaxHp(hero),
     gold: run.inventory.currency,
   }
+}
+
+export interface PartyMemberView {
+  memberId: string
+  name: string
+  level: number
+  hp: number
+  maxHp: number
+  isHero: boolean
+}
+
+/** The whole party as compact view-models — for the co-op multi-hero HUD (one chip per member). */
+export function selectParty(state: GameState): PartyMemberView[] {
+  const run = state.run
+  if (!run) return []
+  return run.party.map((m) => ({
+    memberId: m.memberId,
+    name: m.displayName ?? m.nameKey ?? 'Hero',
+    level: m.level,
+    hp: m.currentHp,
+    maxHp: memberMaxHp(m),
+    isHero: m.memberId === run.heroMemberId,
+  }))
 }

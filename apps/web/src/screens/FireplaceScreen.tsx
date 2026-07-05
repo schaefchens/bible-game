@@ -13,6 +13,7 @@ export function FireplaceScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const setSleeping = useGame((s) => s.setSleeping)
   const setPraying = useGame((s) => s.setPraying)
+  const mpMode = useGame((s) => s.mpMode)
   const lastEvents = useGame((s) => s.lastEvents)
   const [pickMode, setPickMode] = useState<'upgrade' | 'study' | null>(null)
   const [selIdx, setSelIdx] = useState<number | null>(null)
@@ -20,14 +21,15 @@ export function FireplaceScreen() {
 
   const selected = selIdx != null ? (upgradeable.find((u) => u.index === selIdx) ?? null) : null
 
-  // Resting = sleeping: heal, and play the fade-to-black sleep cinematic (cue + music dip).
+  // Resting = sleeping: heal, and play the fade-to-black sleep cinematic (cue + music dip). In co-op the
+  // cinematic is driven by the broadcast event (applyServerState) so ALL players see it — not just here.
   const rest = () => {
-    setSleeping(true)
+    if (!mpMode) setSleeping(true)
     dispatch({ type: 'world/fireplace', action: 'rest' })
   }
   // Praying: lift the Spirit, and open the golden prayer cinematic (psalms crawl until "Amen").
   const pray = () => {
-    setPraying(true)
+    if (!mpMode) setPraying(true)
     dispatch({ type: 'world/fireplace', action: 'pray' })
   }
   const openPicker = () => {

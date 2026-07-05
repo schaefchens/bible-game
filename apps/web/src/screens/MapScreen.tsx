@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next'
 import type { GameEvent } from '@bible/engine'
 import { assetBg } from '@bible/assets'
 import { bgUrl } from '../asset'
+import { sendActivity } from '../net'
 import { useGame } from '../store/gameStore'
+import { useSession } from '../store/useSession'
 import { selectMap } from '../selectors'
 import { Hud } from '../components/Hud'
 
@@ -88,6 +90,22 @@ export function MapScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const lastEvents = useGame((s) => s.lastEvents)
   const tick = useGame((s) => s.tick)
+  // co-op: relay which node the local player is hovering, and show teammates' hovers
+  const mpMode = useGame((s) => s.mpMode)
+  const peers = useSession((s) => s.peers)
+  const [hoverNode, setHoverNode] = useState<string | null>(null)
+  useEffect(() => {
+    if (!mpMode) return
+    sendActivity(hoverNode ? { hoverNodeId: hoverNode } : null)
+  }, [mpMode, hoverNode])
+  useEffect(() => {
+    if (!mpMode) return
+    return () => sendActivity(null) // clear my presence when leaving the map
+  }, [mpMode])
+  const peerNodeLabel: Record<string, string> = {}
+  if (mpMode) {
+    for (const p of Object.values(peers)) if (p.activity?.hoverNodeId) peerNodeLabel[p.activity.hoverNodeId] = p.name
+  }
   const currentRef = useRef<HTMLButtonElement | null>(null)
   const [travel, setTravel] = useState<Travel | null>(null)
   const [arrival, setArrival] = useState<Arrival | null>(null)
@@ -105,20 +123,44 @@ export function MapScreen() {
   // (once per tick, in layout phase to avoid a flash at the destination) and replay the arrival walk
   // + flash a discovery banner. Plain `revealNode` (reveal without travel) only flashes the banner.
   const arrivalTick = useRef(-1)
+  // co-op: the node id THIS client just walked to locally (its own click-walk already animated it), so
+  // the matching broadcast `moved` doesn't replay the walk a second time.
+  const myMoveTarget = useRef<string | null>(null)
+  // co-op: a node WE moved to that must be entered once the shared walk finishes (so the node isn't
+  // opened while teammates' pawns are still mid-trail).
+  const pendingEnter = useRef<string | null>(null)
   useLayoutEffect(() => {
     if (arrivalTick.current === tick) return
     arrivalTick.current = tick
-    const revealed = lastEvents.some((e) => e.type === 'nodeRevealed')
-    if (!revealed) return
-    setNotice(t('ui.map.discovered'))
     const moved = lastEvents.find((e): e is Extract<GameEvent, { type: 'moved' }> => e.type === 'moved')
-    if (moved && moved.from !== moved.to) setArrival({ from: moved.from, to: moved.to })
-  }, [tick, lastEvents, t])
+    const revealed = lastEvents.some((e) => e.type === 'nodeRevealed')
+    if (revealed) {
+      setNotice(t('ui.map.discovered'))
+      if (moved && moved.from !== moved.to) setArrival({ from: moved.from, to: moved.to })
+      return
+    }
+    // co-op: a TEAMMATE moved the pilgrim → animate the walk for us too (skip our own move, which the
+    // local click-walk already played).
+    if (mpMode && moved && moved.from !== moved.to && !travel) {
+      if (myMoveTarget.current === moved.to) {
+        myMoveTarget.current = null
+        return
+      }
+      setArrival({ from: moved.from, to: moved.to })
+    }
+  }, [tick, lastEvents, t, mpMode, travel])
   useEffect(() => {
     if (!arrival) return
-    const id = window.setTimeout(() => setArrival(null), WALK_MS)
+    const id = window.setTimeout(() => {
+      // co-op: our own move enters the node only AFTER the shared walk has played on every client
+      if (pendingEnter.current && pendingEnter.current === arrival.to) {
+        pendingEnter.current = null
+        dispatch({ type: 'world/enter' })
+      }
+      setArrival(null)
+    }, WALK_MS)
     return () => window.clearTimeout(id)
-  }, [arrival])
+  }, [arrival, dispatch])
 
   // center the focus node when the map opens / the hero arrives somewhere new. Before placement we
   // focus the first entry marker so the player sees where they can begin.
@@ -135,6 +177,7 @@ export function MapScreen() {
     if (!travel) return
     const { to, firstVisit } = travel
     const id = window.setTimeout(() => {
+      myMoveTarget.current = to // co-op: mark this as my own move so the broadcast doesn't re-walk it
       dispatch({ type: 'world/move', target: to })
       if (firstVisit) dispatch({ type: 'world/enter' }) // first arrival opens the node; a revisit waits for a click
       setTravel(null)
@@ -205,7 +248,7 @@ export function MapScreen() {
   const sealedToward = (id: string) => view.edges.some((e) => e.kind === 'sealed' && e.id.split('__').includes(id))
 
   const onNodeClick = (n: (typeof view.nodes)[number]) => {
-    if (travel) return
+    if (travel || arrival) return // don't accept a new move while the pawn is walking (ours or a teammate's)
     // before placement, the only legal action is choosing one of the marked entry points —
     // choosing one places the pilgrim AND enters it straight away (no extra click), like a first arrival
     if (view.unplaced) {
@@ -221,6 +264,14 @@ export function MapScreen() {
     }
     if (!n.movable || !currentId) {
       if (sealedToward(n.id)) setNotice(t('ui.map.sealedNotice'))
+      return
+    }
+    // co-op: dispatch the move NOW so EVERY client animates the walk from the same broadcast `moved`
+    // event (in sync). The node is entered only after our walk completes (pendingEnter → arrival timer).
+    // Single-player keeps the local click-walk that commits the move when it finishes.
+    if (mpMode) {
+      if (!n.visited) pendingEnter.current = n.id
+      dispatch({ type: 'world/move', target: n.id })
       return
     }
     setTravel({ from: currentId, to: n.id, firstVisit: !n.visited })
@@ -268,11 +319,13 @@ export function MapScreen() {
               <motion.button
                 key={n.id}
                 ref={n.id === focusId ? currentRef : undefined}
-                className={['map-node', `t-${n.type}`, stateClass, n.cleared ? 'cleared' : ''].join(' ')}
+                className={['map-node', `t-${n.type}`, stateClass, n.cleared ? 'cleared' : '', peerNodeLabel[n.id] ? 'peer-hover' : ''].join(' ')}
                 style={{ left: p.x - NODE / 2, top: p.y - NODE / 2 }}
                 onClick={() => onNodeClick(n)}
                 disabled={!clickable}
                 whileHover={actionable ? { scale: 1.09 } : undefined}
+                onHoverStart={mpMode ? () => setHoverNode(n.id) : undefined}
+                onHoverEnd={mpMode ? () => setHoverNode((cur) => (cur === n.id ? null : cur)) : undefined}
                 animate={pulse ? { boxShadow: ['0 0 0 0 rgba(244,231,161,0)', '0 0 22px 5px rgba(244,231,161,0.55)', '0 0 0 0 rgba(244,231,161,0)'] } : {}}
                 transition={pulse ? { repeat: Infinity, duration: 2.4 } : { duration: 0.2 }}
               >
@@ -280,6 +333,7 @@ export function MapScreen() {
                 <span className="node-glyph">{NODE_GLYPH[n.type] ?? '•'}</span>
                 <span className="node-label">{t(n.nameKey)}</span>
                 {n.entry && <span className="node-entry-pin">{t('ui.map.startHere')}</span>}
+                {peerNodeLabel[n.id] && <span className="node-peer-tag">👁 {peerNodeLabel[n.id]}</span>}
               </motion.button>
             )
           })}

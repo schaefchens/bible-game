@@ -107,11 +107,21 @@ export function effectiveEnemyLevel(heroLevel: number, runDepth: number): number
   return heroLevel + Math.min(runDepth * 0.5, Math.max(0, heroLevel - 1) * 0.5)
 }
 
-/** Materialize an enemy's stats at the run's scale. maxHp + attack scale linearly; no defense. */
-export function scaleEnemy(def: EnemyScalingDef, heroLevel: number, runDepth: number): CombatStats {
+/**
+ * Enemy-HP multiplier for co-op party size. A party of N players outputs ~N× cards AND ~N× energy, and
+ * enemy attacks are spread ~1/N across the members (see executeIntent target spread), so enemy HP should
+ * grow ~linearly with N to keep fights the same LENGTH. A sub-linear slope (0.8) keeps big parties from
+ * becoming a slog. HP-ONLY — attack is deliberately NOT scaled (that would re-introduce one-shots on a
+ * single squishy hero). N=1→1.0, 2→1.8, 3→2.6.
+ */
+export const partyScale = (partySize: number): number => 1 + 0.8 * Math.max(0, partySize - 1)
+
+/** Materialize an enemy's stats at the run's scale. maxHp scales by level (+ party size in co-op);
+ *  attack scales by level only; no defense. `partySize` defaults to 1 → single-player is unchanged. */
+export function scaleEnemy(def: EnemyScalingDef, heroLevel: number, runDepth: number, partySize = 1): CombatStats {
   const L = enemyScale(heroLevel, runDepth)
   return {
-    maxHp: Math.min(ENEMY_HP_CAP, Math.round(def.baseHp * L)),
+    maxHp: Math.min(ENEMY_HP_CAP, Math.round(def.baseHp * L * partyScale(partySize))),
     attack: Math.round(def.baseAtk * L),
     speed: def.baseSpeed ?? 0,
   }

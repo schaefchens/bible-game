@@ -2,15 +2,15 @@ import type { Command } from '../commands/command'
 import type { GameEvent, ReduceResult } from '../events/event'
 import { grantXp } from '../leveling/scaling'
 import { applySpiritEvent } from '../spirit/spirit'
-import type { GameState } from '../state/gameState'
-import type { PartyMember } from '../state/character'
+import { nextLevelUpPrompt, type GameState } from '../state/gameState'
+import type { Character, PartyMember } from '../state/character'
 import { canAddCopy, effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
 import { fork } from '../rng/rng'
-import type { CardDefId } from '../types'
+import type { CardDefId, MemberId } from '../types'
 import { advanceEnemyTurn, beginEnemyTurnFromParty, endTurn, ensureActing, flee, playCard, reposition, useGrace, useItem, type CombatStep } from './combat'
 import { itemCount, shouldConsume } from '../inventory/types'
 import type { CombatantId, ItemId } from '../types'
-import type { CombatState } from './types'
+import type { CombatState, RewardChoice } from './types'
 
 /** How many card-reward options to sample from the pool after a fight. */
 const CARD_REWARD_COUNT = 3
@@ -36,11 +36,11 @@ const reject = (state: GameState, reason: string): ReduceResult => ({
 export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
   // reward-screen commands resolve against the pending combat.reward (combat outcome is over)
   if (cmd.type === 'combat/claimSpoil') return claimSpoil(state, cmd.spoilId)
-  if (cmd.type === 'combat/takeCard') return takeCard(state, cmd.defId)
-  if (cmd.type === 'combat/skipCard') return skipCard(state)
+  if (cmd.type === 'combat/takeCard') return takeCard(state, cmd.defId, cmd.actorMemberId)
+  if (cmd.type === 'combat/skipCard') return skipCard(state, cmd.actorMemberId)
   if (cmd.type === 'combat/leaveReward') return leaveReward(state)
   // Using a bag item is allowed any time during the party's turn; it has its own guards + consume.
-  if (cmd.type === 'combat/useItem') return useItemInCombat(state, cmd.itemId, cmd.targetId)
+  if (cmd.type === 'combat/useItem') return useItemInCombat(state, cmd.itemId, cmd.targetId, cmd.sourceMemberId)
 
   if (!state.combat || !state.run) return reject(state, 'not-in-combat')
   if (state.combat.outcome !== 'ongoing') return reject(state, 'combat-over')
@@ -59,7 +59,7 @@ export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
       result = ensureActing(combat)
       break
     case 'combat/playCard':
-      result = playCard(combat, cmd.iid, cmd.targetId, spirit, cmd.cardTargetIids)
+      result = playCard(combat, cmd.iid, cmd.targetId, spirit, cmd.cardTargetIids, cmd.actorMemberId)
       break
     case 'combat/useGrace':
       result = useGrace(combat, cmd.ability, cmd.targetId, spirit)
@@ -84,7 +84,7 @@ export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
  * Use a bag item in combat: validate the stack, apply the item's effects through the combat core
  * (reusing applyStep to thread Spirit + win/loss), then consume one on success and announce it.
  */
-function useItemInCombat(state: GameState, itemId: ItemId, targetId?: CombatantId): ReduceResult {
+function useItemInCombat(state: GameState, itemId: ItemId, targetId?: CombatantId, sourceMemberId?: MemberId): ReduceResult {
   const run = state.run
   const combat = state.combat
   if (!combat || !run) return reject(state, 'not-in-combat')
@@ -94,7 +94,7 @@ function useItemInCombat(state: GameState, itemId: ItemId, targetId?: CombatantI
   if (itemCount(run.inventory, itemId) < 1) return reject(state, 'item-empty')
   if (!item.effects?.length) return reject(state, 'item-not-usable-in-combat')
 
-  const result = useItem(combat, item, run.heroMemberId, targetId, run.spirit.spirit)
+  const result = useItem(combat, item, sourceMemberId ?? run.heroMemberId, targetId, run.spirit.spirit)
   const wasRejected = result.events.some((e) => e.type === 'rejected')
   const applied = applyStep(state, result)
   if (wasRejected) return applied
@@ -144,17 +144,27 @@ function applyStep(state: GameState, result: CombatStep): ReduceResult {
       // Enrich the reward (built pure over CombatState) with a card pick sampled from the hero's
       // pool. Run-aware: needs run.rng + the profile. `fork` derives an independent, deterministic
       // sub-stream per node, so run.rng is left untouched (mirrors the combat-rng fork pattern).
-      if (combat.reward && combat.reward.cardOptions === undefined) {
+      if (combat.reward && combat.reward.cardOptionsByMember === undefined) {
         // Backward (revisit-ambush) fights give NO card pick — they're a travel cost, not a farm.
         const backward = run.world.movement.kind === 'inCombat' && run.world.movement.backward === true
-        const heroChar = heroCharacterOf(state, run)
-        const deck = run.deckByMember[run.heroMemberId] ?? []
-        let cardOptions: CardDefId[] = []
-        if (!backward && heroChar && deck.length < run.deckLimit) {
-          const [picks] = sampleCards(effectivePool(heroChar, run.content, deck), CARD_REWARD_COUNT, fork(run.rng, `reward:${combat.nodeId}`))
-          cardOptions = picks
+        // Each living member samples from THEIR OWN pool into THEIR OWN deck (co-op). The hero's slice
+        // is mirrored into the singular `cardOptions` field so the single-player path/selector/tests
+        // are byte-identical (the hero keeps the original `reward:<node>` sub-stream label).
+        const cardOptionsByMember: Record<MemberId, CardDefId[]> = {}
+        for (const m of run.party) {
+          if (!combat.combatants[m.memberId]?.alive) continue
+          const character = characterOfMember(state, run, m.memberId)
+          const deck = run.deckByMember[m.memberId] ?? []
+          if (backward || !character || deck.length >= run.deckLimit) {
+            cardOptionsByMember[m.memberId] = []
+            continue
+          }
+          const label = m.memberId === run.heroMemberId ? `reward:${combat.nodeId}` : `reward:${combat.nodeId}:${m.memberId}`
+          const [picks] = sampleCards(effectivePool(character, run.content, deck), CARD_REWARD_COUNT, fork(run.rng, label))
+          cardOptionsByMember[m.memberId] = picks
         }
-        nextCombat = { ...combat, reward: { ...combat.reward, cardOptions } }
+        const cardOptions = cardOptionsByMember[run.heroMemberId] ?? []
+        nextCombat = { ...combat, reward: { ...combat.reward, cardOptionsByMember, cardOptions } }
       }
       break
     }
@@ -165,9 +175,9 @@ function applyStep(state: GameState, result: CombatStep): ReduceResult {
   return { state: { ...state, run, combat: nextCombat, screen }, events }
 }
 
-/** The persistent Character backing the run's hero (or undefined if the slot is gone). */
-function heroCharacterOf(state: GameState, run: NonNullable<GameState['run']>) {
-  const charId = run.party.find((m) => m.memberId === run.heroMemberId)?.characterId
+/** The persistent Character backing a party member (or undefined if the member has no slot). */
+function characterOfMember(state: GameState, run: NonNullable<GameState['run']>, memberId: MemberId): Character | undefined {
+  const charId = run.party.find((m) => m.memberId === memberId)?.characterId
   return state.profile.slots.find((s) => s.id === charId)?.character
 }
 
@@ -194,30 +204,47 @@ function claimSpoil(state: GameState, spoilId: string): ReduceResult {
   }
 }
 
-/** Take one of the sampled card options into the run deck (blocked when the deck is full). */
-function takeCard(state: GameState, defId: CardDefId): ReduceResult {
+/** Record that `actor` has resolved their card step, mirroring the hero's slice into the singular
+ *  fields so the single-player selector/tests are unchanged. `defId` present = took a card; absent = skipped. */
+function resolveMemberCard(reward: RewardChoice, heroMemberId: MemberId, actor: MemberId, defId?: CardDefId): RewardChoice {
+  const cardResolvedByMember = { ...(reward.cardResolvedByMember ?? {}), [actor]: true }
+  const cardChosenByMember = defId ? { ...(reward.cardChosenByMember ?? {}), [actor]: defId } : reward.cardChosenByMember
+  const mirror = actor === heroMemberId ? { cardResolved: true, ...(defId ? { cardChosen: defId } : {}) } : {}
+  return { ...reward, cardResolvedByMember, cardChosenByMember, ...mirror }
+}
+
+/** True once the given member has resolved their card step (took or skipped). */
+function memberCardResolved(reward: RewardChoice, heroMemberId: MemberId, actor: MemberId): boolean {
+  return !!(reward.cardResolvedByMember ?? {})[actor] || (actor === heroMemberId && reward.cardResolved)
+}
+
+/** Take one of the sampled options into the ACTING member's run deck (blocked when their deck is full). */
+function takeCard(state: GameState, defId: CardDefId, actorMemberId?: MemberId): ReduceResult {
   const combat = state.combat
   const run = state.run
   if (!combat?.reward || !run) return reject(state, 'no-reward')
-  if (combat.reward.cardResolved) return reject(state, 'card-already-resolved')
-  if (!(combat.reward.cardOptions ?? []).includes(defId)) return reject(state, 'no-such-card-option')
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  const actor = actorMemberId ?? run.heroMemberId
+  if (memberCardResolved(combat.reward, run.heroMemberId, actor)) return reject(state, 'card-already-resolved')
+  const options = combat.reward.cardOptionsByMember?.[actor] ?? []
+  if (!options.includes(defId)) return reject(state, 'no-such-card-option')
+  const deck = run.deckByMember[actor] ?? []
   if (deck.length >= run.deckLimit) return reject(state, 'deck-full')
   if (!canAddCopy(run.content, deck, defId)) return reject(state, 'card-at-max')
-  const deckByMember = { ...run.deckByMember, [run.heroMemberId]: [...deck, defId] }
-  const reward = { ...combat.reward, cardChosen: defId, cardResolved: true }
+  const deckByMember = { ...run.deckByMember, [actor]: [...deck, defId] }
+  const reward = resolveMemberCard(combat.reward, run.heroMemberId, actor, defId)
   return {
     state: { ...state, run: { ...run, deckByMember }, combat: { ...combat, reward } },
     events: [{ type: 'cardTaken', defId }],
   }
 }
 
-/** Decline the card reward. */
-function skipCard(state: GameState): ReduceResult {
+/** Decline the card reward for the acting member. */
+function skipCard(state: GameState, actorMemberId?: MemberId): ReduceResult {
   const combat = state.combat
   const run = state.run
   if (!combat?.reward || !run) return reject(state, 'no-reward')
-  const reward = { ...combat.reward, cardResolved: true }
+  const actor = actorMemberId ?? run.heroMemberId
+  const reward = resolveMemberCard(combat.reward, run.heroMemberId, actor, undefined)
   return { state: { ...state, combat: { ...combat, reward } }, events: [{ type: 'cardSkipped' }] }
 }
 
@@ -294,14 +321,9 @@ function leaveReward(state: GameState): ReduceResult {
 
   const newRun = { ...run, spirit, party, world }
 
-  // surface a level-up prompt if the hero has unspent points
-  let prompt = state.prompt
-  const heroChar = profile.slots.find(
-    (s) => s.id === party.find((m) => m.memberId === run.heroMemberId)?.characterId,
-  )?.character
-  if (heroChar && heroChar.unspentPoints > 0) {
-    prompt = { kind: 'levelUp', memberId: run.heroMemberId, points: heroChar.unspentPoints }
-  }
+  // surface a level-up prompt for the first party member (in order) with unspent points; in co-op the
+  // shared prompt then chains member→member as each spends theirs (see allocateStat).
+  const prompt = nextLevelUpPrompt(newRun.party, profile.slots) ?? state.prompt
 
   return { state: { ...state, profile, run: newRun, combat: null, prompt, screen: 'map' }, events }
 }

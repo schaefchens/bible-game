@@ -5,6 +5,8 @@ import { assetBg } from '@bible/assets'
 import { previewCardDamage } from '@bible/engine'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
+import { myMemberId, useSession } from '../store/useSession'
+import { sendActivity } from '../net'
 import { selectCombat, selectCombatPile, type CombatView, type CombatantView, type HandCardView } from '../selectors'
 import { CardView } from '../components/Card'
 import { CardFace } from '../components/CardFace'
@@ -87,7 +89,9 @@ interface KbState {
   primaryPartyId: string | undefined
   drag: CardDrag
   reduced: boolean
-  /** a panel/overlay (deck, bag, item-carry, pile/pick modal) owns the keys → battle hotkeys stand down */
+  /** co-op: End Turn always sends the batch endTurn (the server drives the enemy turn) */
+  mp: boolean
+  /** a panel/overlay (deck, bag, item-carry, pile/pick modal, chat) owns the keys → battle hotkeys stand down */
   overlayOpen: boolean
 }
 
@@ -101,6 +105,12 @@ export function CombatScreen() {
   const clearItemInteraction = useGame((s) => s.clearItemInteraction)
   const deckOpen = useGame((s) => s.deckOpen)
   const inventoryOpen = useGame((s) => s.inventoryOpen)
+  // Co-op: the SERVER drives combat progression (beginAction + the whole enemy turn), so the client's
+  // auto-effects stand down and End Turn always sends the batch endTurn. The chat box owns the keyboard.
+  const mpMode = useGame((s) => s.mpMode)
+  const chatOpen = useSession((s) => s.chatOpen)
+  const peers = useSession((s) => s.peers)
+  const mySeat = useSession(myMemberId)
   const fb = useCombatFeedback()
   const drag = useCardDrag()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
@@ -113,6 +123,8 @@ export function CombatScreen() {
   const [pickModal, setPickModal] = useState<{ iid: string; pick: PickSpec } | null>(null)
   // a transient "Your Turn / Enemy Turn" banner, raised by the feedback hook's turn cue
   const [banner, setBanner] = useState<{ kind: 'party' | 'enemy'; seq: number } | null>(null)
+  // co-op: which hand card the local player is hovering (relayed to teammates as presence)
+  const [hoveredCardIid, setHoveredCardIid] = useState<string | null>(null)
   // true while the hand is being discarded at end-turn: the cards slide DOWN off the bottom edge
   // (vs. a single play, which keeps its fly-to-target / fly-up motion). Read by the hand's exit via
   // AnimatePresence `custom`; reset once the player is acting again with a fresh hand.
@@ -122,13 +134,14 @@ export function CombatScreen() {
   const shakeControls = useAnimationControls()
   const energyControls = useAnimationControls()
   // Latest values for the keyboard handler (see KbState) — refreshed every render below.
-  const kbRef = useRef<KbState>({ view: null, aliveEnemies: [], resolvedTargetId: null, primaryPartyId: undefined, drag, reduced: false, overlayOpen: false })
+  const kbRef = useRef<KbState>({ view: null, aliveEnemies: [], resolvedTargetId: null, primaryPartyId: undefined, drag, reduced: false, mp: false, overlayOpen: false })
 
   // Auto-begin the action phase each round: the engine opens combat (and every new round) in a brief
   // "decision" window before the hand is drawn — draw it automatically so the player never presses ▶.
   useEffect(() => {
+    if (mpMode) return // co-op: the server enters the action phase for the party (settleCombat)
     if (view?.phase === 'partyDecision' && view.outcome === 'ongoing') dispatch({ type: 'combat/beginAction' })
-  }, [view?.phase, view?.outcome, dispatch])
+  }, [view?.phase, view?.outcome, dispatch, mpMode])
 
   // The end-turn discard is over once the player is acting again (the fresh hand is dealt) — clear the
   // flag so the next card the player PLAYS flies to its target rather than dropping off the bottom.
@@ -158,10 +171,11 @@ export function CombatScreen() {
   const enemyPhaseActive = state.combat?.phase === 'enemyTurn' && state.combat?.enemyQueue !== undefined
   const enemyStepIndex = state.combat?.enemyStepIndex
   useEffect(() => {
+    if (mpMode) return // co-op: the server resolves the whole enemy turn (batch endTurn) and broadcasts
     if (!enemyPhaseActive) return
     const id = setTimeout(() => dispatch({ type: 'combat/advanceEnemyTurn' }), ENEMY_STEP_GAP)
     return () => clearTimeout(id)
-  }, [enemyPhaseActive, enemyStepIndex, dispatch])
+  }, [enemyPhaseActive, enemyStepIndex, dispatch, mpMode])
 
   // Keyboard control of the battle. Registered ONCE (the listener reads live state from kbRef, so it
   // never re-subscribes as the hand/target change). dispatch + the useState setters are stable, so we
@@ -200,7 +214,8 @@ export function CombatScreen() {
       if (key === 'Enter' || key === 'f' || key === 'F') {
         if (e.repeat) return
         setHandDiscarding(true)
-        dispatch({ type: s.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' })
+        // co-op + reduced motion both send the instant batch endTurn; otherwise hand off to the stepped turn
+        dispatch({ type: s.mp || s.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' })
         e.preventDefault()
         return
       }
@@ -242,7 +257,41 @@ export function CombatScreen() {
     primaryPartyId,
     drag,
     reduced: fb.reduced,
-    overlayOpen: !!(deckOpen || inventoryOpen || itemInteraction || pileModal || pickModal),
+    mp: mpMode,
+    overlayOpen: !!(deckOpen || inventoryOpen || itemInteraction || pileModal || pickModal || chatOpen),
+  }
+
+  // co-op presence: broadcast the card I've selected OR hovered + the enemy I'm aiming at, so teammates
+  // see it live. Click + hover are both event-driven (low-frequency). Cleared when idle / leaving combat.
+  const activeCardIid = pending?.kind === 'card' ? pending.iid : undefined
+  useEffect(() => {
+    if (!mpMode) return
+    const activity =
+      activeCardIid || hoveredCardIid || (activeCardIid && resolvedTargetId)
+        ? {
+            cardIid: activeCardIid,
+            hoverCardIid: hoveredCardIid ?? undefined,
+            targetId: activeCardIid ? (resolvedTargetId ?? undefined) : undefined,
+          }
+        : null
+    sendActivity(activity)
+  }, [mpMode, activeCardIid, hoveredCardIid, resolvedTargetId])
+  useEffect(() => {
+    if (!mpMode) return
+    return () => sendActivity(null) // clear my presence on leaving the battle
+  }, [mpMode])
+
+  // teammates' live presence → which hand card / enemy wears a peer highlight (+ their name). A peer's
+  // selected card takes precedence over a merely-hovered one.
+  const peerCardLabel: Record<string, string> = {}
+  const peerEnemyLabel: Record<string, string> = {}
+  if (mpMode) {
+    for (const p of Object.values(peers)) {
+      if (!p.activity) continue
+      const iid = p.activity.cardIid ?? p.activity.hoverCardIid
+      if (iid) peerCardLabel[iid] = p.name
+      if (p.activity.targetId) peerEnemyLabel[p.activity.targetId] = p.name
+    }
   }
 
   if (!view) return null
@@ -261,7 +310,9 @@ export function CombatScreen() {
   const spirit = state.run?.spirit.spirit ?? 0
   const targetPreview = (enemyId: string): number | null => {
     if (!pendingCard || !state.combat) return null
-    const p = previewCardDamage(state.combat, pendingCard.defId, pendingCard.ownerId, spirit, enemyId)
+    // co-op: the LOCAL player is the caster (see playCard actor), so preview off their member, not the owner
+    const source = mpMode && mySeat ? mySeat : pendingCard.ownerId
+    const p = previewCardDamage(state.combat, pendingCard.defId, source, spirit, enemyId)
     return p ? p.total : null
   }
 
@@ -337,6 +388,17 @@ export function CombatScreen() {
     view.phase === 'partyAction' &&
     !view.hand.some((c) => !c.unplayable && view.energy.current >= c.cost)
 
+  // co-op: how many enemies are about to strike each party member (so everyone sees who's in danger)
+  const incomingByMember: Record<string, number> = {}
+  if (mpMode) {
+    for (const e of view.enemies) {
+      const k = e.intentKind
+      if (e.alive && e.intentTargetId && (k === 'attack' || k === 'attackMulti' || k === 'debuff' || k === 'clutter')) {
+        incomingByMember[e.intentTargetId] = (incomingByMember[e.intentTargetId] ?? 0) + 1
+      }
+    }
+  }
+
   return (
     <div className="screen combat" style={{ backgroundImage: assetBg(view.battleBg) ?? bgUrl('004-battlefield-enchanted-forest.webp') }}>
       <div className="scrim" />
@@ -347,7 +409,7 @@ export function CombatScreen() {
           {/* dead members stay on the field (slumped) rather than vanishing — position is a game
               element, and a fallen hero needs to be SEEN before the game-over screen */}
           {view.party.map((c) => (
-            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={false} onUnitClick={onUnitClick} />
+            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={false} incoming={incomingByMember[c.id]} onUnitClick={onUnitClick} />
           ))}
         </div>
         <div className="side enemies">
@@ -364,6 +426,7 @@ export function CombatScreen() {
               targetable={enemyTargetable && c.alive}
               activeTarget={resolvedTargetId === c.id && view.outcome === 'ongoing'}
               dropHighlight={drag.hoveredEnemyId === c.id}
+              peerLabel={peerEnemyLabel[c.id]}
               onUnitClick={onUnitClick}
             />
           ))}
@@ -431,6 +494,8 @@ export function CombatScreen() {
                 reduced={fb.reduced}
                 aiming={drag.aimingIid === card.iid && !drag.ghost}
                 launched={drag.launchedIid === card.iid}
+                peerLabel={peerCardLabel[card.iid]}
+                onHover={mpMode ? (h) => setHoveredCardIid((cur) => (h ? card.iid : cur === card.iid ? null : cur)) : undefined}
               />
             ))}
           </AnimatePresence>
@@ -440,7 +505,7 @@ export function CombatScreen() {
         <div className="hud-right">
           {/* End Turn: reduced motion resolves the enemy turn instantly (batch); otherwise hand off to
               the UI-paced stepped turn (begin → the self-clocking effect advances one enemy at a time) */}
-          <button className={'btn end-turn' + (endTurnReady ? ' ready' : '')} title={`${t('ui.combat.endTurn')} (Enter / F)`} onClick={() => { setHandDiscarding(true); dispatch({ type: fb.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' }) }}>{t('ui.combat.endTurn')}</button>
+          <button className={'btn end-turn' + (endTurnReady ? ' ready' : '')} title={`${t('ui.combat.endTurn')} (Enter / F)`} onClick={() => { setHandDiscarding(true); dispatch({ type: mpMode || fb.reduced ? 'combat/endTurn' : 'combat/beginEnemyTurn' }) }}>{t('ui.combat.endTurn')}</button>
           {/* the single right-side pile shows discarded AND exhausted cards (count + viewer combined) */}
           <button type="button" className="card-stack discard" onClick={() => setPileModal('discard')} title={t('ui.combat.discard')}><span className="stack-count">{view.discardCount + view.exhaustCount}</span><label>{t('ui.combat.discard')}</label></button>
         </div>
@@ -545,6 +610,8 @@ function CombatUnit({
   targetable,
   activeTarget,
   dropHighlight,
+  peerLabel,
+  incoming,
   onUnitClick,
 }: {
   c: CombatantView
@@ -559,6 +626,10 @@ function CombatUnit({
   activeTarget?: boolean
   // a card is being dragged over this enemy — glow it as a drop target
   dropHighlight?: boolean
+  // co-op: a teammate is aiming at this enemy — show their name (non-authoritative)
+  peerLabel?: string
+  // co-op: how many enemies are about to strike this party member (shows who's in danger)
+  incoming?: number
   onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
 }) {
   const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
@@ -577,6 +648,8 @@ function CombatUnit({
     >
       {/* over-head stack: name (always) + intent pill (alive enemy) / defeated marker — all ABOVE the head */}
       <div className="unit-overhead">
+        {peerLabel && <div className="unit-peer-tag">👁 {peerLabel}</div>}
+        {side === 'party' && c.alive && incoming ? <div className="unit-incoming" title="under attack">⚔{incoming > 1 ? `×${incoming}` : ''}</div> : null}
         {side === 'enemy' && c.alive && c.intentKind && (
           <Tip className="intent" text={intentText(c, t)}>
             {INTENT_ICON[c.intentKind] ?? '❔'}

@@ -16,7 +16,7 @@ import { resolveInteraction, runScript, type CardGrant, type SceneTransition } f
 import { itemCount, shouldConsume } from '../inventory/types'
 import { applyItemEffectsToParty } from '../inventory/useOutOfCombat'
 import type { DialogueChoice } from '../scene/types'
-import type { CardDefId, ItemId, NodeId } from '../types'
+import type { CardDefId, ItemId, MemberId, NodeId } from '../types'
 import { COMBAT_TYPES, type MapNode, type WorldMap } from './types'
 import { canMove, mapEntrances } from './movement'
 import { evalGate } from './gate'
@@ -123,7 +123,7 @@ export function reduceWorld(state: GameState, cmd: Command): ReduceResult {
     case 'world/leaveScene':
       return leaveScene(state)
     case 'world/useItemSelf':
-      return useItemSelf(state, cmd.itemId)
+      return useItemSelf(state, cmd.itemId, cmd.actorMemberId)
     case 'world/eventChoice':
       return eventChoice(state, cmd.eventId, cmd.choiceId)
     case 'world/dialogueChoice':
@@ -133,13 +133,13 @@ export function reduceWorld(state: GameState, cmd: Command): ReduceResult {
     case 'world/dismissStory':
       return dismissStory(state)
     case 'world/fireplace':
-      return fireplace(state, cmd.action, cmd.cardIndex, cmd.fragmentId)
+      return fireplace(state, cmd.action, cmd.cardIndex, cmd.fragmentId, cmd.actorMemberId)
     case 'world/shopBuyCard':
-      return shopBuyCard(state, cmd.nodeId, cmd.defId)
+      return shopBuyCard(state, cmd.nodeId, cmd.defId, cmd.actorMemberId)
     case 'world/shopBuyItem':
       return shopBuyItem(state, cmd.nodeId, cmd.itemId)
     case 'world/shopRemoveCard':
-      return shopRemoveCard(state, cmd.nodeId, cmd.cardIndex)
+      return shopRemoveCard(state, cmd.nodeId, cmd.cardIndex, cmd.actorMemberId)
     case 'world/leaveShop':
       return leaveShop(state)
     case 'world/advanceWorld':
@@ -333,7 +333,7 @@ function sceneInteract(state: GameState, cmd: Extract<Command, { type: 'world/sc
 
 /** Use an item on the hero outside combat (the bag's "Use" on a self-targeted item, e.g. a bandage).
  *  Applies the item's effects to the persistent party HP, threads any Spirit shift, and consumes it. */
-function useItemSelf(state: GameState, itemId: ItemId): ReduceResult {
+function useItemSelf(state: GameState, itemId: ItemId, actorMemberId?: MemberId): ReduceResult {
   const run = state.run!
   if (state.combat) return reject(state, 'use-item-in-combat') // combat self-use goes through combat/useItem
   if (run.world.dialogue || run.world.story) return reject(state, 'busy-overlay')
@@ -342,7 +342,7 @@ function useItemSelf(state: GameState, itemId: ItemId): ReduceResult {
   if (itemCount(run.inventory, itemId) < 1) return reject(state, 'item-empty')
   if (!item.effects?.length) return reject(state, 'item-not-self-usable')
 
-  const out = applyItemEffectsToParty(run.party, run.heroMemberId, item)
+  const out = applyItemEffectsToParty(run.party, actorMemberId ?? run.heroMemberId, item)
   let run2: RunState = { ...run, party: out.party }
   const sp = withSpirit(run2, out.spiritEvents)
   run2 = sp.run
@@ -559,19 +559,21 @@ function dismissStory(state: GameState): ReduceResult {
 
 // ---- fireplace --------------------------------------------------------------------------
 
-function fireplace(state: GameState, action: 'rest' | 'pray' | 'leave' | 'study' | 'upgrade', cardIndex?: number, fragmentId?: ItemId): ReduceResult {
+function fireplace(state: GameState, action: 'rest' | 'pray' | 'leave' | 'study' | 'upgrade', cardIndex?: number, fragmentId?: ItemId, actorMemberId?: MemberId): ReduceResult {
   const run = state.run!
+  const actor = actorMemberId ?? run.heroMemberId
   const node = run.world.current
   const restFlag = `fireplace:${node}:rested`
   const prayFlag = `fireplace:${node}:prayed`
-  const upgradeFlag = `fireplace:${node}:upgraded`
+  // upgrade is once-per-node PER MEMBER in co-op (each player may hone one of their own cards).
+  const upgradeFlag = `fireplace:${node}:upgraded:${actor}`
 
   if (action === 'upgrade') {
-    // Hone one deck card into its fixed '+' form (a run-deck slot swap). Once per fireplace node,
-    // like rest/pray. cardIndex disambiguates duplicate ids (e.g. several copies of Strike).
+    // Hone one of the acting member's deck cards into its fixed '+' form (a run-deck slot swap). Once
+    // per fireplace node, like rest/pray. cardIndex disambiguates duplicate ids (e.g. copies of Strike).
     if (run.world.flags[upgradeFlag]) return reject(state, 'already-upgraded')
     if (cardIndex == null) return reject(state, 'no-card-index')
-    const deck = run.deckByMember[run.heroMemberId] ?? []
+    const deck = run.deckByMember[actor] ?? []
     const fromId = deck[cardIndex]
     if (fromId == null) return reject(state, 'bad-card-index')
     const toId = run.content.cards[fromId]?.upgradeTo
@@ -579,7 +581,7 @@ function fireplace(state: GameState, action: 'rest' | 'pray' | 'leave' | 'study'
     const next = deck.map((id, i) => (i === cardIndex ? toId : id))
     const run2: RunState = {
       ...run,
-      deckByMember: { ...run.deckByMember, [run.heroMemberId]: next },
+      deckByMember: { ...run.deckByMember, [actor]: next },
       world: { ...run.world, flags: { ...run.world.flags, [upgradeFlag]: true } },
     }
     return ok({ ...state, run: run2 }, [
@@ -621,22 +623,23 @@ function fireplace(state: GameState, action: 'rest' | 'pray' | 'leave' | 'study'
 // ---- shop --------------------------------------------------------------------------------
 
 /** Buy a card from the shop into the run deck (gold spent; blocked when the deck is at the cap). */
-function shopBuyCard(state: GameState, nodeId: NodeId, defId: CardDefId): ReduceResult {
+function shopBuyCard(state: GameState, nodeId: NodeId, defId: CardDefId, actorMemberId?: MemberId): ReduceResult {
   const run = state.run!
+  const actor = actorMemberId ?? run.heroMemberId
   const shop = run.world.shopStates[nodeId]
   if (!shop) return reject(state, 'no-shop')
   const idx = shop.cards.findIndex((o) => o.defId === defId && !o.sold)
   if (idx < 0) return reject(state, 'no-such-offer')
   const offer = shop.cards[idx]!
   if (run.inventory.currency < offer.price) return reject(state, 'shop:too-poor')
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  const deck = run.deckByMember[actor] ?? []
   if (deck.length >= run.deckLimit) return reject(state, 'deck-full')
   if (!canAddCopy(run.content, deck, defId)) return reject(state, 'card-at-max')
   const cards = shop.cards.map((o, i) => (i === idx ? { ...o, sold: true } : o))
   const run2: RunState = {
     ...run,
     inventory: { ...run.inventory, currency: run.inventory.currency - offer.price },
-    deckByMember: { ...run.deckByMember, [run.heroMemberId]: [...deck, defId] },
+    deckByMember: { ...run.deckByMember, [actor]: [...deck, defId] },
     world: { ...run.world, shopStates: { ...run.world.shopStates, [nodeId]: { ...shop, cards } } },
   }
   return ok({ ...state, run: run2 }, [{ type: 'shopBoughtCard', defId }])
@@ -665,19 +668,20 @@ function shopBuyItem(state: GameState, nodeId: NodeId, itemId: ItemId): ReduceRe
 }
 
 /** Pay gold to remove one card (by deck index) from the run deck. Repeatable. */
-function shopRemoveCard(state: GameState, nodeId: NodeId, cardIndex: number): ReduceResult {
+function shopRemoveCard(state: GameState, nodeId: NodeId, cardIndex: number, actorMemberId?: MemberId): ReduceResult {
   const run = state.run!
+  const actor = actorMemberId ?? run.heroMemberId
   const shop = run.world.shopStates[nodeId]
   if (!shop) return reject(state, 'no-shop')
   if (run.inventory.currency < shop.removePrice) return reject(state, 'shop:too-poor')
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  const deck = run.deckByMember[actor] ?? []
   const removed = deck[cardIndex]
   if (removed == null) return reject(state, 'bad-card-index')
   const next = deck.filter((_, i) => i !== cardIndex)
   const run2: RunState = {
     ...run,
     inventory: { ...run.inventory, currency: run.inventory.currency - shop.removePrice },
-    deckByMember: { ...run.deckByMember, [run.heroMemberId]: next },
+    deckByMember: { ...run.deckByMember, [actor]: next },
   }
   return ok({ ...state, run: run2 }, [{ type: 'shopRemovedCard', defId: removed }])
 }

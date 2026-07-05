@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { resolveAsset } from '@bible/assets'
+import { sendCinematic } from '../net'
 import { useGame } from '../store/gameStore'
 import { musicManager } from '../audio/musicManager'
 
@@ -22,6 +23,12 @@ export function PrayOverlay() {
   const { t } = useTranslation()
   const praying = useGame((s) => s.praying)
   const setPraying = useGame((s) => s.setPraying)
+  const mpMode = useGame((s) => s.mpMode)
+  // co-op: prayer is a shared party cinematic — ending it (Amen / click) ends it for EVERYONE
+  const endPray = () => {
+    if (mpMode) sendCinematic('pray', false)
+    setPraying(false)
+  }
   const [idx, setIdx] = useState(0)
   const [shown, setShown] = useState(false)
   const [amenReady, setAmenReady] = useState(false)
@@ -59,7 +66,7 @@ export function PrayOverlay() {
   }, [praying])
 
   return (
-    <div className={`pray-overlay${praying ? ' active' : ''}`} aria-hidden={!praying} onClick={() => praying && setPraying(false)}>
+    <div className={`pray-overlay${praying ? ' active' : ''}`} aria-hidden={!praying} onClick={() => praying && endPray()}>
       <div className="pray-stage">
         <AnimatePresence mode="wait">
           {shown && (
@@ -84,7 +91,7 @@ export function PrayOverlay() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.4, ease: 'easeOut' }}
-            onClick={(e) => { e.stopPropagation(); setPraying(false) }}
+            onClick={(e) => { e.stopPropagation(); endPray() }}
           >
             {t('ui.pray.amen')}
           </motion.button>

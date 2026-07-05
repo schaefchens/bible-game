@@ -48,8 +48,14 @@ function partyCombatant(m: PartyMember): Combatant {
   }
 }
 
-function enemyCombatant(t: EnemyTemplate, heroLevel: number, runDepth: number, lastStandWhenAlone?: boolean): Combatant {
-  const stats = scaleEnemy(t.scaling, heroLevel, runDepth)
+function enemyCombatant(
+  t: EnemyTemplate,
+  heroLevel: number,
+  runDepth: number,
+  partySize: number,
+  lastStandWhenAlone?: boolean,
+): Combatant {
+  const stats = scaleEnemy(t.scaling, heroLevel, runDepth, partySize)
   return {
     id: t.id,
     faction: 'enemy',
@@ -86,10 +92,14 @@ export function buildEncounter(run: RunState, encounterId: EncounterId, nodeId: 
   if (!enc) throw new Error(`encounterBuilder: unknown encounter "${encounterId}"`)
 
   const living = run.party.filter((m) => m.currentHp > 0)
-  const heroLevel = run.party[0]?.level ?? 1
+  const partySize = Math.max(1, living.length)
+  // Scale enemies to the AVERAGE living hero level (co-op parties may be mixed-level); a solo run
+  // collapses to the lone hero's level. Rounded, min 1. Enemy HP additionally scales with partySize.
+  const levelPool = living.length > 0 ? living : run.party
+  const heroLevel = Math.max(1, Math.round(levelPool.reduce((s, m) => s + m.level, 0) / Math.max(1, levelPool.length)))
 
   const party = living.map(partyCombatant)
-  const enemies = enc.enemies.map((t) => enemyCombatant(t, heroLevel, run.depth, enc.lastStandWhenAlone))
+  const enemies = enc.enemies.map((t) => enemyCombatant(t, heroLevel, run.depth, partySize, enc.lastStandWhenAlone))
 
   const deck: CardInstance[] = []
   // Embed the WHOLE card catalog (it is tiny + fully serializable). The deck below still only

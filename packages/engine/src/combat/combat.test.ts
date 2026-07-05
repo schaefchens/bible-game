@@ -271,3 +271,24 @@ describe('determinism', () => {
     expect(JSON.stringify(playPeaceful())).toBe(JSON.stringify(playPeaceful()))
   })
 })
+
+describe('co-op: the acting player is the caster (playCard actorMemberId)', () => {
+  it('a guard played BY member A blocks A, not the card owner B; no actor falls back to the owner', () => {
+    const init = thiefInit({
+      party: [hero({ id: 'a', memberId: 'm-a' }), hero({ id: 'b', memberId: 'm-b' })],
+      deck: deck(['guard', 'strike'], 'm-b'), // both cards OWNED by member B
+    })
+    const acting = ensureActing(startCombat(init).combat).combat
+    const iid = findInHand(acting, 'guard')
+
+    // played by member A → the block lands on A (the actor), even though B owns the card
+    const asA = playCard(acting, iid, undefined, 0, [], 'm-a').combat
+    expect(asA.combatants['a']!.block).toBe(5)
+    expect(asA.combatants['b']!.block).toBe(0)
+
+    // no actor (single-player path) → falls back to the card's owner, B
+    const noActor = playCard(acting, iid, undefined, 0, []).combat
+    expect(noActor.combatants['b']!.block).toBe(5)
+    expect(noActor.combatants['a']!.block).toBe(0)
+  })
+})

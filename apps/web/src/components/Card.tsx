@@ -22,10 +22,16 @@ export function CardView({
   reduced,
   aiming,
   launched,
+  peerLabel,
+  onHover,
 }: {
   card: HandCardView
   playable: boolean
   selected: boolean
+  /** co-op: a teammate is eyeing this card right now — glow + their name (non-authoritative) */
+  peerLabel?: string
+  /** co-op: report local hover so it can be relayed to teammates */
+  onHover?: (hovering: boolean) => void
   // press to either tap (select/play) or drag — the combat screen routes both via the drag hook
   onPointerDown: (e: ReactPointerEvent) => void
   fan: { x: number; y: number; rotate: number }
@@ -70,9 +76,11 @@ export function CardView({
   }
   return (
     <motion.button
-      className={['card', card.layer, 'rarity-' + card.rarity, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : '', aiming ? 'aiming' : '', launched ? 'launched' : ''].join(' ')}
+      className={['card', card.layer, 'rarity-' + card.rarity, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : '', aiming ? 'aiming' : '', launched ? 'launched' : '', peerLabel ? 'peer-eyed' : ''].join(' ')}
       data-iid={card.iid}
       onPointerDown={onPointerDown}
+      onHoverStart={() => onHover?.(true)}
+      onHoverEnd={() => onHover?.(false)}
       disabled={!playable && !selected}
       initial={{ opacity: 0, x: fan.x, y: 180, rotate: fan.rotate }}
       animate={selected ? lifted : rest}
@@ -81,6 +89,7 @@ export function CardView({
       whileHover={playable && !selected && !aiming && !launched ? lifted : undefined}
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
     >
+      {peerLabel && <div className="card-peer-tag">👁 {peerLabel}</div>}
       <div className="card-cost">{card.cost}</div>
       {card.damage && (
         <div className={'card-damage ' + (card.damage.spiritual ? 'spirit' : 'flesh')}>

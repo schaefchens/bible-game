@@ -1,5 +1,5 @@
 import { del, get, set } from 'idb-keyval'
-import type { GameState, ProfileState, RunState } from '@bible/engine'
+import type { Character, GameState, ProfileState, RunState } from '@bible/engine'
 import { migrateSave } from './migrations'
 import { CURRENT_SCHEMA_VERSION, emptySaveFile, type SaveFile } from './schema'
 
@@ -49,6 +49,19 @@ export class SaveStore {
 
     const next: SaveFile = { schemaVersion: CURRENT_SCHEMA_VERSION, profile: state.profile, runs }
     await set(this.key, next)
+  }
+
+  /** Upsert ONE hero's permanent Character into the saved profile WITHOUT touching runs. Used by co-op:
+   *  the shared run is server-authoritative and never persisted locally, but each player's own hero
+   *  progression (level / xp / verse cards) is written back to their own profile. No-op if no save exists. */
+  async persistHero(character: Character): Promise<void> {
+    const file = await this.load()
+    if (!file) return
+    const has = file.profile.slots.some((s) => s.id === character.id)
+    const slots = has
+      ? file.profile.slots.map((s) => (s.id === character.id ? { ...s, character } : s))
+      : [...file.profile.slots, { id: character.id, character }]
+    await set(this.key, { ...file, profile: { ...file.profile, slots } })
   }
 
   /** Remove a hero's saved run (on death / abandon) so it is no longer resumable. Keeps the hero. */

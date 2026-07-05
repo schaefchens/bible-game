@@ -1,8 +1,9 @@
-import { create } from 'zustand'
+import { create, type StoreApi } from 'zustand'
 import { createContent } from '@bible/content'
 import { newGame, reduce, type Command, type GameEvent, type GameState, type Locale } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { i18n } from '../i18n'
+import type { LeanState } from '../net/protocol'
 
 // The Zustand bridge: the ONLY place the engine is driven. Components dispatch Commands and read
 // state + the last event batch (for animation). Game logic lives entirely in the engine.
@@ -17,6 +18,46 @@ let deathTimer: ReturnType<typeof setTimeout> | undefined
 // before the reward screen is revealed. Skipped under reduced motion.
 const WIN_CINEMATIC_MS = 1500
 let winTimer: ReturnType<typeof setTimeout> | undefined
+
+/** How the store forwards commands to the co-op server in multiplayer mode. Registered by the net layer
+ *  at boot (setMpTransport) so this store never imports the net module — avoiding an import cycle. */
+export interface MpTransport {
+  sendCommand: (cmd: Command, round?: number) => void
+}
+let mpTransport: MpTransport | null = null
+export const setMpTransport = (t: MpTransport | null): void => {
+  mpTransport = t
+}
+
+type SetState = StoreApi<GameStore>['setState']
+type GetState = StoreApi<GameStore>['getState']
+
+/** Commit a new GameState to the store, applying the death/victory cinematic HOLDS (which briefly keep
+ *  the battlefield on screen before game-over / reward). Shared by the single-player dispatch and the
+ *  co-op applyServerState so both play the same local cinematics off the state they receive. The holds
+ *  only override `state.screen`; the authoritative state is untouched. `extra` carries store-only flags. */
+function commitState(set: SetState, get: GetState, next: GameState, events: GameEvent[], extra: Partial<GameStore> = {}): void {
+  const { state, tick } = get()
+  const reduced = next.profile.settings.reducedMotion
+
+  const justDefeated = next.screen === 'gameOver' && state.screen !== 'gameOver'
+  if (justDefeated && !reduced) {
+    set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, dying: true, winning: false, ...extra })
+    if (deathTimer) clearTimeout(deathTimer)
+    deathTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'gameOver' }, dying: false })), DEATH_CINEMATIC_MS)
+    return
+  }
+
+  const justWon = next.screen === 'reward' && state.screen === 'combat'
+  if (justWon && !reduced) {
+    set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, winning: true, dying: false, ...extra })
+    if (winTimer) clearTimeout(winTimer)
+    winTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'reward' }, winning: false })), WIN_CINEMATIC_MS)
+    return
+  }
+
+  set({ state: next, lastEvents: events, tick: tick + 1, dying: false, winning: false, ...extra })
+}
 
 /** Where a held item can be applied — the action wheel pops up on whichever of these you point at. */
 export type ItemTarget =
@@ -50,6 +91,17 @@ interface GameStore {
   content: typeof content
   /** hero ids that currently have an in-progress (resumable) run in storage */
   resumableIds: string[]
+  /** true while in a co-op session: dispatch forwards commands to the server instead of reducing
+   *  locally, and the client never autosaves the (server-authoritative) run. */
+  mpMode: boolean
+  /** the latest server broadcast sequence applied (co-op) */
+  mpSeq: number
+  setMpMode: (mp: boolean) => void
+  /** Apply an authoritative server state broadcast (co-op): re-attach the local ContentBundle, keep this
+   *  seat's own settings, take the server's slots, and play the same death/victory cinematics locally. */
+  applyServerState: (lean: LeanState, events: GameEvent[], seq: number) => void
+  /** Leave co-op and return the local game to the title, re-hydrating this device's own profile. */
+  exitMp: () => Promise<void>
   /** transient UI flag: the player-death cinematic is playing — the battlefield is held on screen
    *  (hero falling + the death veil) before the game-over panel is revealed. */
   dying: boolean
@@ -115,6 +167,8 @@ export const useGame = create<GameStore>((set, get) => ({
   tick: 0,
   content,
   resumableIds: [],
+  mpMode: false,
+  mpSeq: 0,
   dying: false,
   winning: false,
   booting: false,
@@ -147,40 +201,58 @@ export const useGame = create<GameStore>((set, get) => ({
   clearItemInteraction: () => set({ itemInteraction: null }),
 
   dispatch: (cmd) => {
-    const { state, tick } = get()
+    const { state, mpMode } = get()
+
+    // Co-op: the server is authoritative — forward the intent instead of reducing locally. The one
+    // exception is updateSettings, which is per-seat (locale/audio/reduced-motion are local to each
+    // player) and applied here without going to the server.
+    if (mpMode) {
+      if (cmd.type === 'updateSettings') {
+        set((s) => ({ state: { ...s.state, profile: { ...s.state.profile, settings: { ...s.state.profile.settings, ...cmd.settings } } } }))
+        return
+      }
+      // turn-enders carry the observed round so the server can reject a stale cross-boundary send
+      mpTransport?.sendCommand(cmd, state.combat?.roundNumber)
+      return
+    }
+
     const { state: next, events } = reduce(state, cmd)
-
-    // Player death: don't snap to the game-over panel. Hold on the battlefield so the death cinematic
-    // (hero falling + the screen bleeding out) can play, THEN reveal game over. The engine has already
-    // set screen → 'gameOver'; we override it back to 'combat' for the cinematic window. (Reduced
-    // motion skips the beat — straight to the panel, as before.)
-    const justDefeated = next.screen === 'gameOver' && state.screen !== 'gameOver'
-    if (justDefeated && !next.profile.settings.reducedMotion) {
-      set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, dying: true })
-      if (deathTimer) clearTimeout(deathTimer)
-      deathTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'gameOver' }, dying: false })), DEATH_CINEMATIC_MS)
-      return
-    }
-
-    // Victory: same idea, triumphant. Hold on the battlefield (the felled foe slumps + a golden light
-    // blooms) before the reward screen takes over. The engine already set screen → 'reward' (combat +
-    // its enriched reward stay in state); we override back to 'combat' for the cinematic window.
-    const justWon = next.screen === 'reward' && state.screen === 'combat'
-    if (justWon && !next.profile.settings.reducedMotion) {
-      set({ state: { ...next, screen: 'combat' }, lastEvents: events, tick: tick + 1, winning: true })
-      if (winTimer) clearTimeout(winTimer)
-      winTimer = setTimeout(() => set((s) => ({ state: { ...s.state, screen: 'reward' }, winning: false })), WIN_CINEMATIC_MS)
-      return
-    }
-
-    set({ state: next, lastEvents: events, tick: tick + 1, dying: false, winning: false })
-    // autosave at boundaries (never mid-combat)
+    commitState(set, get, next, events)
+    // autosave at boundaries (never mid-combat, never in co-op)
     if (!next.combat) void saveStore.persist(next)
+  },
+
+  setMpMode: (mpMode) => set({ mpMode }),
+
+  applyServerState: (lean, events, seq) => {
+    const prev = get().state
+    // re-attach this client's own ContentBundle (stripped on the wire); keep MY settings; take the
+    // server's slots (all players' heroes, needed for XP/allocate/verse resolution).
+    const run = lean.run ? { ...lean.run, content } : null
+    const next = {
+      ...lean,
+      run,
+      profile: { ...lean.profile, settings: prev.profile.settings },
+    } as GameState
+    commitState(set, get, next, events, { mpSeq: seq })
+    // Shared cinematics: rest/pray play for EVERY client (not just the actor) by triggering off the
+    // authoritative broadcast events — the whole party is at the fireplace together, so all see it.
+    const notices = events.flatMap((e) => (e.type === 'notice' ? [e.messageKey] : []))
+    if (notices.includes('fireplace.rested')) set({ sleeping: true })
+    if (notices.includes('fireplace.prayed')) set({ praying: true })
+  },
+
+  exitMp: async () => {
+    set({ mpMode: false, mpSeq: 0, dying: false, winning: false })
+    // restore THIS device's own profile (co-op left the server's all-players profile in state)
+    const profile = (await saveStore.loadProfile()) ?? get().state.profile
+    set({ state: { ...newGame(), profile } })
   },
 
   createHero: (name) => get().dispatch({ type: 'createHero', id: randomId(), name }),
 
   startRun: (characterId, worldId = 'world-01') => {
+    if (get().mpMode) return // co-op runs start via the server (net.startRun), never this SP path
     get().dispatch({ type: 'startRun', characterId, worldId, seed: `${characterId}-${randomId()}`, content })
     set((s) => ({ resumableIds: s.resumableIds.includes(characterId) ? s.resumableIds : [...s.resumableIds, characterId] }))
   },
@@ -201,6 +273,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   resume: async (characterId) => {
+    if (get().mpMode) return
     const run = await saveStore.loadRun(characterId)
     get().dispatch({ type: 'selectHero', id: characterId })
     if (run) {
@@ -224,6 +297,7 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   abandon: async () => {
+    if (get().mpMode) return // in co-op, leaving is handled by net.leaveParty (server-side teardown)
     const id = runHeroId(get().state)
     // clear the saved run FIRST so the subsequent autosave can't re-persist it (avoids a resurrected run)
     if (id) await saveStore.clearRun(id)

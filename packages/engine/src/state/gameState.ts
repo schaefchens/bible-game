@@ -101,6 +101,18 @@ export type GamePrompt =
   | { kind: 'verseChallenge'; cardDefId: CardDefId; challengeId: string; fragmentId: ItemId }
   | { kind: 'reward' }
 
+/** The level-up prompt for the first party member (in party order) that still has unspent points, or
+ *  null if none do. In single-player this collapses to "prompt the hero, else clear"; in co-op it
+ *  chains the shared prompt from one member to the next so every player gets to spend their points. */
+export function nextLevelUpPrompt(party: PartyMember[], slots: CharacterSlot[]): GamePrompt | null {
+  for (const m of party) {
+    if (!m.characterId) continue
+    const points = slots.find((s) => s.id === m.characterId)?.character.unspentPoints ?? 0
+    if (points > 0) return { kind: 'levelUp', memberId: m.memberId, points }
+  }
+  return null
+}
+
 export interface GameState {
   version: number
   screen: ScreenId

@@ -28,6 +28,9 @@ import { InventoryLayer } from './components/InventoryLayer'
 import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
 import { StartupSequence } from './components/StartupSequence'
+import { ChatOverlay } from './components/ChatOverlay'
+import { LobbyOverlay } from './components/LobbyOverlay'
+import { MpBanner } from './components/MpBanner'
 
 // Warm the intro + start-menu "shell" into the SW cache once per app load, so the installed app opens
 // offline. Lives here (not in StartupSequence) so it runs even when the intro is disabled. Fire-and-
@@ -115,6 +118,12 @@ export function App() {
 
       {/* System-level (unscaled, viewport-anchored) — readable regardless of the game's scale. */}
       <UpdateBanner />
+
+      {/* Co-op multiplayer UI — viewport-anchored (unscaled). Chat (press t) + party status while in a
+          run; the lobby modal for create/join. All render nothing unless a co-op session is active. */}
+      <ChatOverlay />
+      <MpBanner />
+      <LobbyOverlay />
 
       {/* The AAA-style studio-logo intro: a full-viewport black overlay (above everything, outside
           the scaled stage) shown once per launch when enabled. Reveals the title screen on finish. */}

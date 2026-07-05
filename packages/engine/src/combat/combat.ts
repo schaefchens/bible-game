@@ -744,11 +744,20 @@ function beginRound(c: CombatState): CombatStep {
   events.push(...enemyStart.events)
   spiritEvents.push(...enemyStart.spiritEvents)
 
-  // telegraph enemy intents
+  // telegraph enemy intents (+ which party member each targeting intent will strike, so the telegraph
+  // matches execution and co-op players can see who is in danger). Solo (or one survivor) keeps [0] and
+  // consumes no entropy → single-player byte-identical; co-op spreads via a forked sub-stream.
   for (const id of combat.enemyOrder) {
     const e = combat.combatants[id]!
     if (!e.alive || e.hidden) continue
-    combat = withCombatant(combat, id, (x) => ({ ...x, intent: pickIntent(x, { round }) }))
+    const intent = pickIntent(e, { round })
+    let intentTargetId: CombatantId | undefined
+    if (intent.kind === 'attack' || intent.kind === 'attackMulti' || intent.kind === 'debuff' || intent.kind === 'clutter') {
+      const alive = aliveParty(combat)
+      const tgt = alive.length > 1 ? (pick(fork(combat.rng, `tgt:${round}:${id}`), alive)[0] ?? alive[0]) : alive[0]
+      intentTargetId = tgt?.id
+    }
+    combat = withCombatant(combat, id, (x) => ({ ...x, intent, intentTargetId }))
     events.push({ type: 'intentTelegraphed', id })
   }
 
@@ -809,7 +818,7 @@ export function flee(c: CombatState): CombatStep {
   return step(after.combat, [{ type: 'fleeAttempt', success: false }, ...after.events], after.spiritEvents)
 }
 
-export function playCard(c: CombatState, iid: string, chosenId: CombatantId | undefined, spirit: number, cardTargetIids: string[] = []): CombatStep {
+export function playCard(c: CombatState, iid: string, chosenId: CombatantId | undefined, spirit: number, cardTargetIids: string[] = [], actorMemberId?: string): CombatStep {
   const begun = ensureActing(c)
   let combat = begun.combat
   const preEvents = begun.events
@@ -835,7 +844,9 @@ export function playCard(c: CombatState, iid: string, chosenId: CombatantId | un
     ? { ...combat, exhaustPile: [...combat.exhaustPile, inst] }
     : { ...combat, discardPile: [...combat.discardPile, inst] }
 
-  const sourceId = sourceForCard(combat, inst.ownerId)
+  // The CASTER is the player who PLAYED the card (co-op), falling back to the card's owner (single-player).
+  // This makes self-targeted cards (guard/heal) land on the acting player, and the caster's stats/buffs apply.
+  const sourceId = sourceForCard(combat, actorMemberId ?? inst.ownerId)
   const events: GameEvent[] = [
     ...preEvents,
     { type: 'cardPlayed', iid, defId: def.id },
@@ -1059,7 +1070,17 @@ function executeIntent(c: CombatState, enemyId: CombatantId): CombatStep {
     return step(withCombatant(c, enemyId, (x) => ({ ...x, statuses: x.statuses.map((s) => (s.id === 'bound' ? { ...s, stacks: s.stacks - 1 } : s)) })))
   }
 
-  const target = aliveParty(c)[0]
+  // Strike the member telegraphed at round start (so the shown target matches the hit). If that member
+  // has since died, retarget: solo/one-survivor keeps the front member (no entropy → SP byte-identical),
+  // co-op spreads via a forked sub-stream.
+  const alive = aliveParty(c)
+  const telegraphed = e.intentTargetId ? c.combatants[e.intentTargetId] : undefined
+  const target =
+    telegraphed && telegraphed.alive && telegraphed.faction === 'party'
+      ? telegraphed
+      : alive.length > 1
+        ? pick(fork(c.rng, `tgt:${c.roundNumber}:${enemyId}`), alive)[0] ?? alive[0]
+        : alive[0]
   if (!target) return step(c)
 
   switch (intent.kind) {
