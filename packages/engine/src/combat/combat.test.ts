@@ -272,8 +272,8 @@ describe('determinism', () => {
   })
 })
 
-describe('co-op: the acting player is the caster (playCard actorMemberId)', () => {
-  it('a guard played BY member A blocks A, not the card owner B; no actor falls back to the owner', () => {
+describe('co-op: a card acts on behalf of its OWNER (playCard source = ownerId)', () => {
+  it("a guard OWNED by B blocks B, whoever plays it — the actor doesn't change the beneficiary", () => {
     const init = thiefInit({
       party: [hero({ id: 'a', memberId: 'm-a' }), hero({ id: 'b', memberId: 'm-b' })],
       deck: deck(['guard', 'strike'], 'm-b'), // both cards OWNED by member B
@@ -281,14 +281,28 @@ describe('co-op: the acting player is the caster (playCard actorMemberId)', () =
     const acting = ensureActing(startCombat(init).combat).combat
     const iid = findInHand(acting, 'guard')
 
-    // played by member A → the block lands on A (the actor), even though B owns the card
+    // played by member A → the block still lands on the OWNER B (A is only who clicked)
     const asA = playCard(acting, iid, undefined, 0, [], 'm-a').combat
-    expect(asA.combatants['a']!.block).toBe(5)
-    expect(asA.combatants['b']!.block).toBe(0)
+    expect(asA.combatants['b']!.block).toBe(5)
+    expect(asA.combatants['a']!.block).toBe(0)
 
-    // no actor (single-player path) → falls back to the card's owner, B
+    // no actor at all → same owner-bound result
     const noActor = playCard(acting, iid, undefined, 0, []).combat
     expect(noActor.combatants['b']!.block).toBe(5)
     expect(noActor.combatants['a']!.block).toBe(0)
+  })
+
+  it("an 'ally' support card heals the CHOSEN party member (aim a heal at a hurt teammate)", () => {
+    const mend: CardDef = { id: 'mend', type: 'skill', layer: 'flesh', cost: 1, target: 'ally', nameKey: '', textKey: '', effects: [{ kind: 'heal', amount: 10, target: 'ally' }] }
+    const init = thiefInit({
+      party: [hero({ id: 'a', memberId: 'm-a', hp: 40 }), hero({ id: 'b', memberId: 'm-b', hp: 20 })],
+      deck: deck(['mend'], 'm-a'),
+      cardDefs: { ...CARDS, mend },
+    })
+    const acting = ensureActing(startCombat(init).combat).combat
+    // A plays their own heal, aimed at the hurt teammate B → B is healed, A unchanged
+    const after = playCard(acting, findInHand(acting, 'mend'), 'b', 0).combat
+    expect(after.combatants['b']!.hp).toBe(30)
+    expect(after.combatants['a']!.hp).toBe(40)
   })
 })

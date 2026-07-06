@@ -41,7 +41,8 @@ export interface CardDrag {
   aimingIid: string | null
   /** the card whose copy is mid-flight — hide it in the hand (drag OR click) */
   launchedIid: string | null
-  hoveredEnemyId: string | null
+  /** the live unit (enemy OR party member) currently under the aim cursor — drives the drop highlight */
+  hoveredTargetId: string | null
   /** the targeting arrow while aiming (null once released / slingshotting) */
   aim: { from: { x: number; y: number }; x: MotionValue<number>; y: MotionValue<number>; valid: boolean } | null
   /** a card-copy slinging from the hand into the target after release */
@@ -54,10 +55,20 @@ export interface CardDrag {
 // .stage). enemyAt stays in viewport space — document.elementFromPoint hit-tests against the real
 // (post-transform) layout, so it takes the raw pointer coordinates.
 
-// the enemy under a point — only a LIVE enemy unit counts (dead units keep their slot but are skipped)
-function enemyAt(clientX: number, clientY: number): string | null {
+// The faction a single-target card must be dropped on: enemy cards hit an enemy, `ally` support cards
+// (heal/shield a teammate) hit a party member. Everything else (self/allAllies/allEnemies/none) has no
+// chosen unit — it plays on a "field" release, not by dropping on a specific combatant.
+type TargetFaction = 'enemy' | 'party'
+function targetFactionOf(card: HandCardView): TargetFaction | null {
+  if (card.target === 'enemy') return 'enemy'
+  if (card.target === 'ally') return 'party'
+  return null
+}
+
+// the LIVE unit of `faction` under a point (dead units keep their slot but are skipped as drop targets)
+function unitAt(clientX: number, clientY: number, faction: TargetFaction): string | null {
   const el = (document.elementFromPoint(clientX, clientY) as HTMLElement | null)?.closest('[data-cid]') as HTMLElement | null
-  if (!el || el.dataset.faction !== 'enemy' || el.classList.contains('dead')) return null
+  if (!el || el.dataset.faction !== faction || el.classList.contains('dead')) return null
   return el.dataset.cid ?? null
 }
 
@@ -88,7 +99,7 @@ export function useCardDrag(): CardDrag {
   const [aiming, setAiming] = useState<{ iid: string; card: HandCardView; from: { x: number; y: number } } | null>(null)
   const [ghostCard, setGhostCard] = useState<HandCardView | null>(null)
   const [launchedIid, setLaunchedIid] = useState<string | null>(null)
-  const [hoveredEnemyId, setHoveredEnemyId] = useState<string | null>(null)
+  const [hoveredTargetId, setHoveredTargetId] = useState<string | null>(null)
   const [impact, setImpact] = useState<{ x: number; y: number; seq: number } | null>(null)
   const impactSeqRef = useRef(0)
   const hRef = useRef<CardDragHandlers>({ enabled: false, reduced: false, isPlayable: () => false, playCard: () => {}, onTap: () => {} })
@@ -171,9 +182,10 @@ export function useCardDrag(): CardDrag {
     const setHovered = (id: string | null) => {
       if (id !== hoveredRef.current) {
         hoveredRef.current = id
-        setHoveredEnemyId(id)
+        setHoveredTargetId(id)
       }
     }
+    const targetFaction = targetFactionOf(card)
 
     const cleanup = () => {
       window.removeEventListener('pointermove', onMove)
@@ -210,7 +222,7 @@ export function useCardDrag(): CardDrag {
         lastY = ev.clientY
         lastT = now
       }
-      setHovered(card.target === 'enemy' ? enemyAt(ev.clientX, ev.clientY) : null)
+      setHovered(targetFaction ? unitAt(ev.clientX, ev.clientY, targetFaction) : null)
     }
 
     const onUp = (ev: PointerEvent) => {
@@ -222,20 +234,21 @@ export function useCardDrag(): CardDrag {
       setHovered(null)
       const releaseX = ev.clientX
       const releaseY = ev.clientY
-      const needsEnemy = card.target === 'enemy'
-      const enemyId = needsEnemy ? enemyAt(releaseX, releaseY) : null
-      const valid = needsEnemy ? !!enemyId : releaseY < window.innerHeight * FIELD_FRACTION
+      // single-target cards (enemy / ally) must land on a live unit of the right faction; others (self,
+      // allAllies, allEnemies) play on a "field" release above FIELD_FRACTION.
+      const targetId = targetFaction ? unitAt(releaseX, releaseY, targetFaction) : null
+      const valid = targetFaction ? !!targetId : releaseY < window.innerHeight * FIELD_FRACTION
       if (!valid) {
         setAiming(null) // cancel — the card un-highlights; nothing is played
         return
       }
       const releaseStage = viewportToStage(releaseX, releaseY)
       const src = cardAnchor(card.iid, 'center') ?? aimFrom ?? releaseStage
-      const dest = (enemyId && centerOf(enemyId)) || { x: releaseStage.x, y: releaseStage.y - 220 }
+      const dest = (targetId && centerOf(targetId)) || { x: releaseStage.x, y: releaseStage.y - 220 }
       // throw time from the PEAK gesture speed (people decelerate to aim, so the release instant is ~0):
       // a slow drag lobs (~0.42s), a hard flick snaps (~0.22s, not blink-fast).
       const fast = Math.min(1, Math.max(0, (peak - 600) / 2400))
-      fly(card, src, dest, 0.42 - 0.2 * fast, enemyId ?? undefined)
+      fly(card, src, dest, 0.42 - 0.2 * fast, targetId ?? undefined)
     }
 
     const onCancel = () => {
@@ -264,14 +277,15 @@ export function useCardDrag(): CardDrag {
     },
     aimingIid: aiming?.iid ?? null,
     launchedIid,
-    hoveredEnemyId,
+    hoveredTargetId,
     aim:
       aiming && !ghostCard
         ? {
             from: aiming.from,
             x: aimX,
             y: aimY,
-            valid: aiming.card.target === 'enemy' ? hoveredEnemyId != null : true,
+            // single-target cards need a valid unit under the cursor; field cards are always valid
+            valid: targetFactionOf(aiming.card) ? hoveredTargetId != null : true,
           }
         : null,
     ghost: ghostCard ? { card: ghostCard, x: ghostX, y: ghostY, scale: ghostScale, opacity: ghostOpacity, rotate: ghostRotate } : null,

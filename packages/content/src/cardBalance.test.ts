@@ -15,6 +15,14 @@ describe('card balance invariants', () => {
     }
   })
 
+  it('second_wind is co-op ally-targetable (aim the heal at a chosen teammate)', () => {
+    for (const id of ['second_wind', 'second_wind_plus']) {
+      const card = CARDS[id]!
+      expect(card.target, `${id} card target`).toBe('ally')
+      expect(card.effects.find((e) => e.kind === 'heal')?.target, `${id} heal target`).toBe('ally')
+    }
+  })
+
   it('0-cost engine cards are copy-capped (focus, foresight)', () => {
     expect(CARDS.focus?.maxCopies).toBe(1)
     expect(CARDS.foresight?.maxCopies).toBe(1)

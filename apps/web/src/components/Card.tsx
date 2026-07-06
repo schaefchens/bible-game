@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HandCardView } from '../selectors'
 import { cardArt } from '../cardArt'
@@ -23,6 +23,8 @@ export function CardView({
   aiming,
   launched,
   peerLabel,
+  ownerColor,
+  ownerName,
   onHover,
 }: {
   card: HandCardView
@@ -30,6 +32,9 @@ export function CardView({
   selected: boolean
   /** co-op: a teammate is eyeing this card right now — glow + their name (non-authoritative) */
   peerLabel?: string
+  /** co-op: the color/name of the player who OWNS this card (whose hero it acts on) */
+  ownerColor?: string
+  ownerName?: string
   /** co-op: report local hover so it can be relayed to teammates */
   onHover?: (hovering: boolean) => void
   // press to either tap (select/play) or drag — the combat screen routes both via the drag hook
@@ -76,8 +81,9 @@ export function CardView({
   }
   return (
     <motion.button
-      className={['card', card.layer, 'rarity-' + card.rarity, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : '', aiming ? 'aiming' : '', launched ? 'launched' : '', peerLabel ? 'peer-eyed' : ''].join(' ')}
+      className={['card', card.layer, 'rarity-' + card.rarity, playable ? 'playable' : 'unplayable', selected ? 'selected' : '', verse ? 'verse' : '', aiming ? 'aiming' : '', launched ? 'launched' : '', peerLabel ? 'peer-eyed' : '', ownerColor ? 'owned' : ''].join(' ')}
       data-iid={card.iid}
+      style={ownerColor ? ({ '--owner': ownerColor } as CSSProperties) : undefined}
       onPointerDown={onPointerDown}
       onHoverStart={() => onHover?.(true)}
       onHoverEnd={() => onHover?.(false)}
@@ -90,6 +96,7 @@ export function CardView({
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
     >
       {peerLabel && <div className="card-peer-tag">👁 {peerLabel}</div>}
+      {ownerName && <div className="card-owner-tag" title={ownerName}>{ownerName}</div>}
       <div className="card-cost">{card.cost}</div>
       {card.damage && (
         <div className={'card-damage ' + (card.damage.spiritual ? 'spirit' : 'flesh')}>

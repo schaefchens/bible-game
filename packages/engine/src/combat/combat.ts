@@ -844,9 +844,12 @@ export function playCard(c: CombatState, iid: string, chosenId: CombatantId | un
     ? { ...combat, exhaustPile: [...combat.exhaustPile, inst] }
     : { ...combat, discardPile: [...combat.discardPile, inst] }
 
-  // The CASTER is the player who PLAYED the card (co-op), falling back to the card's owner (single-player).
-  // This makes self-targeted cards (guard/heal) land on the acting player, and the caster's stats/buffs apply.
-  const sourceId = sourceForCard(combat, actorMemberId ?? inst.ownerId)
+  // A card acts on behalf of its OWNER: the source is the card's owner, so `self` effects (guard/heal)
+  // land on the owner and the owner's scale/statuses apply — regardless of which player played it from
+  // the shared co-op hand. (Anyone may play any card, but "play B's Guard" shields B.) `actorMemberId`
+  // is attribution-only (who clicked); it does NOT change the source. Single-player: owner == the hero.
+  void actorMemberId
+  const sourceId = sourceForCard(combat, inst.ownerId)
   const events: GameEvent[] = [
     ...preEvents,
     { type: 'cardPlayed', iid, defId: def.id },

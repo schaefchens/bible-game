@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { previewCardDamage } from '@bible/engine'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
-import { myMemberId, useSession } from '../store/useSession'
+import { useSession } from '../store/useSession'
 import { sendActivity } from '../net'
+import { playerColor } from '../lib/playerColors'
 import { selectCombat, selectCombatPile, type CombatView, type CombatantView, type HandCardView } from '../selectors'
 import { CardView } from '../components/Card'
 import { CardFace } from '../components/CardFace'
@@ -110,7 +111,6 @@ export function CombatScreen() {
   const mpMode = useGame((s) => s.mpMode)
   const chatOpen = useSession((s) => s.chatOpen)
   const peers = useSession((s) => s.peers)
-  const mySeat = useSession(myMemberId)
   const fb = useCombatFeedback()
   const drag = useCardDrag()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
@@ -296,6 +296,14 @@ export function CombatScreen() {
 
   if (!view) return null
 
+  // Co-op card ownership: a card acts on behalf of its OWNER. Color each card + party unit by owner so
+  // it's clear whose hero a card affects; only meaningful with >1 hero (single-player has one owner).
+  const showOwners = mpMode && view.party.length > 1
+  const partyOrder = view.party.map((c) => c.id) // party combatant id === memberId
+  const ownerColorOf = (memberId: string): string | undefined => (showOwners ? playerColor(memberId, partyOrder) : undefined)
+  const ownerNameOf = (memberId: string): string | undefined =>
+    showOwners ? view.party.find((c) => c.id === memberId)?.displayName ?? undefined : undefined
+
   const enemyTargetable = pending?.kind === 'card' || (pending?.kind === 'grace' && pending.ability === 'mercy')
   // Carrying a bag item → click a unit to open the action wheel on it (InventoryLayer routes "Use" to
   // combat/useItem). No highlight/preview — same restraint as the scene; you find out by trying.
@@ -310,10 +318,22 @@ export function CombatScreen() {
   const spirit = state.run?.spirit.spirit ?? 0
   const targetPreview = (enemyId: string): number | null => {
     if (!pendingCard || !state.combat) return null
-    // co-op: the LOCAL player is the caster (see playCard actor), so preview off their member, not the owner
-    const source = mpMode && mySeat ? mySeat : pendingCard.ownerId
-    const p = previewCardDamage(state.combat, pendingCard.defId, source, spirit, enemyId)
+    // a card acts as its OWNER (co-op), so preview the hit scaled off the owner — matches the real play
+    const p = previewCardDamage(state.combat, pendingCard.defId, pendingCard.ownerId, spirit, enemyId)
     return p ? p.total : null
+  }
+  // co-op: an 'ally' card is aimed at a chosen party member → the party units become click targets
+  // an 'ally' support card is being aimed — via click-select (pending) OR mid-drag (aiming) — so party
+  // members become valid drop targets (glow) either way.
+  const aimingCard = drag.aimingIid ? view.hand.find((h) => h.iid === drag.aimingIid) : undefined
+  const activeCard = (pending?.kind === 'card' ? pendingCard : undefined) ?? (aimingCard?.target === 'ally' ? aimingCard : undefined)
+  const partyTargetable = activeCard?.target === 'ally'
+  // party members the active (selected OR aimed) card will affect (colored pulse): owner for self,
+  // everyone for allAllies, and (as candidates) everyone for an ally card.
+  const affectedPartyIds = new Set<string>()
+  if (activeCard) {
+    if (activeCard.target === 'self') affectedPartyIds.add(activeCard.ownerId)
+    else if (activeCard.target === 'allAllies' || activeCard.target === 'ally') for (const c of view.party) if (c.alive) affectedPartyIds.add(c.id)
   }
 
   const clickCard = (card: HandCardView) => {
@@ -330,11 +350,19 @@ export function CombatScreen() {
       setPickModal({ iid: card.iid, pick: card.pick })
       return
     }
-    if (card.target === 'enemy') setPending({ kind: 'card', iid: card.iid })
+    // enemy card → pick an enemy; ally support card → pick a party member; self/allAllies → play now
+    if (card.target === 'enemy' || card.target === 'ally') setPending({ kind: 'card', iid: card.iid })
     else {
       dispatch({ type: 'combat/playCard', iid: card.iid })
       setPending(null)
     }
+  }
+  const clickParty = (id: string) => {
+    if (pending?.kind !== 'card') return
+    const card = view.hand.find((h) => h.iid === pending.iid)
+    if (!card || card.target !== 'ally') return // only 'ally' support cards target a teammate
+    drag.sling(card, id) // same arc-throw animation as an enemy play; resolves on landing
+    setPending(null)
   }
   const clickEnemy = (id: string, isHuman: boolean) => {
     setActiveTargetId(id) // clicking/tapping an enemy makes it the active target (kept across turns)
@@ -360,6 +388,7 @@ export function CombatScreen() {
       return
     }
     if (side === 'enemy') clickEnemy(c.id, c.isHuman)
+    else clickParty(c.id) // party unit → receive a pending 'ally' support card
   }
 
   // Drag-to-play: a press that moves becomes a drag (ghost follows the cursor, slings to the target on
@@ -409,7 +438,7 @@ export function CombatScreen() {
           {/* dead members stay on the field (slumped) rather than vanishing — position is a game
               element, and a fallen hero needs to be SEEN before the game-over screen */}
           {view.party.map((c) => (
-            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={false} incoming={incomingByMember[c.id]} onUnitClick={onUnitClick} />
+            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={partyTargetable && c.alive} dropHighlight={drag.hoveredTargetId === c.id} affectedColor={affectedPartyIds.has(c.id) ? ownerColorOf(c.id) : undefined} ownerColor={ownerColorOf(c.id)} incoming={incomingByMember[c.id]} onUnitClick={onUnitClick} />
           ))}
         </div>
         <div className="side enemies">
@@ -425,7 +454,7 @@ export function CombatScreen() {
               predicted={c.alive && pendingCard ? targetPreview(c.id) : null}
               targetable={enemyTargetable && c.alive}
               activeTarget={resolvedTargetId === c.id && view.outcome === 'ongoing'}
-              dropHighlight={drag.hoveredEnemyId === c.id}
+              dropHighlight={drag.hoveredTargetId === c.id}
               peerLabel={peerEnemyLabel[c.id]}
               onUnitClick={onUnitClick}
             />
@@ -495,6 +524,8 @@ export function CombatScreen() {
                 aiming={drag.aimingIid === card.iid && !drag.ghost}
                 launched={drag.launchedIid === card.iid}
                 peerLabel={peerCardLabel[card.iid]}
+                ownerColor={ownerColorOf(card.ownerId)}
+                ownerName={ownerNameOf(card.ownerId)}
                 onHover={mpMode ? (h) => setHoveredCardIid((cur) => (h ? card.iid : cur === card.iid ? null : cur)) : undefined}
               />
             ))}
@@ -612,6 +643,8 @@ function CombatUnit({
   dropHighlight,
   peerLabel,
   incoming,
+  affectedColor,
+  ownerColor,
   onUnitClick,
 }: {
   c: CombatantView
@@ -630,17 +663,22 @@ function CombatUnit({
   peerLabel?: string
   // co-op: how many enemies are about to strike this party member (shows who's in danger)
   incoming?: number
+  // co-op: the selected card will affect this party member → pulse in this (owner) color
+  affectedColor?: string
+  // co-op: this party member's owner color (nameplate tint)
+  ownerColor?: string
   onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
 }) {
   const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
-  const tgt = (side === 'enemy' && targetable) || !!dropHighlight
+  const tgt = ((side === 'enemy' || side === 'party') && targetable) || !!dropHighlight
   const showFlash = reaction && !reduced && reaction.kind !== 'lunge'
   return (
     <motion.div
       layout
       data-cid={c.id}
       data-faction={c.faction}
-      className={['unit', side, c.row, tgt ? 'targetable' : '', activeTarget ? 'active-target' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
+      style={affectedColor || ownerColor ? ({ '--owner': affectedColor ?? ownerColor } as CSSProperties) : undefined}
+      className={['unit', side, c.row, tgt ? 'targetable' : '', activeTarget ? 'active-target' : '', affectedColor ? 'affected' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}

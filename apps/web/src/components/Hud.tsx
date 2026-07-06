@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { potencyTier, type AudioMode } from '@bible/engine'
 import { useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
 import { heroSummary, selectLocation, selectParty } from '../selectors'
+import { playerColor } from '../lib/playerColors'
 
 // The 3-state audio toggle cycled from the HUD: music+sfx → sfx only → silent.
 const AUDIO_ICON: Record<AudioMode, string> = { on: '🎵', sfxOnly: '🔊', off: '🔇' }
@@ -32,6 +33,9 @@ export function Hud() {
   const chatOpen = useSession((s) => s.chatOpen)
   const setChatOpen = useSession((s) => s.setChatOpen)
   const others = party.filter((m) => !m.isHero)
+  // co-op: each seat's color (party order), matching the card owner colors in the hand
+  const showColors = mpMode && party.length > 1
+  const partyOrder = party.map((m) => m.memberId)
   const abandon = useGame((s) => s.abandon)
   const [confirmAbandon, setConfirmAbandon] = useState(false)
   const spirit = state.run?.spirit.spirit ?? 0
@@ -76,6 +80,7 @@ export function Hud() {
         </div>
         <div className="hud-hero">
           <div className="hud-name">
+            {showColors && party[0] && <span className="hud-owner-swatch" style={{ background: playerColor(party[0].memberId, partyOrder) }} />}
             {summary.name} <span className="muted">· {t('ui.common.level')} {summary.level}</span>
           </div>
           <div className="hud-hp">
@@ -107,7 +112,12 @@ export function Hud() {
               const connected = roster.find((r) => r.memberId === m.memberId)?.connected ?? true
               const pct = Math.max(0, Math.min(100, (m.hp / m.maxHp) * 100))
               return (
-                <div key={m.memberId} className={'hud-party-chip' + (connected ? '' : ' offline')} title={`${m.name} · ${t('ui.common.level')} ${m.level}`}>
+                <div
+                  key={m.memberId}
+                  className={'hud-party-chip' + (connected ? '' : ' offline') + (showColors ? ' owned' : '')}
+                  style={showColors ? ({ '--owner': playerColor(m.memberId, partyOrder) } as CSSProperties) : undefined}
+                  title={`${m.name} · ${t('ui.common.level')} ${m.level}`}
+                >
                   <span className={'coop-dot' + (connected ? ' on' : '')} />
                   <span className="hud-party-name">{m.name}</span>
                   <div className="hp-bar tiny">

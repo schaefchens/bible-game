@@ -1148,3 +1148,21 @@ body.holding-item, body.holding-item * { cursor: none; }
   font-size: 0.6rem; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 7px;
   white-space: nowrap; pointer-events: none; z-index: 20;
 }
+
+/* ---- co-op card OWNERSHIP (a card acts on behalf of its owner) ---- */
+/* per-owner accent via the inline --owner var; a top-edge bar + a corner name badge read at a glance */
+.card.owned { border-top: 3px solid var(--owner); }
+.card-owner-tag {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  background: color-mix(in srgb, var(--owner) 30%, #000 70%); border: 1px solid var(--owner);
+  color: #fff; font-size: 0.56rem; font-weight: 700; line-height: 1; padding: 2px 6px;
+  border-radius: 6px; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: none; z-index: 3;
+}
+/* the selected card's affected party member(s) pulse in the owner color; ally candidates get a ring */
+.unit.affected .unit-name { box-shadow: 0 0 0 2px var(--owner), 0 0 14px color-mix(in srgb, var(--owner) 70%, transparent); border-radius: 6px; }
+.unit.party.targetable { cursor: pointer; }
+.unit.party.targetable .unit-name { box-shadow: 0 0 0 2px var(--owner, #7ed17e), 0 0 12px rgba(126,209,126,0.6); border-radius: 6px; }
+/* HUD identity swatches matching the hand colors */
+.hud-owner-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.hud-party-chip.owned { border-color: var(--owner); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--owner) 50%, transparent); }
