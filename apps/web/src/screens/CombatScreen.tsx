@@ -547,8 +547,14 @@ export function CombatScreen() {
       {pileModal && (
         <CardListModal
           titleKey={`ui.deck.pile.${pileModal}`}
-          // the discard pile now also lists exhausted cards (the exhaust pile was merged into it)
-          cards={pileModal === 'discard' ? [...selectCombatPile(state, 'discard'), ...selectCombatPile(state, 'exhaust')] : selectCombatPile(state, pileModal)}
+          // the discard pile now also lists exhausted cards (the exhaust pile was merged into it). In
+          // co-op, tint each pile card by owner + carry the same legend as the deck viewer.
+          cards={(pileModal === 'discard' ? [...selectCombatPile(state, 'discard'), ...selectCombatPile(state, 'exhaust')] : selectCombatPile(state, pileModal)).map((c) => ({
+            ...c,
+            ownerColor: ownerColorOf(c.ownerId),
+            ownerSymbol: ownerSymbolOf(c.ownerId),
+          }))}
+          legend={showOwners ? view.party.map((m) => ({ name: m.displayName ?? t(m.nameKey), color: playerColor(m.id, partyOrder), symbol: playerSymbol(m.id, partyOrder) })) : undefined}
           onClose={() => setPileModal(null)}
         />
       )}
