@@ -11,6 +11,7 @@ export {
   startRun,
   sendChat,
   sendActivity,
+  sendPick,
   sendCinematic,
   leaveParty,
 } from './client'

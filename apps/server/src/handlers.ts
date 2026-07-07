@@ -138,6 +138,16 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       return
     }
 
+    case 'pick': {
+      // ephemeral mirror of an open sharpen/cast-off pick modal → forward to the OTHER players only
+      const ctx = resolve(session)
+      if (!ctx) return
+      for (const p of ctx.room.players) {
+        if (p.playerId !== ctx.player.playerId) send(p.ws, { t: 'pick', playerId: ctx.player.playerId, name: ctx.player.name, pick: msg.pick })
+      }
+      return
+    }
+
     case 'cinematic': {
       // shared party cinematic control (sleep/pray) — e.g. one player taps "Amen" and prayer ends for
       // everyone. Relayed to the whole room (idempotent on the sender).

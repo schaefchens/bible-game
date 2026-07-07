@@ -44,6 +44,14 @@ export interface PeerActivity {
   hoverNodeId?: string
 }
 
+/** Ephemeral mirror of a player's open sharpen/cast-off/prepare pick modal (relayed to teammates). */
+export interface PickPresence {
+  playedIid: string
+  kind: 'hone' | 'exhaustChosen' | 'topDeck'
+  count: number
+  selection: string[]
+}
+
 /** Compatibility fingerprint every client presents at join; must equal the server's own. */
 export interface Compat {
   buildHash: string
@@ -59,6 +67,7 @@ export type ClientMsg =
   | { t: 'startRun'; worldId: string }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }
+  | { t: 'pick'; pick: PickPresence | null }
   | { t: 'cinematic'; kind: 'sleep' | 'pray'; active: boolean }
   | { t: 'chat'; text: string }
   | { t: 'reconnect'; code: RoomCode; token: SessionToken }
@@ -71,6 +80,7 @@ export type ServerMsg =
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }
   | { t: 'activity'; playerId: PlayerId; name: string; activity: PeerActivity | null }
+  | { t: 'pick'; playerId: PlayerId; name: string; pick: PickPresence | null }
   | { t: 'cinematic'; kind: 'sleep' | 'pray'; active: boolean }
   | { t: 'presence'; playerId: PlayerId; connected: boolean }
   | { t: 'rejected'; reason: string }

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { CardFace } from './CardFace'
+import { OwnerLegend } from './OwnerLegend'
 import type { CardRarity } from '../selectors'
 
 /**
@@ -23,9 +24,12 @@ export interface ModalCard {
   values?: Record<string, number>
   honed?: boolean
   unplayable?: boolean
+  /** co-op: the owning player's color + identity shape (border tint + corner badge; name is in the legend) */
+  ownerColor?: string
+  ownerSymbol?: string
 }
 
-export function CardListModal({ titleKey, cards, onClose }: { titleKey: string; cards: ModalCard[]; onClose: () => void }) {
+export function CardListModal({ titleKey, cards, legend, onClose }: { titleKey: string; cards: ModalCard[]; legend?: { name: string; color: string; symbol: string }[]; onClose: () => void }) {
   const { t } = useTranslation()
   const [detail, setDetail] = useState<ModalCard | null>(null)
   return (
@@ -40,6 +44,7 @@ export function CardListModal({ titleKey, cards, onClose }: { titleKey: string; 
           <h3>{t(titleKey)} <span className="muted">· {cards.length}</span></h3>
           <button className="hud-icon-btn" onClick={onClose} aria-label={t('ui.common.close')}>✕</button>
         </div>
+        {legend && <OwnerLegend owners={legend} />}
         {cards.length === 0 ? (
           <p className="muted deck-modal-empty">{t('ui.deck.empty')}</p>
         ) : (
@@ -47,9 +52,10 @@ export function CardListModal({ titleKey, cards, onClose }: { titleKey: string; 
             {cards.map((c, i) => (
               <div
                 key={c.iid ?? `${c.nameKey}-${i}`}
-                className={['modal-card', c.honed ? 'honed' : '', c.unplayable ? 'unplayable' : ''].join(' ')}
+                className={['modal-card', c.honed ? 'honed' : '', c.unplayable ? 'unplayable' : '', c.ownerColor ? 'owned' : ''].join(' ')}
+                style={c.ownerColor ? ({ '--owner': c.ownerColor } as CSSProperties) : undefined}
               >
-                <CardFace cost={c.cost} layer={c.layer} nameKey={c.nameKey} textKey={c.textKey} values={c.values} verse={c.verse} rarity={c.rarity} onClick={() => setDetail(c)} />
+                <CardFace cost={c.cost} layer={c.layer} nameKey={c.nameKey} textKey={c.textKey} values={c.values} verse={c.verse} rarity={c.rarity} ownerSymbol={c.ownerSymbol} ownerColor={c.ownerColor} onClick={() => setDetail(c)} />
                 {c.honed && <span className="modal-card-badge" title={t('ui.deck.honed')}>✦</span>}
               </div>
             ))}

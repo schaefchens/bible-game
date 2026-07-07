@@ -24,7 +24,7 @@ export function CardView({
   launched,
   peerLabel,
   ownerColor,
-  ownerName,
+  ownerSymbol,
   onHover,
 }: {
   card: HandCardView
@@ -32,9 +32,9 @@ export function CardView({
   selected: boolean
   /** co-op: a teammate is eyeing this card right now — glow + their name (non-authoritative) */
   peerLabel?: string
-  /** co-op: the color/name of the player who OWNS this card (whose hero it acts on) */
+  /** co-op: the owning player's color + identity shape (border tint + corner badge) */
   ownerColor?: string
-  ownerName?: string
+  ownerSymbol?: string
   /** co-op: report local hover so it can be relayed to teammates */
   onHover?: (hovering: boolean) => void
   // press to either tap (select/play) or drag — the combat screen routes both via the drag hook
@@ -96,7 +96,6 @@ export function CardView({
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
     >
       {peerLabel && <div className="card-peer-tag">👁 {peerLabel}</div>}
-      {ownerName && <div className="card-owner-tag" title={ownerName}>{ownerName}</div>}
       <div className="card-cost">{card.cost}</div>
       {card.damage && (
         <div className={'card-damage ' + (card.damage.spiritual ? 'spirit' : 'flesh')}>
@@ -110,7 +109,10 @@ export function CardView({
         </div>
       )}
       <div className="card-name">{t(card.nameKey)}</div>
-      <div className={'card-art ' + card.layer}><span className="card-art-glyph">{cardArt(card.nameKey, card.layer)}</span></div>
+      <div className={'card-art ' + card.layer}>
+        <span className="card-art-glyph">{cardArt(card.nameKey, card.layer)}</span>
+        {ownerSymbol && <span className="owner-symbol card-owner-symbol">{ownerSymbol}</span>}
+      </div>
       <div className="card-text">{t(card.textKey, card.values)}</div>
     </motion.button>
   )

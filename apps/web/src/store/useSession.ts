@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { heroMemberId } from '@bible/engine'
-import type { NetPhase, PeerActivity, RosterEntry } from '../net/protocol'
+import type { NetPhase, PeerActivity, PickPresence, RosterEntry } from '../net/protocol'
 
 // Pure networking / social state for co-op. Deliberately separate from useGame (which owns the single
 // authoritative GameState): chat, roster, and presence NEVER touch the engine, so keeping them here
@@ -35,6 +35,8 @@ interface SessionStore {
   chat: ChatLine[]
   /** live, non-authoritative presence per peer playerId: what card/enemy they're eyeing right now */
   peers: Record<string, { name: string; activity: PeerActivity | null }>
+  /** a peer's open sharpen/cast-off/prepare pick modal, mirrored read-only for teammates */
+  peerPicks: Record<string, { name: string; pick: PickPresence }>
 
   openMenu: () => void
   reset: () => void
@@ -48,6 +50,7 @@ interface SessionStore {
   setChatOpen: (open: boolean) => void
   pushChat: (line: Omit<ChatLine, 'id'>) => void
   setPeerActivity: (playerId: string, name: string, activity: PeerActivity | null) => void
+  setPeerPick: (playerId: string, name: string, pick: PickPresence | null) => void
   clearPeer: (playerId: string) => void
 }
 
@@ -67,6 +70,7 @@ export const useSession = create<SessionStore>((set) => ({
   chatOpen: false,
   chat: [],
   peers: {},
+  peerPicks: {},
 
   openMenu: () => set({ phase: 'menu', error: null }),
   reset: () =>
@@ -84,6 +88,7 @@ export const useSession = create<SessionStore>((set) => ({
       chatOpen: false,
       chat: [],
       peers: {},
+      peerPicks: {},
     }),
   setPhase: (phase) => set({ phase }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
@@ -95,11 +100,20 @@ export const useSession = create<SessionStore>((set) => ({
   setChatOpen: (chatOpen) => set({ chatOpen }),
   pushChat: (line) => set((s) => ({ chat: [...s.chat, { ...line, id: ++chatSeq }].slice(-100) })),
   setPeerActivity: (playerId, name, activity) => set((s) => ({ peers: { ...s.peers, [playerId]: { name, activity } } })),
+  setPeerPick: (playerId, name, pick) =>
+    set((s) => {
+      const peerPicks = { ...s.peerPicks }
+      if (pick) peerPicks[playerId] = { name, pick }
+      else delete peerPicks[playerId]
+      return { peerPicks }
+    }),
   clearPeer: (playerId) =>
     set((s) => {
       const peers = { ...s.peers }
+      const peerPicks = { ...s.peerPicks }
       delete peers[playerId]
-      return { peers }
+      delete peerPicks[playerId]
+      return { peers, peerPicks }
     }),
 }))
 

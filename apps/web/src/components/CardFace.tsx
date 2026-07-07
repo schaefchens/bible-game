@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CardRarity } from '../selectors'
 import { cardArt } from '../cardArt'
@@ -25,15 +26,19 @@ export interface CardFaceProps {
   /** the keyboard cursor is on this card (a raised ring, distinct from `selected`) */
   focused?: boolean
   disabled?: boolean
+  /** co-op: the owning player's identity shape + color, overlaid centered over the card art */
+  ownerSymbol?: string
+  ownerColor?: string
   onClick?: () => void
 }
 
-export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, damage, miracle, selected, focused, disabled, onClick }: CardFaceProps) {
+export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity, damage, miracle, selected, focused, disabled, ownerSymbol, ownerColor, onClick }: CardFaceProps) {
   const { t } = useTranslation()
   return (
     <button
       type="button"
-      className={['card', 'card-face', layer, 'rarity-' + (rarity ?? 'common'), selected ? 'selected' : '', focused ? 'focused' : '', verse ? 'verse' : ''].join(' ')}
+      className={['card', 'card-face', layer, 'rarity-' + (rarity ?? 'common'), selected ? 'selected' : '', focused ? 'focused' : '', verse ? 'verse' : '', ownerColor ? 'owned' : ''].join(' ')}
+      style={ownerColor ? ({ '--owner': ownerColor } as CSSProperties) : undefined}
       onClick={onClick}
       disabled={disabled || !onClick}
     >
@@ -50,7 +55,10 @@ export function CardFace({ cost, layer, nameKey, textKey, values, verse, rarity,
         </div>
       )}
       <div className="card-name">{t(nameKey)}</div>
-      <div className={'card-art ' + layer}><span className="card-art-glyph">{cardArt(nameKey, layer)}</span></div>
+      <div className={'card-art ' + layer}>
+        <span className="card-art-glyph">{cardArt(nameKey, layer)}</span>
+        {ownerSymbol && <span className="owner-symbol card-owner-symbol">{ownerSymbol}</span>}
+      </div>
       <div className="card-text">{t(textKey, values)}</div>
     </button>
   )

@@ -1150,19 +1150,36 @@ body.holding-item, body.holding-item * { cursor: none; }
 }
 
 /* ---- co-op card OWNERSHIP (a card acts on behalf of its owner) ---- */
-/* per-owner accent via the inline --owner var; a top-edge bar + a corner name badge read at a glance */
+/* per-owner accent via the inline --owner var: a colored top-edge bar (the owner's NAME is shown over
+   their battlefield avatar, so the card itself needs no name). */
 .card.owned { border-top: 3px solid var(--owner); }
-.card-owner-tag {
-  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
-  background: color-mix(in srgb, var(--owner) 30%, #000 70%); border: 1px solid var(--owner);
-  color: #fff; font-size: 0.56rem; font-weight: 700; line-height: 1; padding: 2px 6px;
-  border-radius: 6px; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  pointer-events: none; z-index: 3;
-}
 /* the selected card's affected party member(s) pulse in the owner color; ally candidates get a ring */
 .unit.affected .unit-name { box-shadow: 0 0 0 2px var(--owner), 0 0 14px color-mix(in srgb, var(--owner) 70%, transparent); border-radius: 6px; }
 .unit.party.targetable { cursor: pointer; }
 .unit.party.targetable .unit-name { box-shadow: 0 0 0 2px var(--owner, #7ed17e), 0 0 12px rgba(126,209,126,0.6); border-radius: 6px; }
-/* HUD identity swatches matching the hand colors */
-.hud-owner-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+/* HUD party chips keep the owner-color border; the identity glyph (owner-symbol) sits before the name */
 .hud-party-chip.owned { border-color: var(--owner); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--owner) 50%, transparent); }
+
+/* co-op: owner-tinted cards in the Deck viewer + the sharpen/cast-off pick modal. The colored top-line
+   comes from `.card.owned` on the CardFace itself (same as the battle hand) — the wrapper only anchors
+   the corner badges. Kept consistent with the battle UI (top-line, not a whole-card ring). */
+.modal-card.owned { position: relative; }
+/* the key at the top of those modals — each player's identity SHAPE (in their color) + name, once */
+.owner-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; justify-content: center; margin: 0.1rem 0 0.6rem; }
+.owner-legend-item { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; }
+/* the per-player identity glyph (inherits the owner color from its element's `color`) */
+.owner-symbol { font-size: 0.95em; line-height: 1; margin-right: 0.25em; }
+/* on a card: the identity glyph overlaid on the ART, horizontally centered just below the title, tinted
+   the owner color. Absolute inside `.card-art` (which is position:relative) so it never pushes the layout
+   and it lifts WITH the card on hover (rather than staying behind as a detached "second card"). */
+.card-art { position: relative; }
+.card-owner-symbol {
+  position: absolute; top: -3px; left: 50%; transform: translateX(-50%); margin: 0; z-index: 2;
+  font-size: 1.15rem; line-height: 1; color: var(--owner); text-shadow: 0 0 3px #000, 0 1px 2px rgba(0,0,0,0.95); pointer-events: none;
+}
+/* co-op: color the party member's NAME over their avatar in their owner color (so the hand cards need
+   only a color border, no name) */
+.unit.party.owned .unit-name { color: var(--owner); font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+/* co-op: a teammate's mirrored pick modal is read-only (watch, don't touch) */
+.card-row.readonly { pointer-events: none; opacity: 0.96; }
+.pick-waiting { text-align: center; font-style: italic; margin: 0.6rem 0 0.2rem; }

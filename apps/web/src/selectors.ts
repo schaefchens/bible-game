@@ -375,6 +375,8 @@ export interface HandCardView {
 /** A card copy as shown in a pile/deck/pick modal (read-only, plus honed/honeable/unplayable marks). */
 export interface CombatCardView {
   iid: string
+  /** the party member who contributed this card (co-op ownership) */
+  ownerId: string
   defId: string
   nameKey: string
   textKey: string
@@ -495,6 +497,7 @@ function combatCardView(c: CombatStateT, spirit: number, inst: CombatCardInstanc
   const ownerScale = c.combatants[inst.ownerId]?.scale ?? c.partyOrder.map((id) => c.combatants[id]).find((x) => x?.alive)?.scale ?? 1
   return {
     iid: inst.iid,
+    ownerId: inst.ownerId,
     defId,
     nameKey: def?.nameKey ?? defId,
     textKey: def?.textKey ?? '',
@@ -537,6 +540,26 @@ export function selectRunDeck(state: GameState): CardOfferView[] {
   if (!run) return []
   const deck = run.deckByMember[run.heroMemberId] ?? []
   return deck.map((defId) => cardOffer(run, defId))
+}
+
+export interface PartyDeckCard extends CardOfferView {
+  ownerId: string
+  ownerName: string
+}
+
+/** The COMBINED party deck (co-op): every member's cards, in party order, each tagged with its owner —
+ *  this is what's actually shuffled into the shared combat draw pile. The caller maps ownerId → color. */
+export function selectPartyDeck(state: GameState): PartyDeckCard[] {
+  const run = state.run
+  if (!run) return []
+  const out: PartyDeckCard[] = []
+  for (const m of run.party) {
+    const ownerName = m.displayName ?? m.nameKey ?? 'Hero'
+    for (const defId of run.deckByMember[m.memberId] ?? []) {
+      out.push({ ...cardOffer(run, defId), ownerId: m.memberId, ownerName })
+    }
+  }
+  return out
 }
 
 export interface RestView {

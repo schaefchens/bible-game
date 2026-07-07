@@ -7,7 +7,7 @@ import { GAME_STATE_VERSION, type Character } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { setMpTransport, useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
-import type { ClientMsg, PeerActivity, ServerMsg } from './protocol'
+import type { ClientMsg, PeerActivity, PickPresence, ServerMsg } from './protocol'
 import { Socket } from './socket'
 import { wsUrl } from './url'
 
@@ -61,6 +61,9 @@ function onMessage(msg: ServerMsg): void {
       break
     case 'activity':
       session.setPeerActivity(msg.playerId, msg.name, msg.activity)
+      break
+    case 'pick':
+      session.setPeerPick(msg.playerId, msg.name, msg.pick)
       break
     case 'cinematic':
       // a shared party cinematic (sleep/pray) started or ended for everyone
@@ -133,6 +136,8 @@ export const startRun = (worldId: string): void => void socket?.send({ t: 'start
 export const sendChat = (text: string): void => void socket?.send({ t: 'chat', text })
 /** Relay this client's ephemeral presence (selected/hovered card, aimed enemy, hovered node) to teammates. */
 export const sendActivity = (activity: PeerActivity | null): void => void socket?.send({ t: 'activity', activity })
+/** Mirror this client's open sharpen/cast-off/prepare pick modal to teammates (null = closed). */
+export const sendPick = (pick: PickPresence | null): void => void socket?.send({ t: 'pick', pick })
 /** Sync a shared party cinematic (e.g. "Amen" ends prayer for everyone). */
 export const sendCinematic = (kind: 'sleep' | 'pray', active: boolean): void => void socket?.send({ t: 'cinematic', kind, active })
 

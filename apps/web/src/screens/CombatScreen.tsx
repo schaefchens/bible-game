@@ -7,7 +7,7 @@ import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
 import { sendActivity } from '../net'
-import { playerColor } from '../lib/playerColors'
+import { playerColor, playerSymbol } from '../lib/playerColors'
 import { selectCombat, selectCombatPile, type CombatView, type CombatantView, type HandCardView } from '../selectors'
 import { CardView } from '../components/Card'
 import { CardFace } from '../components/CardFace'
@@ -111,6 +111,7 @@ export function CombatScreen() {
   const mpMode = useGame((s) => s.mpMode)
   const chatOpen = useSession((s) => s.chatOpen)
   const peers = useSession((s) => s.peers)
+  const peerPicks = useSession((s) => s.peerPicks)
   const fb = useCombatFeedback()
   const drag = useCardDrag()
   const [pending, setPending] = useState<{ kind: 'card'; iid: string } | { kind: 'grace'; ability: string } | null>(null)
@@ -300,9 +301,10 @@ export function CombatScreen() {
   // it's clear whose hero a card affects; only meaningful with >1 hero (single-player has one owner).
   const showOwners = mpMode && view.party.length > 1
   const partyOrder = view.party.map((c) => c.id) // party combatant id === memberId
+  // co-op: a teammate's open sharpen/cast-off pick modal to mirror read-only (first active one)
+  const mirroredPick = Object.values(peerPicks)[0]
   const ownerColorOf = (memberId: string): string | undefined => (showOwners ? playerColor(memberId, partyOrder) : undefined)
-  const ownerNameOf = (memberId: string): string | undefined =>
-    showOwners ? view.party.find((c) => c.id === memberId)?.displayName ?? undefined : undefined
+  const ownerSymbolOf = (memberId: string): string | undefined => (showOwners ? playerSymbol(memberId, partyOrder) : undefined)
 
   const enemyTargetable = pending?.kind === 'card' || (pending?.kind === 'grace' && pending.ability === 'mercy')
   // Carrying a bag item → click a unit to open the action wheel on it (InventoryLayer routes "Use" to
@@ -438,7 +440,7 @@ export function CombatScreen() {
           {/* dead members stay on the field (slumped) rather than vanishing — position is a game
               element, and a fallen hero needs to be SEEN before the game-over screen */}
           {view.party.map((c) => (
-            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={partyTargetable && c.alive} dropHighlight={drag.hoveredTargetId === c.id} affectedColor={affectedPartyIds.has(c.id) ? ownerColorOf(c.id) : undefined} ownerColor={ownerColorOf(c.id)} incoming={incomingByMember[c.id]} onUnitClick={onUnitClick} />
+            <CombatUnit key={c.id} c={c} side="party" t={t} reduced={fb.reduced} reaction={fb.reactions[c.id]} float={fb.floats[c.id]} predicted={null} targetable={partyTargetable && c.alive} dropHighlight={drag.hoveredTargetId === c.id} affectedColor={affectedPartyIds.has(c.id) ? ownerColorOf(c.id) : undefined} ownerColor={ownerColorOf(c.id)} ownerSymbol={ownerSymbolOf(c.id)} incoming={incomingByMember[c.id]} onUnitClick={onUnitClick} />
           ))}
         </div>
         <div className="side enemies">
@@ -525,7 +527,7 @@ export function CombatScreen() {
                 launched={drag.launchedIid === card.iid}
                 peerLabel={peerCardLabel[card.iid]}
                 ownerColor={ownerColorOf(card.ownerId)}
-                ownerName={ownerNameOf(card.ownerId)}
+                ownerSymbol={ownerSymbolOf(card.ownerId)}
                 onHover={mpMode ? (h) => setHoveredCardIid((cur) => (h ? card.iid : cur === card.iid ? null : cur)) : undefined}
               />
             ))}
@@ -552,6 +554,18 @@ export function CombatScreen() {
       )}
       {pickModal && (
         <CardPickModal playedIid={pickModal.iid} pick={pickModal.pick} onClose={() => setPickModal(null)} />
+      )}
+      {/* co-op: mirror a teammate's open sharpen/cast-off pick (read-only) so everyone sees it. Only
+          when this client isn't itself picking (its own modal takes precedence). */}
+      {!pickModal && mirroredPick && (
+        <CardPickModal
+          playedIid={mirroredPick.pick.playedIid}
+          pick={{ kind: mirroredPick.pick.kind, count: mirroredPick.pick.count }}
+          mirrorSelection={mirroredPick.pick.selection}
+          mirrorName={mirroredPick.name}
+          readOnly
+          onClose={() => {}}
+        />
       )}
 
       {/* the targeting arrow dragged from the card to the cursor while aiming */}
@@ -645,6 +659,7 @@ function CombatUnit({
   incoming,
   affectedColor,
   ownerColor,
+  ownerSymbol,
   onUnitClick,
 }: {
   c: CombatantView
@@ -667,6 +682,8 @@ function CombatUnit({
   affectedColor?: string
   // co-op: this party member's owner color (nameplate tint)
   ownerColor?: string
+  // co-op: this party member's identity shape (shown before the name, in the owner color)
+  ownerSymbol?: string
   onUnitClick: (c: CombatantView, side: 'party' | 'enemy', e: { clientX: number; clientY: number; stopPropagation: () => void }) => void
 }) {
   const hpPct = Math.max(0, (c.hp / c.maxHp) * 100)
@@ -678,7 +695,7 @@ function CombatUnit({
       data-cid={c.id}
       data-faction={c.faction}
       style={affectedColor || ownerColor ? ({ '--owner': affectedColor ?? ownerColor } as CSSProperties) : undefined}
-      className={['unit', side, c.row, tgt ? 'targetable' : '', activeTarget ? 'active-target' : '', affectedColor ? 'affected' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
+      className={['unit', side, c.row, tgt ? 'targetable' : '', activeTarget ? 'active-target' : '', affectedColor ? 'affected' : '', ownerColor ? 'owned' : '', c.isDemon ? 'demon' : '', c.alive ? '' : c.subdued ? 'subdued' : 'dead'].join(' ')}
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 18 }}
@@ -702,6 +719,7 @@ function CombatUnit({
         )}
         {!c.alive && <div className="unit-defeated" title={c.subdued ? 'subdued' : 'defeated'}>{c.subdued ? '💫' : '💀'}</div>}
         <div className="unit-name">
+          {ownerSymbol && <span className="owner-symbol">{ownerSymbol}</span>}
           {c.displayName ?? t(c.nameKey)}
           {/* target lock-on: corner brackets that snap onto the selected enemy's NAME PLATE and hold
               (re-mounts — so the snap replays — whenever the active target changes) */}

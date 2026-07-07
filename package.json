@@ -19,6 +19,8 @@
     "check:engine-no-react": "node scripts/check-engine-no-react.mjs",
     "build": "npm run build --workspace @bible/web",
     "dev": "npm run dev --workspace @bible/web",
+    "server": "npm run dev --workspace @bible/server",
+    "server:start": "npm run start --workspace @bible/server",
     "verses:import": "node packages/i18n/scripts/importVerses.mjs"
   },
   "devDependencies": {

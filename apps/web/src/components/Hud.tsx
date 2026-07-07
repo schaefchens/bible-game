@@ -5,7 +5,7 @@ import { potencyTier, type AudioMode } from '@bible/engine'
 import { useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
 import { heroSummary, selectLocation, selectParty } from '../selectors'
-import { playerColor } from '../lib/playerColors'
+import { playerColor, playerSymbol } from '../lib/playerColors'
 
 // The 3-state audio toggle cycled from the HUD: music+sfx → sfx only → silent.
 const AUDIO_ICON: Record<AudioMode, string> = { on: '🎵', sfxOnly: '🔊', off: '🔇' }
@@ -80,7 +80,7 @@ export function Hud() {
         </div>
         <div className="hud-hero">
           <div className="hud-name">
-            {showColors && party[0] && <span className="hud-owner-swatch" style={{ background: playerColor(party[0].memberId, partyOrder) }} />}
+            {showColors && party[0] && <span className="owner-symbol" style={{ color: playerColor(party[0].memberId, partyOrder) }}>{playerSymbol(party[0].memberId, partyOrder)}</span>}
             {summary.name} <span className="muted">· {t('ui.common.level')} {summary.level}</span>
           </div>
           <div className="hud-hp">
@@ -119,6 +119,7 @@ export function Hud() {
                   title={`${m.name} · ${t('ui.common.level')} ${m.level}`}
                 >
                   <span className={'coop-dot' + (connected ? ' on' : '')} />
+                  {showColors && <span className="owner-symbol" style={{ color: playerColor(m.memberId, partyOrder) }}>{playerSymbol(m.memberId, partyOrder)}</span>}
                   <span className="hud-party-name">{m.name}</span>
                   <div className="hp-bar tiny">
                     <div className="hp-fill" style={{ width: `${pct}%` }} />
