@@ -1098,6 +1098,25 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-error { color: var(--danger); font-size: 0.85rem; margin: 0.4rem 0; }
 .coop-join { display: flex; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
 .coop-join .text-input { margin: 0; text-transform: uppercase; letter-spacing: 0.16em; text-align: center; }
+
+/* ---- game browser (public games list + join) ---- */
+.coop-panel.coop-browser { width: 460px; max-width: 94vw; }
+.coop-games-head { display: flex; align-items: center; justify-content: space-between; margin: 0.8rem 0 0.3rem; font-size: 0.82rem; color: var(--muted); }
+.coop-games { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 34vh; overflow-y: auto; }
+.coop-games-empty { padding: 0.8rem; text-align: center; font-size: 0.86rem; }
+.coop-game-row {
+  width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 0.6rem; align-items: center;
+  padding: 0.5rem 0.7rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-edge);
+  color: var(--ink); font-family: inherit; font-size: 0.9rem; cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
+}
+.coop-game-row:hover:not(:disabled) { background: rgba(40,50,32,0.6); border-color: var(--gold-bright); }
+.coop-game-row:disabled { opacity: 0.5; cursor: default; }
+.coop-game-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coop-game-host { font-size: 0.78rem; }
+.coop-game-count { font-variant-numeric: tabular-nums; color: var(--gold-bright); font-weight: 700; }
+/* ---- create-game visibility toggle ---- */
+.coop-visibility { display: flex; gap: 0.5rem; }
+.coop-visibility-hint { display: block; margin-top: 0.3rem; font-size: 0.78rem; }
 .coop-roster { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .coop-seat { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-edge); }
 .coop-seat.offline { opacity: 0.5; }

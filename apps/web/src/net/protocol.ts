@@ -50,10 +50,23 @@ export interface Compat {
   stateVersion: number
 }
 
+/** public games appear in the browser list; private ones are join-by-code only (no password). */
+export type Visibility = 'public' | 'private'
+
+/** A public, joinable game as shown in the browser list. */
+export interface GameSummary {
+  code: RoomCode
+  title: string
+  hostName: string
+  players: number
+  maxPlayers: number
+}
+
 // ---- client → server ----
 export type ClientMsg =
-  | ({ t: 'createParty'; name: string; character: Character } & Compat)
+  | ({ t: 'createParty'; name: string; character: Character; title: string; visibility: Visibility } & Compat)
   | ({ t: 'joinParty'; code: RoomCode; name: string; character: Character } & Compat)
+  | { t: 'listGames' }
   | { t: 'chooseHero'; character: Character }
   | { t: 'setReady'; ready: boolean }
   | { t: 'startRun'; worldId: string }
@@ -68,6 +81,7 @@ export type ClientMsg =
 // ---- server → client ----
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; token: SessionToken; code: RoomCode }
+  | { t: 'gameList'; games: GameSummary[] }
   | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[] }
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { heroMemberId } from '@bible/engine'
-import type { NetPhase, PeerActivity, PickPresence, RosterEntry } from '../net/protocol'
+import type { GameSummary, NetPhase, PeerActivity, PickPresence, RosterEntry } from '../net/protocol'
 
 // Pure networking / social state for co-op. Deliberately separate from useGame (which owns the single
 // authoritative GameState): chat, roster, and presence NEVER touch the engine, so keeping them here
@@ -15,8 +15,9 @@ export interface ChatLine {
   system?: boolean
 }
 
-/** idle = not in co-op; menu = create/join form; lobby = in a room, pre-run; inRun = playing. */
-export type SessionPhase = 'idle' | 'menu' | 'lobby' | 'inRun'
+/** idle = not in co-op; browser = the games list (join/create entry); create = the new-game form;
+ *  lobby = in a room, pre-run; inRun = playing. */
+export type SessionPhase = 'idle' | 'browser' | 'create' | 'lobby' | 'inRun'
 
 interface SessionStore {
   phase: SessionPhase
@@ -37,10 +38,14 @@ interface SessionStore {
   peers: Record<string, { name: string; activity: PeerActivity | null }>
   /** a peer's open sharpen/cast-off/prepare pick modal, mirrored read-only for teammates */
   peerPicks: Record<string, { name: string; pick: PickPresence }>
+  /** the open public games shown in the browser list */
+  games: GameSummary[]
 
   openMenu: () => void
+  openCreate: () => void
   reset: () => void
   setPhase: (phase: SessionPhase) => void
+  setGames: (games: GameSummary[]) => void
   setMyCharacterId: (id: string | null) => void
   setWelcome: (w: { playerId: string; token: string; code: string }) => void
   setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[] }) => void
@@ -71,8 +76,10 @@ export const useSession = create<SessionStore>((set) => ({
   chat: [],
   peers: {},
   peerPicks: {},
+  games: [],
 
-  openMenu: () => set({ phase: 'menu', error: null }),
+  openMenu: () => set({ phase: 'browser', error: null }),
+  openCreate: () => set({ phase: 'create', error: null }),
   reset: () =>
     set({
       phase: 'idle',
@@ -89,8 +96,10 @@ export const useSession = create<SessionStore>((set) => ({
       chat: [],
       peers: {},
       peerPicks: {},
+      games: [],
     }),
   setPhase: (phase) => set({ phase }),
+  setGames: (games) => set({ games }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
   setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
   setLobby: ({ code, phase, hostId, roster }) => set({ code, phase, hostId, roster }),

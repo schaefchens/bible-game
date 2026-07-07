@@ -7,7 +7,7 @@ import { GAME_STATE_VERSION, type Character } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { setMpTransport, useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
-import type { ClientMsg, PeerActivity, PickPresence, ServerMsg } from './protocol'
+import type { ClientMsg, PeerActivity, PickPresence, ServerMsg, Visibility } from './protocol'
 import { Socket } from './socket'
 import { wsUrl } from './url'
 
@@ -18,10 +18,22 @@ const compat = { buildHash: BUILD_HASH, stateVersion: GAME_STATE_VERSION }
 let socket: Socket | null = null
 /** the create/join message to send once the socket first opens (we connect lazily on the first action) */
 let pendingOnOpen: ClientMsg | null = null
+/** whether we've initiated the connection (so browsing / create / join don't open a second socket) */
+let started = false
 
 function ensureSocket(): Socket {
   if (!socket) socket = new Socket(wsUrl(), { onOpen, onMessage, onClose })
   return socket
+}
+
+/** Bring the socket up (idempotent) — used for browsing the games list before any create/join. */
+function ensureConnected(): Socket {
+  const s = ensureSocket()
+  if (!started) {
+    started = true
+    s.connect()
+  }
+  return s
 }
 
 function onOpen(): void {
@@ -45,6 +57,9 @@ function onMessage(msg: ServerMsg): void {
   switch (msg.t) {
     case 'welcome':
       session.setWelcome({ playerId: msg.playerId, token: msg.token, code: msg.code })
+      break
+    case 'gameList':
+      session.setGames(msg.games)
       break
     case 'lobby':
       session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster })
@@ -102,28 +117,29 @@ export function initNet(): void {
   setMpTransport({ sendCommand: (cmd, round) => void socket?.send({ t: 'gameCommand', cmd, round }) })
 }
 
-export const openCoop = (): void => useSession.getState().openMenu()
+/** Open the co-op browser and bring the socket up so the games list can load. */
+export const openCoop = (): void => {
+  useSession.getState().openMenu()
+  ensureConnected()
+}
 
-export function createParty(name: string, character: Character): void {
+/** Request the open public games (browser poll). No-op until the socket is up; the poll retries. */
+export const listGames = (): void => void socket?.send({ t: 'listGames' })
+
+export function createParty(name: string, character: Character, opts: { title: string; visibility: Visibility }): void {
   useSession.getState().setMyCharacterId(character.id)
-  const s = ensureSocket()
-  const msg: ClientMsg = { t: 'createParty', name, character, ...compat }
+  const s = ensureConnected()
+  const msg: ClientMsg = { t: 'createParty', name, character, title: opts.title, visibility: opts.visibility, ...compat }
   if (s.connected) s.send(msg)
-  else {
-    pendingOnOpen = msg
-    s.connect()
-  }
+  else pendingOnOpen = msg
 }
 
 export function joinParty(code: string, name: string, character: Character): void {
   useSession.getState().setMyCharacterId(character.id)
-  const s = ensureSocket()
+  const s = ensureConnected()
   const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, character, ...compat }
   if (s.connected) s.send(msg)
-  else {
-    pendingOnOpen = msg
-    s.connect()
-  }
+  else pendingOnOpen = msg
 }
 
 export function chooseHero(character: Character): void {
@@ -147,6 +163,7 @@ export function leaveParty(): void {
   socket?.close()
   socket = null
   pendingOnOpen = null
+  started = false
   void useGame.getState().exitMp()
   useSession.getState().reset()
 }

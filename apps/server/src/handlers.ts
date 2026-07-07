@@ -14,6 +14,7 @@ import {
   broadcastLobby,
   createRoom,
   getRoom,
+  listPublicGames,
   migrateHost,
   removePlayer,
   roomByToken,
@@ -59,10 +60,16 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
   switch (msg.t) {
     case 'createParty': {
       if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
-      const { room, player } = createRoom(Date.now(), SERVER_BUILD_HASH, { name: msg.name, character: msg.character, ws })
+      const { room, player } = createRoom(Date.now(), SERVER_BUILD_HASH, { name: msg.name, character: msg.character, ws }, { title: msg.title, visibility: msg.visibility })
       bind(session, room, player)
       send(ws, { t: 'welcome', playerId: player.playerId, token: player.token, code: room.code })
       broadcastLobby(room)
+      return
+    }
+
+    case 'listGames': {
+      // browser: the open public games. No room membership needed — a browsing client just connects.
+      send(ws, { t: 'gameList', games: listPublicGames() })
       return
     }
 

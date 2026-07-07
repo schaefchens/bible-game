@@ -4,7 +4,7 @@
 
 import type { WebSocket } from 'ws'
 import { newGame, type Character, type GameState } from '@bible/engine'
-import type { Phase, PlayerId, RoomCode, RosterEntry, ServerMsg, SessionToken } from './protocol'
+import type { GameSummary, Phase, PlayerId, RoomCode, RosterEntry, ServerMsg, SessionToken, Visibility } from './protocol'
 
 export interface Player {
   playerId: PlayerId
@@ -25,6 +25,10 @@ export interface Room {
   hostPlayerId: PlayerId
   players: Player[]
   phase: Phase
+  /** display title for the public games list; falls back to the code when empty */
+  title: string
+  /** public games appear in the browser list; private ones are join-by-code only (no password) */
+  visibility: Visibility
   /** authoritative game state; a fresh newGame() until the run starts */
   state: GameState
   /** monotonic broadcast counter */
@@ -36,7 +40,7 @@ export interface Room {
   lastActivity: number
 }
 
-const MAX_PLAYERS = 3
+export const MAX_PLAYERS = 3
 /** Unambiguous alphabet for room codes (no 0/O/1/I). */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LEN = 4
@@ -62,7 +66,12 @@ export const roomByToken = (token: SessionToken): { room: Room; player: Player }
   return room && player ? { room, player } : undefined
 }
 
-export function createRoom(now: number, buildHash: string, host: { name: string; character: Character; ws: WebSocket }): { room: Room; player: Player } {
+export function createRoom(
+  now: number,
+  buildHash: string,
+  host: { name: string; character: Character; ws: WebSocket },
+  opts: { title: string; visibility: Visibility },
+): { room: Room; player: Player } {
   let code = randomCode()
   while (rooms.has(code)) code = randomCode()
   const player = newPlayer(host.name, host.character, host.ws)
@@ -71,6 +80,8 @@ export function createRoom(now: number, buildHash: string, host: { name: string;
     hostPlayerId: player.playerId,
     players: [player],
     phase: 'lobby',
+    title: opts.title.trim(),
+    visibility: opts.visibility,
     state: newGame(),
     seq: 0,
     buildHash,
@@ -125,6 +136,19 @@ export function migrateHost(room: Room): void {
 }
 
 export const connectedCount = (room: Room): number => room.players.filter((p) => p.connected).length
+
+const hostName = (room: Room): string => room.players.find((p) => p.playerId === room.hostPlayerId)?.name ?? '—'
+
+/** Public games open to join (still in the lobby, not full) for the browser list. Private games are
+ *  omitted — they're join-by-code only. Title falls back to the room code. */
+export function listPublicGames(): GameSummary[] {
+  const out: GameSummary[] = []
+  for (const room of rooms.values()) {
+    if (room.phase !== 'lobby' || room.visibility !== 'public' || room.players.length >= MAX_PLAYERS) continue
+    out.push({ code: room.code, title: room.title || room.code, hostName: hostName(room), players: room.players.length, maxPlayers: MAX_PLAYERS })
+  }
+  return out
+}
 
 export function roster(room: Room): RosterEntry[] {
   return room.players.map((p) => ({

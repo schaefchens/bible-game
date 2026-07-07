@@ -6,6 +6,7 @@ export {
   openCoop,
   createParty,
   joinParty,
+  listGames,
   chooseHero,
   setReady,
   startRun,
