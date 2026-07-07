@@ -57,19 +57,24 @@ export type Visibility = 'public' | 'private'
 export interface GameSummary {
   code: RoomCode
   title: string
+  /** the chosen adventure (client maps to the localized world title + art) */
+  worldId: string
   hostName: string
   players: number
   maxPlayers: number
 }
 
 // ---- client → server ----
+// createParty/joinParty carry NO character — the hero is chosen in the lobby (chooseHero). The adventure
+// (worldId) is chosen at CREATE and fixed for the game; startRun uses the room's worldId.
 export type ClientMsg =
-  | ({ t: 'createParty'; name: string; character: Character; title: string; visibility: Visibility } & Compat)
-  | ({ t: 'joinParty'; code: RoomCode; name: string; character: Character } & Compat)
+  | ({ t: 'createParty'; name: string; title: string; visibility: Visibility; worldId: string } & Compat)
+  | ({ t: 'joinParty'; code: RoomCode; name: string } & Compat)
   | { t: 'listGames' }
   | { t: 'chooseHero'; character: Character }
   | { t: 'setReady'; ready: boolean }
-  | { t: 'startRun'; worldId: string }
+  | { t: 'kick'; playerId: PlayerId }
+  | { t: 'startRun' }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }
   | { t: 'pick'; pick: PickPresence | null }
@@ -82,12 +87,13 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; token: SessionToken; code: RoomCode }
   | { t: 'gameList'; games: GameSummary[] }
-  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[] }
+  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[]; worldId: string }
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }
   | { t: 'activity'; playerId: PlayerId; name: string; activity: PeerActivity | null }
   | { t: 'pick'; playerId: PlayerId; name: string; pick: PickPresence | null }
   | { t: 'cinematic'; kind: 'sleep' | 'pray'; active: boolean }
   | { t: 'presence'; playerId: PlayerId; connected: boolean }
+  | { t: 'kicked' }
   | { t: 'rejected'; reason: string }
   | { t: 'error'; code: string; reason: string }

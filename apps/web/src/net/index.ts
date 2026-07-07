@@ -9,6 +9,7 @@ export {
   listGames,
   chooseHero,
   setReady,
+  kick,
   startRun,
   sendChat,
   sendActivity,

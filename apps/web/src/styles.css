@@ -1099,31 +1099,70 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-join { display: flex; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
 .coop-join .text-input { margin: 0; text-transform: uppercase; letter-spacing: 0.16em; text-align: center; }
 
-/* ---- game browser (public games list + join) ---- */
-.coop-panel.coop-browser { width: 460px; max-width: 94vw; }
-.coop-games-head { display: flex; align-items: center; justify-content: space-between; margin: 0.8rem 0 0.3rem; font-size: 0.82rem; color: var(--muted); }
-.coop-games { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 34vh; overflow-y: auto; }
-.coop-games-empty { padding: 0.8rem; text-align: center; font-size: 0.86rem; }
+/* ---- game browser: the games list is the central element ---- */
+.coop-panel.coop-browser { width: 560px; max-width: 94vw; }
+.coop-browser-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.coop-joincorner { flex: none; padding-top: 0.35rem; } /* quiet, top-right */
+.coop-joincorner .coop-join { margin: 0; }
+/* padding (not 0) so the first row + its hover-lift aren't clipped by the scroll pane's top edge */
+.coop-games { list-style: none; margin: 0.4rem 0; padding: 4px 2px; display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.coop-games-empty { padding: 1.4rem; text-align: center; font-size: 0.9rem; }
 .coop-game-row {
-  width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 0.6rem; align-items: center;
-  padding: 0.5rem 0.7rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-edge);
-  color: var(--ink); font-family: inherit; font-size: 0.9rem; cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
+  width: 100%; display: grid; grid-template-columns: 64px 1fr auto; gap: 0.7rem; align-items: center;
+  padding: 6px 10px 6px 6px; border-radius: 10px; background: rgba(0,0,0,0.32); border: 1px solid var(--panel-edge);
+  color: var(--ink); font-family: inherit; cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
-.coop-game-row:hover:not(:disabled) { background: rgba(40,50,32,0.6); border-color: var(--gold-bright); }
+.coop-game-row:hover:not(:disabled) { background: rgba(40,50,32,0.7); border-color: var(--gold-bright); transform: translateY(-1px); }
 .coop-game-row:disabled { opacity: 0.5; cursor: default; }
-.coop-game-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coop-game-host { font-size: 0.78rem; }
-.coop-game-count { font-variant-numeric: tabular-nums; color: var(--gold-bright); font-weight: 700; }
-/* ---- create-game visibility toggle ---- */
+.coop-game-art { width: 64px; height: 44px; border-radius: 7px; background-size: cover; background-position: center; border: 1px solid rgba(0,0,0,0.5); }
+.coop-game-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.coop-game-title { font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coop-game-sub { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coop-game-count { font-variant-numeric: tabular-nums; color: var(--gold-bright); font-weight: 700; font-size: 1.05rem; }
+.coop-browser-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.4rem; }
+/* the small, remembered "Playing as {name} ✎" line */
+.coop-namestrip { font-size: 0.82rem; }
+.coop-name-view { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.82rem; cursor: pointer; padding: 0; }
+.coop-name-view b { color: var(--ink); font-weight: 700; }
+.coop-name-edit { color: var(--gold); margin-left: 0.15rem; }
+.coop-name-input { margin: 0; width: 12rem; padding: 0.4rem 0.6rem; font-size: 0.9rem; }
+
+/* ---- create-game: visibility toggle + adventure picker ---- */
+.coop-panel.coop-create { width: 520px; max-width: 94vw; }
 .coop-visibility { display: flex; gap: 0.5rem; }
 .coop-visibility-hint { display: block; margin-top: 0.3rem; font-size: 0.78rem; }
+.coop-adventures { display: flex; gap: 0.6rem; margin-top: 0.3rem; }
+.coop-adv-card {
+  position: relative; flex: 1 1 0; min-width: 0; height: 92px; border-radius: 10px; overflow: hidden;
+  border: 2px solid var(--panel-edge); background-size: cover; background-position: center; cursor: pointer;
+  display: flex; align-items: flex-end; padding: 0; transition: border-color 0.15s, transform 0.1s;
+}
+.coop-adv-card:hover { transform: translateY(-1px); }
+.coop-adv-card.selected { border-color: var(--gold-bright); box-shadow: 0 0 12px rgba(216,185,98,0.5); }
+.coop-adv-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.82)); }
+.coop-adv-title { position: relative; z-index: 1; padding: 6px 8px; font-size: 0.82rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 3px #000; line-height: 1.15; }
+
+/* ---- lobby: adventure banner ---- */
+.coop-adv-banner { position: relative; height: 96px; border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; display: flex; align-items: flex-end; background-size: cover; background-position: center; }
+.coop-adv-banner-title { position: relative; z-index: 1; padding: 8px 12px; font-size: 1.15rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 4px #000; }
+.coop-lobby-title { margin-top: 0; }
 .coop-roster { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .coop-seat { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-edge); }
 .coop-seat.offline { opacity: 0.5; }
 .coop-seat-name { font-weight: 600; }
 .coop-seat-hero { flex: 1; text-align: left; font-size: 0.82rem; }
+/* my own row: the hero picker sits inline where the hero text would be */
+.coop-seat-heropick { flex: 1; margin: 0; padding: 0.25rem 0.4rem; font-size: 0.82rem; min-width: 0; }
 .coop-ready { font-size: 0.78rem; color: var(--muted); }
 .coop-ready.yes { color: #8fce8f; font-weight: 600; }
+/* my own row: the ready status is a clickable toggle */
+.coop-ready-btn { flex: none; font-family: inherit; cursor: pointer; padding: 0.25rem 0.6rem; border-radius: 7px; background: rgba(0,0,0,0.35); border: 1px solid var(--panel-edge); transition: background 0.15s, border-color 0.15s; }
+.coop-ready-btn:hover:not(:disabled) { border-color: var(--gold-bright); }
+.coop-ready-btn.yes { background: rgba(60,110,60,0.35); border-color: #6fbf6f; }
+.coop-ready-btn:disabled { opacity: 0.5; cursor: default; }
+/* host-only kick button on other players' rows */
+.coop-kick { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--panel-edge); background: rgba(90,30,30,0.5); color: #ffb3aa; font-size: 0.7rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s; }
+.coop-kick:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 /* connection dot (shared by lobby seats + HUD party chips) */
 .coop-dot { width: 9px; height: 9px; border-radius: 50%; background: #6a2a2a; box-shadow: 0 0 4px rgba(0,0,0,0.6); flex: none; }

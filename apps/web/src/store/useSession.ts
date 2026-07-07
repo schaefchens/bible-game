@@ -40,15 +40,22 @@ interface SessionStore {
   peerPicks: Record<string, { name: string; pick: PickPresence }>
   /** the open public games shown in the browser list */
   games: GameSummary[]
+  /** the co-op display name, remembered across sessions (localStorage) */
+  name: string
+  /** the current room's chosen adventure (fixed at creation; used for the lobby banner) */
+  worldId: string | null
 
   openMenu: () => void
   openCreate: () => void
   reset: () => void
   setPhase: (phase: SessionPhase) => void
   setGames: (games: GameSummary[]) => void
+  setName: (name: string) => void
+  /** the host kicked us: drop room membership, return to the browser with a message (keep the socket + name) */
+  kicked: () => void
   setMyCharacterId: (id: string | null) => void
   setWelcome: (w: { playerId: string; token: string; code: string }) => void
-  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[] }) => void
+  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string }) => void
   setConnection: (c: 'up' | 'down') => void
   setError: (e: string | null) => void
   setNotice: (n: string | null) => void
@@ -60,6 +67,23 @@ interface SessionStore {
 }
 
 let chatSeq = 0
+
+// The co-op display name is remembered across sessions (a small client pref, not engine state).
+const NAME_KEY = 'bible-game/coop-name'
+const loadName = (): string => {
+  try {
+    return localStorage.getItem(NAME_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+const saveName = (name: string): void => {
+  try {
+    localStorage.setItem(NAME_KEY, name)
+  } catch {
+    /* ignore (private mode / storage disabled) */
+  }
+}
 
 export const useSession = create<SessionStore>((set) => ({
   phase: 'idle',
@@ -77,6 +101,8 @@ export const useSession = create<SessionStore>((set) => ({
   peers: {},
   peerPicks: {},
   games: [],
+  name: loadName(),
+  worldId: null,
 
   openMenu: () => set({ phase: 'browser', error: null }),
   openCreate: () => set({ phase: 'create', error: null }),
@@ -97,12 +123,20 @@ export const useSession = create<SessionStore>((set) => ({
       peers: {},
       peerPicks: {},
       games: [],
+      name: loadName(), // the display name is remembered across sessions
+      worldId: null,
     }),
   setPhase: (phase) => set({ phase }),
   setGames: (games) => set({ games }),
+  setName: (name) => {
+    saveName(name)
+    set({ name })
+  },
+  kicked: () =>
+    set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'You were removed from the party.' }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
   setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
-  setLobby: ({ code, phase, hostId, roster }) => set({ code, phase, hostId, roster }),
+  setLobby: ({ code, phase, hostId, roster, worldId }) => set({ code, phase, hostId, roster, worldId }),
   setConnection: (connection) => set({ connection }),
   setError: (error) => set({ error }),
   setNotice: (notice) => set({ notice }),

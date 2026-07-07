@@ -62,7 +62,7 @@ function onMessage(msg: ServerMsg): void {
       session.setGames(msg.games)
       break
     case 'lobby':
-      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster })
+      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId })
       session.setPhase(msg.phase === 'inRun' ? 'inRun' : 'lobby')
       break
     case 'state':
@@ -91,6 +91,10 @@ function onMessage(msg: ServerMsg): void {
       if (!msg.connected) session.clearPeer(msg.playerId) // drop a disconnected peer's stale highlight
       break
     }
+    case 'kicked':
+      // the host removed us — back to the games browser with a notice (socket stays up so we can rejoin)
+      session.kicked()
+      break
     case 'rejected':
       session.setNotice(rejectionText(msg.reason))
       break
@@ -126,18 +130,17 @@ export const openCoop = (): void => {
 /** Request the open public games (browser poll). No-op until the socket is up; the poll retries. */
 export const listGames = (): void => void socket?.send({ t: 'listGames' })
 
-export function createParty(name: string, character: Character, opts: { title: string; visibility: Visibility }): void {
-  useSession.getState().setMyCharacterId(character.id)
+// create/join carry no hero — the seat's hero is chosen in the lobby (chooseHero sets myCharacterId).
+export function createParty(name: string, opts: { title: string; visibility: Visibility; worldId: string }): void {
   const s = ensureConnected()
-  const msg: ClientMsg = { t: 'createParty', name, character, title: opts.title, visibility: opts.visibility, ...compat }
+  const msg: ClientMsg = { t: 'createParty', name, title: opts.title, visibility: opts.visibility, worldId: opts.worldId, ...compat }
   if (s.connected) s.send(msg)
   else pendingOnOpen = msg
 }
 
-export function joinParty(code: string, name: string, character: Character): void {
-  useSession.getState().setMyCharacterId(character.id)
+export function joinParty(code: string, name: string): void {
   const s = ensureConnected()
-  const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, character, ...compat }
+  const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, ...compat }
   if (s.connected) s.send(msg)
   else pendingOnOpen = msg
 }
@@ -148,7 +151,9 @@ export function chooseHero(character: Character): void {
 }
 
 export const setReady = (ready: boolean): void => void socket?.send({ t: 'setReady', ready })
-export const startRun = (worldId: string): void => void socket?.send({ t: 'startRun', worldId })
+/** Host-only: remove a player from the lobby. */
+export const kick = (playerId: string): void => void socket?.send({ t: 'kick', playerId })
+export const startRun = (): void => void socket?.send({ t: 'startRun' })
 export const sendChat = (text: string): void => void socket?.send({ t: 'chat', text })
 /** Relay this client's ephemeral presence (selected/hovered card, aimed enemy, hovered node) to teammates. */
 export const sendActivity = (activity: PeerActivity | null): void => void socket?.send({ t: 'activity', activity })

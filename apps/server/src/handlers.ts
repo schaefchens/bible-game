@@ -19,6 +19,7 @@ import {
   removePlayer,
   roomByToken,
   send,
+  setHero,
   type Player,
   type Room,
 } from './rooms'
@@ -60,7 +61,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
   switch (msg.t) {
     case 'createParty': {
       if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
-      const { room, player } = createRoom(Date.now(), SERVER_BUILD_HASH, { name: msg.name, character: msg.character, ws }, { title: msg.title, visibility: msg.visibility })
+      const { room, player } = createRoom(Date.now(), SERVER_BUILD_HASH, { name: msg.name, ws }, { title: msg.title, visibility: msg.visibility, worldId: msg.worldId })
       bind(session, room, player)
       send(ws, { t: 'welcome', playerId: player.playerId, token: player.token, code: room.code })
       broadcastLobby(room)
@@ -77,7 +78,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
       const room = getRoom(msg.code)
       if (!room) return send(ws, { t: 'error', code: 'no-room', reason: 'no such room' })
-      const res = addPlayer(room, msg.name, msg.character, ws)
+      const res = addPlayer(room, msg.name, ws)
       if ('error' in res) return send(ws, { t: 'error', code: res.error, reason: res.error })
       bind(session, room, res)
       send(ws, { t: 'welcome', playerId: res.playerId, token: res.token, code: room.code })
@@ -103,7 +104,8 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
     case 'chooseHero': {
       const ctx = resolve(session)
       if (!ctx || ctx.room.phase !== 'lobby') return
-      ctx.player.character = msg.character
+      const err = setHero(ctx.room, ctx.player, msg.character)
+      if (err) return send(ws, { t: 'rejected', reason: err.error })
       broadcastLobby(ctx.room)
       return
     }
@@ -124,7 +126,22 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       if (room.phase !== 'lobby') return send(ws, { t: 'rejected', reason: 'already-started' })
       if (room.players.length < 2) return send(ws, { t: 'rejected', reason: 'need-2-players' })
       if (!room.players.every((p) => p.character && p.ready)) return send(ws, { t: 'rejected', reason: 'not-all-ready' })
-      startRun(room, msg.worldId)
+      startRun(room)
+      return
+    }
+
+    case 'kick': {
+      // host-only, lobby-only: remove another player and boot them back to the browser
+      const ctx = resolve(session)
+      if (!ctx) return
+      const { room, player } = ctx
+      if (player.playerId !== room.hostPlayerId || room.phase !== 'lobby') return send(ws, { t: 'rejected', reason: 'host-only' })
+      if (msg.playerId === player.playerId) return // can't kick yourself
+      const target = room.players.find((p) => p.playerId === msg.playerId)
+      if (!target) return
+      send(target.ws, { t: 'kicked' })
+      removePlayer(room, target.playerId)
+      if (getRoom(room.code)) broadcastLobby(room)
       return
     }
 
@@ -186,11 +203,11 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
 
 /** The server owns all entropy: it mints the run seed + each seat's member id, then dispatches the
  *  authoritative startCoopRun (assembled from every player's submitted permanent Character). */
-function startRun(room: Room, worldId: string): void {
+function startRun(room: Room): void {
   const heroes: Character[] = room.players.map((p) => p.character!).filter(Boolean)
   for (const p of room.players) p.memberId = p.character ? heroMemberId(p.character.id) : null
   const seed = `coop-${crypto.randomUUID()}`
-  const res = reduce(room.state, { type: 'startCoopRun', heroes, worldId, seed, content: CONTENT })
+  const res = reduce(room.state, { type: 'startCoopRun', heroes, worldId: room.worldId, seed, content: CONTENT })
   const rejected = res.events.find((e) => e.type === 'rejected')
   if (rejected) return broadcast(room, { t: 'rejected', reason: (rejected as { reason: string }).reason })
   room.state = res.state

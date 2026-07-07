@@ -29,6 +29,8 @@ export interface Room {
   title: string
   /** public games appear in the browser list; private ones are join-by-code only (no password) */
   visibility: Visibility
+  /** the chosen adventure, fixed at creation; startRun uses it */
+  worldId: string
   /** authoritative game state; a fresh newGame() until the run starts */
   state: GameState
   /** monotonic broadcast counter */
@@ -69,12 +71,12 @@ export const roomByToken = (token: SessionToken): { room: Room; player: Player }
 export function createRoom(
   now: number,
   buildHash: string,
-  host: { name: string; character: Character; ws: WebSocket },
-  opts: { title: string; visibility: Visibility },
+  host: { name: string; ws: WebSocket },
+  opts: { title: string; visibility: Visibility; worldId: string },
 ): { room: Room; player: Player } {
   let code = randomCode()
   while (rooms.has(code)) code = randomCode()
-  const player = newPlayer(host.name, host.character, host.ws)
+  const player = newPlayer(host.name, host.ws)
   const room: Room = {
     code,
     hostPlayerId: player.playerId,
@@ -82,6 +84,7 @@ export function createRoom(
     phase: 'lobby',
     title: opts.title.trim(),
     visibility: opts.visibility,
+    worldId: opts.worldId,
     state: newGame(),
     seq: 0,
     buildHash,
@@ -93,24 +96,32 @@ export function createRoom(
   return { room, player }
 }
 
-export function addPlayer(room: Room, name: string, character: Character, ws: WebSocket): Player | { error: string } {
+export function addPlayer(room: Room, name: string, ws: WebSocket): Player | { error: string } {
   if (room.phase !== 'lobby') return { error: 'run-in-progress' }
   if (room.players.length >= MAX_PLAYERS) return { error: 'room-full' }
-  // distinct heroes only — the party member id is derived from the characterId and would otherwise collide
-  if (room.players.some((p) => p.character?.id === character.id)) return { error: 'dup-hero' }
-  const player = newPlayer(name, character, ws)
+  const player = newPlayer(name, ws)
   room.players.push(player)
   tokenIndex.set(player.token, { code: room.code, playerId: player.playerId })
   return player
 }
 
-function newPlayer(name: string, character: Character, ws: WebSocket): Player {
+/** Set a player's chosen hero (in the lobby). Rejects a hero another connected player already picked —
+ *  the party member id is derived from the characterId and would otherwise collide. */
+export function setHero(room: Room, player: Player, character: Character): { error: string } | undefined {
+  if (room.players.some((p) => p.playerId !== player.playerId && p.connected && p.character?.id === character.id)) {
+    return { error: 'dup-hero' }
+  }
+  player.character = character
+  return undefined
+}
+
+function newPlayer(name: string, ws: WebSocket): Player {
   return {
     playerId: crypto.randomUUID(),
     token: crypto.randomUUID(),
     ws,
     name,
-    character,
+    character: null, // chosen in the lobby (chooseHero)
     memberId: null,
     ready: false,
     connected: true,
@@ -145,7 +156,7 @@ export function listPublicGames(): GameSummary[] {
   const out: GameSummary[] = []
   for (const room of rooms.values()) {
     if (room.phase !== 'lobby' || room.visibility !== 'public' || room.players.length >= MAX_PLAYERS) continue
-    out.push({ code: room.code, title: room.title || room.code, hostName: hostName(room), players: room.players.length, maxPlayers: MAX_PLAYERS })
+    out.push({ code: room.code, title: room.title || room.code, worldId: room.worldId, hostName: hostName(room), players: room.players.length, maxPlayers: MAX_PLAYERS })
   }
   return out
 }
@@ -173,7 +184,7 @@ export function broadcast(room: Room, msg: ServerMsg): void {
 }
 
 export const broadcastLobby = (room: Room): void =>
-  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room) })
+  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room), worldId: room.worldId })
 
 /** For a periodic GC sweep: drop rooms idle past the TTL. */
 export function sweepIdleRooms(now: number, ttlMs: number): void {

@@ -3,24 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 import { cachedCount, swActive, warmCache, worldUrls } from '../pwa/offlineCache'
-
-// The selectable adventures. Tutorial first (always open); later worlds stay locked until the world
-// named in `unlockedBy` has been completed (its boss beaten). Title/subtitle are i18n keys.
-interface WorldCard {
-  id: string
-  titleKey: string
-  subtitleKey: string
-  bg: string
-  tagKey?: string
-  unlockedBy?: string
-}
-// Progression: tutorial (world-02) → both Valley of Elah (world-03) and The Road to Jericho (world-01)
-// unlock together once the tutorial is completed.
-const WORLDS: WorldCard[] = [
-  { id: 'world-02', titleKey: 'ui.worldSelect.world02.title', subtitleKey: 'ui.worldSelect.world02.subtitle', bg: 'bg-rest-old-cistern.webp', tagKey: 'ui.worldSelect.tutorialTag' },
-  { id: 'world-03', titleKey: 'ui.worldSelect.world03.title', subtitleKey: 'ui.worldSelect.world03.subtitle', bg: 'bg-combat-rocky-pass.webp', unlockedBy: 'world-02' },
-  { id: 'world-01', titleKey: 'ui.worldSelect.world01.title', subtitleKey: 'ui.worldSelect.world01.subtitle', bg: 'bg-road-dusty-road.webp', unlockedBy: 'world-02' },
-]
+import { WORLDS, type WorldMeta as WorldCard } from '../worlds'
 
 // Per-card offline-download state. 'unavailable' = no service worker controlling (dev / not a PWA
 // install) so caching can't happen; 'stale' = the persisted flag says downloaded but the cache is
