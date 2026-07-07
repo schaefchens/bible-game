@@ -44,6 +44,8 @@ interface SessionStore {
   name: string
   /** the current room's chosen adventure (fixed at creation; used for the lobby banner) */
   worldId: string | null
+  /** the current room's title (optional; shown in the lobby header when set) */
+  roomTitle: string
 
   openMenu: () => void
   openCreate: () => void
@@ -55,7 +57,7 @@ interface SessionStore {
   kicked: () => void
   setMyCharacterId: (id: string | null) => void
   setWelcome: (w: { playerId: string; token: string; code: string }) => void
-  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string }) => void
+  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string; title: string }) => void
   setConnection: (c: 'up' | 'down') => void
   setError: (e: string | null) => void
   setNotice: (n: string | null) => void
@@ -103,6 +105,7 @@ export const useSession = create<SessionStore>((set) => ({
   games: [],
   name: loadName(),
   worldId: null,
+  roomTitle: '',
 
   openMenu: () => set({ phase: 'browser', error: null }),
   openCreate: () => set({ phase: 'create', error: null }),
@@ -125,6 +128,7 @@ export const useSession = create<SessionStore>((set) => ({
       games: [],
       name: loadName(), // the display name is remembered across sessions
       worldId: null,
+      roomTitle: '',
     }),
   setPhase: (phase) => set({ phase }),
   setGames: (games) => set({ games }),
@@ -136,7 +140,7 @@ export const useSession = create<SessionStore>((set) => ({
     set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'You were removed from the party.' }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
   setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
-  setLobby: ({ code, phase, hostId, roster, worldId }) => set({ code, phase, hostId, roster, worldId }),
+  setLobby: ({ code, phase, hostId, roster, worldId, title }) => set({ code, phase, hostId, roster, worldId, roomTitle: title }),
   setConnection: (connection) => set({ connection }),
   setError: (error) => set({ error }),
   setNotice: (notice) => set({ notice }),

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { bgUrl } from '../asset'
-import { createParty, chooseHero, joinParty, kick, leaveParty, listGames, setReady, startRun } from '../net'
+import { createParty, chooseHero, joinParty, kick, leaveParty, listGames, sendChat, setReady, startRun } from '../net'
 import type { Visibility } from '../net/protocol'
 import { useGame } from '../store/gameStore'
 import { isHost, useSession } from '../store/useSession'
@@ -20,6 +20,8 @@ export function LobbyOverlay() {
   const error = useSession((s) => s.error)
   const games = useSession((s) => s.games)
   const roomWorldId = useSession((s) => s.worldId)
+  const roomTitle = useSession((s) => s.roomTitle)
+  const chat = useSession((s) => s.chat)
   const playerId = useSession((s) => s.playerId)
   const name = useSession((s) => s.name)
   const setName = useSession((s) => s.setName)
@@ -38,6 +40,8 @@ export function LobbyOverlay() {
   const [visibility, setVisibility] = useState<Visibility>('public')
   const [worldId, setWorldId] = useState(WORLDS[0]!.id)
   const [heroId, setHeroId] = useState<string | null>(null)
+  const [chatDraft, setChatDraft] = useState('')
+  const chatLogRef = useRef<HTMLDivElement>(null)
 
   const canName = !!name.trim()
   const myEntry = roster.find((r) => r.playerId === playerId)
@@ -59,6 +63,11 @@ export function LobbyOverlay() {
   useEffect(() => {
     if (phase === 'lobby' && !iChoseHero && hero) chooseHero(hero)
   }, [phase, iChoseHero, hero])
+
+  // keep the lobby chat log pinned to the newest message
+  useEffect(() => {
+    if (phase === 'lobby' && chatLogRef.current) chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight
+  }, [phase, chat.length])
 
   if (phase !== 'browser' && phase !== 'create' && phase !== 'lobby') return null
 
@@ -206,9 +215,15 @@ export function LobbyOverlay() {
           <span className="coop-adv-scrim" />
           <span className="coop-adv-banner-title">{t(w.titleKey)}</span>
         </div>
-        <h2 className="coop-lobby-title">
-          Party <span className="coop-code">{code}</span>
-        </h2>
+        {roomTitle.trim() ? (
+          <h2 className="coop-lobby-title">
+            {roomTitle} <span className="coop-code coop-code-chip">{code}</span>
+          </h2>
+        ) : (
+          <h2 className="coop-lobby-title">
+            Party <span className="coop-code">{code}</span>
+          </h2>
+        )}
         <p className="muted">Share the code with your friends (2–3 players).</p>
         <ul className="coop-roster">
           {roster.map((r) => {
@@ -242,6 +257,30 @@ export function LobbyOverlay() {
             )
           })}
         </ul>
+
+        {/* party chat — the same conversation you get with the T key in-game */}
+        <div className="coop-chat">
+          <div className="coop-chat-log" ref={chatLogRef}>
+            {chat.length === 0 ? (
+              <p className="muted coop-chat-empty">Say hello… 👋</p>
+            ) : (
+              chat.slice(-50).map((line) => (
+                <div key={line.id} className={'chat-line' + (line.system ? ' system' : '')}>
+                  {!line.system && <span className="chat-speaker">{line.name}:</span>} <span className="chat-text">{line.text}</span>
+                </div>
+              ))
+            )}
+          </div>
+          <input
+            className="text-input coop-chat-input"
+            value={chatDraft}
+            maxLength={200}
+            placeholder="Type a message… (Enter to send)"
+            onChange={(e) => setChatDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const txt = chatDraft.trim(); if (txt) sendChat(txt); setChatDraft('') } }}
+          />
+        </div>
+
         {host && (
           <div className="row gap">
             <button className="btn primary" disabled={!allReady} onClick={() => startRun()} title={allReady ? '' : 'All players must pick a hero and ready up (2+)'}>

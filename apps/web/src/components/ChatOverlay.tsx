@@ -12,7 +12,8 @@ export function ChatOverlay() {
   const setChatOpen = useSession((s) => s.setChatOpen)
   const [draft, setDraft] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
-  const active = phase === 'lobby' || phase === 'inRun'
+  // in-game (T-key) chat only — the lobby shows its conversation inline (LobbyOverlay)
+  const active = phase === 'inRun'
 
   // `t` opens the chat box (when not already typing somewhere)
   useEffect(() => {

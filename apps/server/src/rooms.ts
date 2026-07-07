@@ -184,7 +184,7 @@ export function broadcast(room: Room, msg: ServerMsg): void {
 }
 
 export const broadcastLobby = (room: Room): void =>
-  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room), worldId: room.worldId })
+  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room), worldId: room.worldId, title: room.title })
 
 /** For a periodic GC sweep: drop rooms idle past the TTL. */
 export function sweepIdleRooms(now: number, ttlMs: number): void {
