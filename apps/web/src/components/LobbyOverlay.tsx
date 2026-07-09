@@ -21,6 +21,7 @@ export function LobbyOverlay() {
   const games = useSession((s) => s.games)
   const roomWorldId = useSession((s) => s.worldId)
   const roomTitle = useSession((s) => s.roomTitle)
+  const roomVisibility = useSession((s) => s.roomVisibility)
   const chat = useSession((s) => s.chat)
   const playerId = useSession((s) => s.playerId)
   const name = useSession((s) => s.name)
@@ -213,18 +214,17 @@ export function LobbyOverlay() {
       <div className="panel narrow coop-panel">
         <div className="coop-adv-banner" style={{ backgroundImage: bgUrl(w.bg) }}>
           <span className="coop-adv-scrim" />
+          {/* the game's title sits top-left of the adventure art (+ the code chip when titled) */}
+          <span className="coop-adv-game-title">
+            {roomTitle.trim() ? (
+              <>{roomTitle} <span className="coop-code coop-code-chip">{code}</span></>
+            ) : (
+              <>{t('ui.coop.party')} <span className="coop-code">{code}</span></>
+            )}
+          </span>
           <span className="coop-adv-banner-title">{t(w.titleKey)}</span>
         </div>
-        {roomTitle.trim() ? (
-          <h2 className="coop-lobby-title">
-            {roomTitle} <span className="coop-code coop-code-chip">{code}</span>
-          </h2>
-        ) : (
-          <h2 className="coop-lobby-title">
-            {t('ui.coop.party')} <span className="coop-code">{code}</span>
-          </h2>
-        )}
-        <p className="muted">{t('ui.coop.shareCode')}</p>
+        {roomVisibility === 'private' && <p className="muted coop-share">{t('ui.coop.shareCode')}</p>}
         <ul className="coop-roster">
           {roster.map((r) => {
             const isMe = r.playerId === playerId
@@ -282,11 +282,9 @@ export function LobbyOverlay() {
         </div>
 
         {host && (
-          <div className="row gap">
-            <button className="btn primary" disabled={!allReady} onClick={() => startRun()} title={allReady ? '' : t('ui.coop.startHint')}>
-              {t('ui.coop.start')}
-            </button>
-          </div>
+          <button className="btn primary block coop-start" disabled={!allReady} onClick={() => startRun()} title={allReady ? '' : t('ui.coop.startHint')}>
+            {t('ui.coop.start')}
+          </button>
         )}
         <button className="btn small ghost block" onClick={() => leaveParty()}>{t('ui.coop.leave')}</button>
       </div>

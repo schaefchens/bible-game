@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { heroMemberId } from '@bible/engine'
-import type { GameSummary, NetPhase, PeerActivity, PickPresence, RosterEntry } from '../net/protocol'
+import type { GameSummary, NetPhase, PeerActivity, PickPresence, RosterEntry, Visibility } from '../net/protocol'
 
 // Pure networking / social state for co-op. Deliberately separate from useGame (which owns the single
 // authoritative GameState): chat, roster, and presence NEVER touch the engine, so keeping them here
@@ -46,6 +46,8 @@ interface SessionStore {
   worldId: string | null
   /** the current room's title (optional; shown in the lobby header when set) */
   roomTitle: string
+  /** the current room's visibility (the lobby only shows "share the code" for private games) */
+  roomVisibility: Visibility
   /** true while the dynamic co-op server boots → show the WoW-style queue modal */
   serverBooting: boolean
 
@@ -60,7 +62,7 @@ interface SessionStore {
   kicked: () => void
   setMyCharacterId: (id: string | null) => void
   setWelcome: (w: { playerId: string; token: string; code: string }) => void
-  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string; title: string }) => void
+  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility }) => void
   setConnection: (c: 'up' | 'down') => void
   setError: (e: string | null) => void
   setNotice: (n: string | null) => void
@@ -109,6 +111,7 @@ export const useSession = create<SessionStore>((set) => ({
   name: loadName(),
   worldId: null,
   roomTitle: '',
+  roomVisibility: 'public',
   serverBooting: false,
 
   openMenu: () => set({ phase: 'browser', error: null }),
@@ -133,6 +136,7 @@ export const useSession = create<SessionStore>((set) => ({
       name: loadName(), // the display name is remembered across sessions
       worldId: null,
       roomTitle: '',
+      roomVisibility: 'public',
       serverBooting: false,
     }),
   setPhase: (phase) => set({ phase }),
@@ -146,7 +150,7 @@ export const useSession = create<SessionStore>((set) => ({
     set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'ui.coop.errKicked' }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
   setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
-  setLobby: ({ code, phase, hostId, roster, worldId, title }) => set({ code, phase, hostId, roster, worldId, roomTitle: title }),
+  setLobby: ({ code, phase, hostId, roster, worldId, title, visibility }) => set({ code, phase, hostId, roster, worldId, roomTitle: title, roomVisibility: visibility }),
   setConnection: (connection) => set({ connection }),
   setError: (error) => set({ error }),
   setNotice: (notice) => set({ notice }),

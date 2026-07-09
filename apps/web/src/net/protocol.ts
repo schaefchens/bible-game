@@ -87,7 +87,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; token: SessionToken; code: RoomCode }
   | { t: 'gameList'; games: GameSummary[] }
-  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string }
+  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility }
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }
   | { t: 'activity'; playerId: PlayerId; name: string; activity: PeerActivity | null }

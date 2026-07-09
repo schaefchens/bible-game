@@ -1169,10 +1169,13 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-chat-empty { margin: auto; text-align: center; }
 .coop-chat-input { margin: 0; border-radius: 0 0 8px 8px; }
 
-/* ---- lobby: adventure banner ---- */
-.coop-adv-banner { position: relative; height: 96px; border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; display: flex; align-items: flex-end; background-size: cover; background-position: center; }
-.coop-adv-banner-title { position: relative; z-index: 1; padding: 8px 12px; font-size: 1.15rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 4px #000; }
-.coop-lobby-title { margin-top: 0; }
+/* ---- lobby: adventure banner (game title top-left, adventure title bottom-left) ---- */
+.coop-adv-banner { position: relative; height: 104px; border-radius: 10px; overflow: hidden; margin-bottom: 0.7rem; display: flex; align-items: flex-end; background-size: cover; background-position: center; }
+.coop-adv-game-title { position: absolute; top: 8px; left: 12px; z-index: 1; font-size: 1.2rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7); }
+.coop-adv-banner-title { position: relative; z-index: 1; padding: 8px 12px; font-size: 0.9rem; font-weight: 600; color: var(--ink); opacity: 0.92; text-shadow: 0 1px 4px #000; }
+.coop-share { margin-top: 0; }
+/* the host's Start is the primary action — full-width, spaced clear of the chat + Leave */
+.coop-start { margin: 0.4rem 0 0.2rem; }
 /* when a title is shown, the code becomes a small muted chip beside it */
 .coop-code-chip { font-size: 0.7rem; letter-spacing: 0.14em; padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--panel-edge); vertical-align: middle; margin-left: 0.4rem; }
 .coop-roster { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }

@@ -66,7 +66,7 @@ function onMessage(msg: ServerMsg): void {
       session.setGames(msg.games)
       break
     case 'lobby':
-      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId, title: msg.title })
+      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId, title: msg.title, visibility: msg.visibility })
       session.setPhase(msg.phase === 'inRun' ? 'inRun' : 'lobby')
       break
     case 'state':
