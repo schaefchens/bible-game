@@ -1142,6 +1142,24 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-adv-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.82)); }
 .coop-adv-title { position: relative; z-index: 1; padding: 6px 8px; font-size: 0.82rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 3px #000; line-height: 1.15; }
 
+/* ---- dynamic-server "queue" modal: the WoW login-queue LAYOUT, in our game's look (warm gold/parchment) ---- */
+.queue-overlay { z-index: 60; }
+.queue-panel {
+  position: relative; width: 440px; max-width: 92vw; padding: 2.2rem 2rem 1.6rem; text-align: center; overflow: hidden;
+  border-radius: 14px; background: var(--panel); border: 1px solid var(--panel-edge);
+  box-shadow: var(--shadow), 0 0 40px rgba(216,185,98,0.18); backdrop-filter: blur(3px); color: var(--ink);
+}
+.queue-glow { position: absolute; inset: -45% 0 auto 0; height: 60%; pointer-events: none; background: radial-gradient(ellipse at 50% 0, rgba(216,185,98,0.22), transparent 70%); }
+.queue-title { position: relative; margin: 0 0 0.2rem; font-size: 1.5rem; color: var(--gold-bright); letter-spacing: 0.02em; text-shadow: 0 0 14px rgba(216,185,98,0.4); }
+.queue-spinner { width: 42px; height: 42px; margin: 1rem auto 0.7rem; border-radius: 50%; border: 3px solid rgba(216,185,98,0.2); border-top-color: var(--gold); animation: queue-spin 0.9s linear infinite; }
+@keyframes queue-spin { to { transform: rotate(360deg); } }
+.queue-lines { margin: 0.5rem 0 1rem; font-size: 1.05rem; }
+.queue-line { margin: 0.25rem 0; }
+.queue-label { color: var(--muted); }
+.queue-num { color: var(--gold-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
+.queue-cancel { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .queue-spinner { animation: none; } }
+
 /* ---- lobby: inline party chat (below the roster; same conversation as the in-game T-key chat) ---- */
 .coop-chat { margin: 0.6rem 0; }
 .coop-chat-log {

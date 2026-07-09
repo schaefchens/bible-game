@@ -31,6 +31,7 @@ import { StartupSequence } from './components/StartupSequence'
 import { ChatOverlay } from './components/ChatOverlay'
 import { LobbyOverlay } from './components/LobbyOverlay'
 import { MpBanner } from './components/MpBanner'
+import { ServerQueueModal } from './components/ServerQueueModal'
 
 // Warm the intro + start-menu "shell" into the SW cache once per app load, so the installed app opens
 // offline. Lives here (not in StartupSequence) so it runs even when the intro is disabled. Fire-and-
@@ -124,6 +125,7 @@ export function App() {
       <ChatOverlay />
       <MpBanner />
       <LobbyOverlay />
+      <ServerQueueModal />
 
       {/* The AAA-style studio-logo intro: a full-viewport black overlay (above everything, outside
           the scaled stage) shown once per launch when enabled. Reveals the title screen on finish. */}

@@ -4,6 +4,7 @@
 export {
   initNet,
   openCoop,
+  cancelServerResolve,
   createParty,
   joinParty,
   listGames,

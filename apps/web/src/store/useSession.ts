@@ -46,6 +46,8 @@ interface SessionStore {
   worldId: string | null
   /** the current room's title (optional; shown in the lobby header when set) */
   roomTitle: string
+  /** true while the dynamic co-op server boots → show the WoW-style queue modal */
+  serverBooting: boolean
 
   openMenu: () => void
   openCreate: () => void
@@ -53,6 +55,7 @@ interface SessionStore {
   setPhase: (phase: SessionPhase) => void
   setGames: (games: GameSummary[]) => void
   setName: (name: string) => void
+  setServerBooting: (booting: boolean) => void
   /** the host kicked us: drop room membership, return to the browser with a message (keep the socket + name) */
   kicked: () => void
   setMyCharacterId: (id: string | null) => void
@@ -106,6 +109,7 @@ export const useSession = create<SessionStore>((set) => ({
   name: loadName(),
   worldId: null,
   roomTitle: '',
+  serverBooting: false,
 
   openMenu: () => set({ phase: 'browser', error: null }),
   openCreate: () => set({ phase: 'create', error: null }),
@@ -129,6 +133,7 @@ export const useSession = create<SessionStore>((set) => ({
       name: loadName(), // the display name is remembered across sessions
       worldId: null,
       roomTitle: '',
+      serverBooting: false,
     }),
   setPhase: (phase) => set({ phase }),
   setGames: (games) => set({ games }),
@@ -136,8 +141,9 @@ export const useSession = create<SessionStore>((set) => ({
     saveName(name)
     set({ name })
   },
+  setServerBooting: (serverBooting) => set({ serverBooting }),
   kicked: () =>
-    set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'You were removed from the party.' }),
+    set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'ui.coop.errKicked' }),
   setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
   setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
   setLobby: ({ code, phase, hostId, roster, worldId, title }) => set({ code, phase, hostId, roster, worldId, roomTitle: title }),

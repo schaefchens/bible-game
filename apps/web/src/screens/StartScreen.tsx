@@ -27,7 +27,7 @@ export function StartScreen() {
           {t('ui.start.enter')}
         </button>
         <button className="btn block" onClick={() => openCoop()}>
-          Play Co-op
+          {t('ui.coop.play')}
         </button>
         <button className="btn block" onClick={() => dispatch({ type: 'navigate', screen: 'settings' })}>
           {t('ui.start.settings')}

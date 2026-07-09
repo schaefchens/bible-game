@@ -8,6 +8,7 @@ import { saveStore } from '@bible/persistence'
 import { setMpTransport, useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
 import type { ClientMsg, PeerActivity, PickPresence, ServerMsg, Visibility } from './protocol'
+import { heartbeat, probeWs, resolveReadyWsUrl, wake } from './serverResolve'
 import { Socket } from './socket'
 import { wsUrl } from './url'
 
@@ -20,9 +21,12 @@ let socket: Socket | null = null
 let pendingOnOpen: ClientMsg | null = null
 /** whether we've initiated the connection (so browsing / create / join don't open a second socket) */
 let started = false
+/** the WS URL to connect to: the endpoint's `websocketUrl` for the dynamic (production) server, or null
+ *  → the same-origin default (dev, where the Node server answers /ws directly). Set by openCoop. */
+let wsUrlOverride: string | null = null
 
 function ensureSocket(): Socket {
-  if (!socket) socket = new Socket(wsUrl(), { onOpen, onMessage, onClose })
+  if (!socket) socket = new Socket(wsUrlOverride ?? wsUrl(), { onOpen, onMessage, onClose })
   return socket
 }
 
@@ -121,10 +125,73 @@ export function initNet(): void {
   setMpTransport({ sendCommand: (cmd, round) => void socket?.send({ t: 'gameCommand', cmd, round }) })
 }
 
-/** Open the co-op browser and bring the socket up so the games list can load. */
-export const openCoop = (): void => {
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+let resolveAbort: AbortController | null = null
+const HEARTBEAT_MS = 5 * 60 * 1000 // keep the dynamic server alive while online
+
+function startHeartbeat(): void {
+  if (heartbeatTimer) return
+  heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS)
+}
+function stopHeartbeat(): void {
+  if (heartbeatTimer) clearInterval(heartbeatTimer)
+  heartbeatTimer = null
+}
+
+/** Open the co-op browser. Dev (or an already-awake same-origin server): the default /ws answers, use it.
+ *  Otherwise (production) wake the dynamic server via the endpoint, and — showing the queue modal — poll
+ *  until it's ready AND its `websocketUrl` actually accepts a connection, then connect to that URL. */
+export async function openCoop(): Promise<void> {
+  const session = useSession.getState()
+  // dev / same-origin server already up → use it directly, no wake, no heartbeat.
+  if (await probeWs(wsUrl())) {
+    wsUrlOverride = null
+    connectAndBrowse()
+    return
+  }
+  // production: wake the dynamic server via the endpoint (this POST also seeds the heartbeat).
+  resolveAbort = new AbortController()
+  const first = await wake(resolveAbort.signal)
+  if (first === null) {
+    session.openMenu()
+    session.setError('ui.coop.errNoServer')
+    return
+  }
+  // already ready AND its WS is listening → connect straight to the endpoint's URL, no modal.
+  if (first.status === 'ready' && first.websocketUrl && (await probeWs(first.websocketUrl, 2500))) {
+    wsUrlOverride = first.websocketUrl
+    startHeartbeat()
+    connectAndBrowse()
+    return
+  }
+  // still booting → show the queue modal, poll until the endpoint's WS URL is ready + reachable.
+  session.setServerBooting(true)
+  try {
+    wsUrlOverride = await resolveReadyWsUrl({ signal: resolveAbort.signal, onWaiting: () => {} })
+    session.setServerBooting(false)
+    startHeartbeat()
+    connectAndBrowse()
+  } catch {
+    session.setServerBooting(false)
+    if (!resolveAbort.signal.aborted) {
+      session.openMenu()
+      session.setError('ui.coop.errSlowServer')
+    }
+  }
+}
+
+function connectAndBrowse(): void {
   useSession.getState().openMenu()
   ensureConnected()
+}
+
+/** Cancel an in-progress server wake (queue modal "Cancel") and drop back out of co-op. */
+export function cancelServerResolve(): void {
+  resolveAbort?.abort()
+  resolveAbort = null
+  stopHeartbeat()
+  useSession.getState().setServerBooting(false)
+  useSession.getState().reset()
 }
 
 /** Request the open public games (browser poll). No-op until the socket is up; the poll retries. */
@@ -169,30 +236,21 @@ export function leaveParty(): void {
   socket = null
   pendingOnOpen = null
   started = false
+  wsUrlOverride = null
+  resolveAbort?.abort()
+  resolveAbort = null
+  stopHeartbeat()
   void useGame.getState().exitMp()
   useSession.getState().reset()
 }
 
+// These return i18n KEYS, resolved with t() at the render sites (MpBanner / MapScreen / LobbyOverlay).
+// An unknown code falls back to the raw string, which t() returns unchanged.
+const KNOWN_REJECTS = new Set(['not-enough-energy', 'waiting-for-party', 'stale-turn', 'host-only', 'command-not-allowed', 'card-already-resolved', 'not-in-run'])
+const KNOWN_ERRORS = new Set(['version-mismatch', 'no-room', 'room-full', 'dup-hero', 'bad-token'])
 function rejectionText(reason: string): string {
-  const map: Record<string, string> = {
-    'not-enough-energy': 'Not enough energy',
-    'waiting-for-party': 'Waiting for your party…',
-    'stale-turn': 'The turn already advanced',
-    'host-only': 'Only the host can do that',
-    'command-not-allowed': "That action isn't allowed in co-op",
-    'card-already-resolved': 'You already picked a card',
-    'not-in-run': 'The run has not started',
-  }
-  return map[reason] ?? reason
+  return KNOWN_REJECTS.has(reason) ? `ui.coop.reject.${reason}` : reason
 }
-
 function errorText(code: string): string {
-  const map: Record<string, string> = {
-    'version-mismatch': 'Your game version differs from the server — reload to update.',
-    'no-room': 'No party with that code',
-    'room-full': 'That party is full',
-    'dup-hero': 'Someone already picked that hero',
-    'bad-token': 'Could not rejoin the party',
-  }
-  return map[code] ?? code
+  return KNOWN_ERRORS.has(code) ? `ui.coop.err.${code}` : code
 }

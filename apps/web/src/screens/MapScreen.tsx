@@ -288,7 +288,7 @@ export function MapScreen() {
 
       {/* guidance + transient feedback banners (centred under the cartouche) */}
       {view.unplaced && <div className="map-banner guide">{t('ui.map.chooseEntry')}</div>}
-      {notice && <div className="map-banner notice">{notice}</div>}
+      {notice && <div className="map-banner notice">{t(notice)}</div>}
 
       <div className="map-scroll">
         <div className={`map-canvas${travel ? ' traveling' : ''}`} style={{ width: W, height: H, '--map-tile': bgUrl('bg-map-parchment.webp') } as CSSProperties}>

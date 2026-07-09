@@ -76,12 +76,12 @@ export function LobbyOverlay() {
     return (
       <div className="modal-overlay coop-overlay">
         <div className="panel narrow coop-panel">
-          <h2>Play Co-op</h2>
-          <p className="muted">You need a hero before you can play co-op.</p>
+          <h2>{t('ui.coop.play')}</h2>
+          <p className="muted">{t('ui.coop.needHero')}</p>
           <button className="btn primary" onClick={() => { reset(); dispatch({ type: 'navigate', screen: 'heroSelect' }) }}>
-            Create a hero
+            {t('ui.coop.createHero')}
           </button>
-          <button className="btn small ghost block" onClick={() => reset()}>Cancel</button>
+          <button className="btn small ghost block" onClick={() => reset()}>{t('ui.common.cancel')}</button>
         </div>
       </div>
     )
@@ -96,14 +96,14 @@ export function LobbyOverlay() {
           autoFocus
           maxLength={20}
           value={name}
-          placeholder="your name"
+          placeholder={t('ui.coop.namePlaceholder')}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && canName && setEditName(false)}
           onBlur={() => canName && setEditName(false)}
         />
       ) : (
-        <button className="coop-name-view" onClick={() => setEditName(true)} title="Change name">
-          Playing as <b>{name}</b> <span className="coop-name-edit">✎</span>
+        <button className="coop-name-view" onClick={() => setEditName(true)} title={t('ui.coop.changeName')}>
+          {t('ui.coop.playingAs')} <b>{name}</b> <span className="coop-name-edit">✎</span>
         </button>
       )}
     </div>
@@ -115,33 +115,33 @@ export function LobbyOverlay() {
       <div className="modal-overlay coop-overlay">
         <div className="panel coop-panel coop-browser">
           <div className="coop-browser-head">
-            <h2>Co-op Games</h2>
+            <h2>{t('ui.coop.browserTitle')}</h2>
             {/* quiet, top-right: join a private game by its code */}
             <div className="coop-joincorner">
               {showJoin ? (
                 <div className="coop-join">
-                  <input className="text-input" autoFocus maxLength={4} value={joinCode} placeholder="CODE"
+                  <input className="text-input" autoFocus maxLength={4} value={joinCode} placeholder={t('ui.coop.codePlaceholder')}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && canName && joinCode.length === 4 && joinParty(joinCode, name.trim())} />
-                  <button className="btn small" disabled={!canName || joinCode.length < 4} onClick={() => joinParty(joinCode, name.trim())}>Join</button>
+                  <button className="btn small" disabled={!canName || joinCode.length < 4} onClick={() => joinParty(joinCode, name.trim())}>{t('ui.coop.join')}</button>
                 </div>
               ) : (
-                <button className="btn small ghost" onClick={() => setShowJoin(true)} title="Join a private game by code">Have a code?</button>
+                <button className="btn small ghost" onClick={() => setShowJoin(true)} title={t('ui.coop.joinPrivateTitle')}>{t('ui.coop.haveCode')}</button>
               )}
             </div>
           </div>
 
-          {error && <p className="coop-error">{error}</p>}
+          {error && <p className="coop-error">{t(error)}</p>}
 
           <ul className="coop-games">
             {games.length === 0 ? (
-              <li className="coop-games-empty muted">No open games — create one below.</li>
+              <li className="coop-games-empty muted">{t('ui.coop.noGames')}</li>
             ) : (
               games.map((g) => {
                 const w = worldMeta(g.worldId)
                 return (
                   <li key={g.code}>
-                    <button className="coop-game-row" disabled={!canName} onClick={() => canName && joinParty(g.code, name.trim())} title={canName ? 'Join' : 'Set your name first'}>
+                    <button className="coop-game-row" disabled={!canName} onClick={() => canName && joinParty(g.code, name.trim())} title={canName ? t('ui.coop.join') : t('ui.coop.setNameFirst')}>
                       <span className="coop-game-art" style={{ backgroundImage: w.bg ? bgUrl(w.bg) : undefined }} />
                       <span className="coop-game-info">
                         <span className="coop-game-title">{g.title}</span>
@@ -158,8 +158,8 @@ export function LobbyOverlay() {
           <div className="coop-browser-foot">
             {nameStrip}
             <div className="row gap">
-              <button className="btn small ghost" onClick={() => leaveParty()}>Cancel</button>
-              <button className="btn primary" disabled={!canName} onClick={() => openCreate()}>Create game</button>
+              <button className="btn small ghost" onClick={() => leaveParty()}>{t('ui.common.cancel')}</button>
+              <button className="btn primary" disabled={!canName} onClick={() => openCreate()}>{t('ui.coop.createGame')}</button>
             </div>
           </div>
         </div>
@@ -172,21 +172,21 @@ export function LobbyOverlay() {
     return (
       <div className="modal-overlay coop-overlay">
         <div className="panel coop-panel coop-create">
-          <h2>Create a Game</h2>
+          <h2>{t('ui.coop.createTitle')}</h2>
           <label className="coop-field">
-            <span>Title <span className="muted">(optional)</span></span>
-            <input className="text-input" maxLength={40} value={title} placeholder="Defaults to the game code" onChange={(e) => setTitle(e.target.value)} />
+            <span>{t('ui.coop.titleLabel')} <span className="muted">{t('ui.coop.optional')}</span></span>
+            <input className="text-input" maxLength={40} value={title} placeholder={t('ui.coop.titlePlaceholder')} onChange={(e) => setTitle(e.target.value)} />
           </label>
           <label className="coop-field">
-            <span>Visibility</span>
+            <span>{t('ui.coop.visibility')}</span>
             <div className="coop-visibility">
-              <button className={'btn small' + (visibility === 'public' ? ' active' : '')} onClick={() => setVisibility('public')}>Public</button>
-              <button className={'btn small' + (visibility === 'private' ? ' active' : '')} onClick={() => setVisibility('private')}>Private</button>
+              <button className={'btn small' + (visibility === 'public' ? ' active' : '')} onClick={() => setVisibility('public')}>{t('ui.coop.public')}</button>
+              <button className={'btn small' + (visibility === 'private' ? ' active' : '')} onClick={() => setVisibility('private')}>{t('ui.coop.private')}</button>
             </div>
-            <span className="muted coop-visibility-hint">{visibility === 'public' ? 'Listed for anyone to join.' : 'Hidden — only joinable with the code.'}</span>
+            <span className="muted coop-visibility-hint">{visibility === 'public' ? t('ui.coop.publicHint') : t('ui.coop.privateHint')}</span>
           </label>
           <div className="coop-field">
-            <span>Adventure</span>
+            <span>{t('ui.coop.adventure')}</span>
             <div className="coop-adventures">
               {WORLDS.map((w) => (
                 <button key={w.id} className={'coop-adv-card' + (worldId === w.id ? ' selected' : '')} style={{ backgroundImage: bgUrl(w.bg) }} onClick={() => setWorldId(w.id)}>
@@ -196,10 +196,10 @@ export function LobbyOverlay() {
               ))}
             </div>
           </div>
-          {error && <p className="coop-error">{error}</p>}
+          {error && <p className="coop-error">{t(error)}</p>}
           <div className="row gap">
-            <button className="btn small ghost" onClick={() => openMenu()}>Back</button>
-            <button className="btn primary" disabled={!canName} onClick={() => createParty(name.trim(), { title, visibility, worldId })}>Create</button>
+            <button className="btn small ghost" onClick={() => openMenu()}>{t('ui.common.back')}</button>
+            <button className="btn primary" disabled={!canName} onClick={() => createParty(name.trim(), { title, visibility, worldId })}>{t('ui.coop.create')}</button>
           </div>
         </div>
       </div>
@@ -221,10 +221,10 @@ export function LobbyOverlay() {
           </h2>
         ) : (
           <h2 className="coop-lobby-title">
-            Party <span className="coop-code">{code}</span>
+            {t('ui.coop.party')} <span className="coop-code">{code}</span>
           </h2>
         )}
-        <p className="muted">Share the code with your friends (2–3 players).</p>
+        <p className="muted">{t('ui.coop.shareCode')}</p>
         <ul className="coop-roster">
           {roster.map((r) => {
             const isMe = r.playerId === playerId
@@ -236,22 +236,22 @@ export function LobbyOverlay() {
                   // my own row: pick/change which hero I bring, right here
                   <select className="text-input coop-seat-heropick" value={selectedHeroId ?? ''} onChange={(e) => { setHeroId(e.target.value); const c = slots.find((s) => s.id === e.target.value)?.character; if (c) chooseHero(c) }}>
                     {slots.map((s) => (
-                      <option key={s.id} value={s.id}>{s.character.name} · Lv {s.character.level}</option>
+                      <option key={s.id} value={s.id}>{s.character.name} · {t('ui.coop.lv')} {s.character.level}</option>
                     ))}
                   </select>
                 ) : (
-                  <span className="muted coop-seat-hero">{r.heroName ? `${r.heroName} · Lv ${r.heroLevel}` : '— choosing…'}</span>
+                  <span className="muted coop-seat-hero">{r.heroName ? `${r.heroName} · ${t('ui.coop.lv')} ${r.heroLevel}` : t('ui.coop.choosing')}</span>
                 )}
                 {isMe ? (
                   // my own row: toggle my ready state right here
-                  <button className={'coop-ready coop-ready-btn' + (r.ready ? ' yes' : '')} disabled={!hero} onClick={() => { if (!iChoseHero && hero) chooseHero(hero); setReady(!r.ready) }} title="Toggle ready">
-                    {r.ready ? 'Ready ✓' : 'Ready?'}
+                  <button className={'coop-ready coop-ready-btn' + (r.ready ? ' yes' : '')} disabled={!hero} onClick={() => { if (!iChoseHero && hero) chooseHero(hero); setReady(!r.ready) }} title={t('ui.coop.toggleReady')}>
+                    {r.ready ? `${t('ui.coop.ready')} ✓` : t('ui.coop.readyPrompt')}
                   </button>
                 ) : (
-                  <span className={'coop-ready' + (r.ready ? ' yes' : '')}>{r.ready ? 'Ready' : 'Not ready'}</span>
+                  <span className={'coop-ready' + (r.ready ? ' yes' : '')}>{r.ready ? t('ui.coop.ready') : t('ui.coop.notReady')}</span>
                 )}
                 {host && !isMe && (
-                  <button className="coop-kick" onClick={() => kick(r.playerId)} title={`Remove ${r.name}`} aria-label={`Remove ${r.name}`}>✕</button>
+                  <button className="coop-kick" onClick={() => kick(r.playerId)} title={t('ui.coop.remove', { name: r.name })} aria-label={t('ui.coop.remove', { name: r.name })}>✕</button>
                 )}
               </li>
             )
@@ -262,7 +262,7 @@ export function LobbyOverlay() {
         <div className="coop-chat">
           <div className="coop-chat-log" ref={chatLogRef}>
             {chat.length === 0 ? (
-              <p className="muted coop-chat-empty">Say hello… 👋</p>
+              <p className="muted coop-chat-empty">{t('ui.coop.chatEmpty')}</p>
             ) : (
               chat.slice(-50).map((line) => (
                 <div key={line.id} className={'chat-line' + (line.system ? ' system' : '')}>
@@ -275,7 +275,7 @@ export function LobbyOverlay() {
             className="text-input coop-chat-input"
             value={chatDraft}
             maxLength={200}
-            placeholder="Type a message… (Enter to send)"
+            placeholder={t('ui.coop.chatPlaceholder')}
             onChange={(e) => setChatDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const txt = chatDraft.trim(); if (txt) sendChat(txt); setChatDraft('') } }}
           />
@@ -283,12 +283,12 @@ export function LobbyOverlay() {
 
         {host && (
           <div className="row gap">
-            <button className="btn primary" disabled={!allReady} onClick={() => startRun()} title={allReady ? '' : 'All players must pick a hero and ready up (2+)'}>
-              Start
+            <button className="btn primary" disabled={!allReady} onClick={() => startRun()} title={allReady ? '' : t('ui.coop.startHint')}>
+              {t('ui.coop.start')}
             </button>
           </div>
         )}
-        <button className="btn small ghost block" onClick={() => leaveParty()}>Leave party</button>
+        <button className="btn small ghost block" onClick={() => leaveParty()}>{t('ui.coop.leave')}</button>
       </div>
     </div>
   )
