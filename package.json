@@ -22,6 +22,7 @@
     "server": "npm run dev --workspace @bible/server",
     "server:start": "npm run start --workspace @bible/server",
     "verses:import": "node packages/i18n/scripts/importVerses.mjs",
+
     "deploy:web:sftp": "cd apps/web/dist && printf '%s\\n' '-rm *' '-rm assets/*' 'mput *' 'mput assets/* assets/' 'bye' | sshpass -e sftp schaeff_2@www99.your-server.de"
   },
   "devDependencies": {
