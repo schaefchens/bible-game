@@ -1174,6 +1174,12 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-adv-game-title { position: absolute; top: 8px; left: 12px; z-index: 1; font-size: 1.2rem; font-weight: 700; color: var(--gold-bright); text-shadow: 0 1px 4px #000, 0 0 8px rgba(0,0,0,0.7); }
 .coop-adv-banner-title { position: relative; z-index: 1; padding: 8px 12px; font-size: 0.9rem; font-weight: 600; color: var(--ink); opacity: 0.92; text-shadow: 0 1px 4px #000; }
 .coop-share { margin-top: 0; }
+/* the room code is click-to-copy (native share on mobile). Reset button chrome; the chip variant
+   (defined below, higher in the cascade) re-applies its box, the plain share-line one stays inline. */
+.coop-code-btn { font-family: inherit; cursor: pointer; color: inherit; background: none; border: none; padding: 0; }
+.coop-share .coop-code-btn { text-decoration: underline; text-underline-offset: 3px; }
+.coop-code-chip.coop-code-btn:hover, .coop-share .coop-code-btn:hover { border-color: var(--gold-bright); color: var(--gold-bright); filter: brightness(1.15); }
+.coop-copied { margin-left: 0.5rem; font-size: 0.72rem; font-weight: 700; color: #8fce8f; }
 /* the host's Start is the primary action — full-width, spaced clear of the chat + Leave */
 .coop-start { margin: 0.4rem 0 0.2rem; }
 /* when a title is shown, the code becomes a small muted chip beside it */

@@ -42,7 +42,25 @@ export function LobbyOverlay() {
   const [worldId, setWorldId] = useState(WORLDS[0]!.id)
   const [heroId, setHeroId] = useState<string | null>(null)
   const [chatDraft, setChatDraft] = useState('')
+  const [copied, setCopied] = useState(false)
   const chatLogRef = useRef<HTMLDivElement>(null)
+
+  // Clicking the code shares it: the native share sheet on TOUCH devices (phones/tablets — where
+  // navigator.share opens the OS sheet), else copy to the clipboard with a brief "Copied!". Desktop
+  // Chrome/Safari also expose navigator.share, so gate on a coarse pointer, not merely its presence.
+  const shareCode = async () => {
+    if (!code) return
+    const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+    if (touch && navigator.share) {
+      try { await navigator.share({ text: code }) } catch { /* user dismissed / unsupported */ }
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard blocked */ }
+  }
 
   const canName = !!name.trim()
   const myEntry = roster.find((r) => r.playerId === playerId)
@@ -214,17 +232,20 @@ export function LobbyOverlay() {
       <div className="panel narrow coop-panel">
         <div className="coop-adv-banner" style={{ backgroundImage: bgUrl(w.bg) }}>
           <span className="coop-adv-scrim" />
-          {/* the game's title sits top-left of the adventure art (+ the code chip when titled) */}
+          {/* the game's title sits top-left of the adventure art; the code is a click-to-copy/share chip */}
           <span className="coop-adv-game-title">
-            {roomTitle.trim() ? (
-              <>{roomTitle} <span className="coop-code coop-code-chip">{code}</span></>
-            ) : (
-              <>{t('ui.coop.party')} <span className="coop-code">{code}</span></>
-            )}
+            {roomTitle.trim() ? <>{roomTitle} </> : <>{t('ui.coop.party')} </>}
+            <button className="coop-code coop-code-chip coop-code-btn" onClick={() => void shareCode()} title={t('ui.coop.copyCode')}>{code}</button>
+            {copied && <span className="coop-copied">✓ {t('ui.coop.copied')}</span>}
           </span>
           <span className="coop-adv-banner-title">{t(w.titleKey)}</span>
         </div>
-        {roomVisibility === 'private' && <p className="muted coop-share">{t('ui.coop.shareCode')}</p>}
+        {roomVisibility === 'private' && (
+          <p className="muted coop-share">
+            {t('ui.coop.shareCode')}{' '}
+            <button className="coop-code coop-code-btn" onClick={() => void shareCode()} title={t('ui.coop.copyCode')}>{code}</button>
+          </p>
+        )}
         <ul className="coop-roster">
           {roster.map((r) => {
             const isMe = r.playerId === playerId
