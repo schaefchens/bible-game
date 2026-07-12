@@ -11,7 +11,14 @@ import {
   previewCardDamage,
   previewMiracle,
   cardDisplayValues,
+  deriveStats,
+  allocPoints,
+  unspentPoints,
   dmgScale,
+  levelForXp,
+  totalXpForLevel,
+  xpToNext,
+  LVL_MAX,
   type GameState,
   type ItemKind,
   type NodeType,
@@ -785,4 +792,71 @@ export function selectParty(state: GameState): PartyMemberView[] {
     maxHp: memberMaxHp(m),
     isHero: m.memberId === run.heroMemberId,
   }))
+}
+
+/** XP progress for a total accumulated XP: current level, XP into that level, and the level's span
+ *  (Infinity at the cap). `pct` is the fill 0..100 (100 at max level). Shared by the character modal +
+ *  the reward-screen animation so both read the same math. */
+export interface XpProgress { level: number; intoLevel: number; span: number; pct: number; atMax: boolean }
+export function xpProgress(totalXp: number): XpProgress {
+  const level = levelForXp(Math.max(0, totalXp))
+  const intoLevel = Math.max(0, totalXp) - totalXpForLevel(level)
+  const span = xpToNext(level) // Infinity at LVL_MAX
+  const atMax = level >= LVL_MAX
+  return { level, intoLevel, span, atMax, pct: atMax || !isFinite(span) ? 100 : Math.min(100, (intoLevel / span) * 100) }
+}
+
+export interface HeroStatusView {
+  memberId: string
+  name: string
+  level: number
+  hp: number
+  maxHp: number
+  speed: number
+  gold: number
+  /** total accumulated XP, XP into the current level, and XP needed to reach the next */
+  xp: number
+  xpIntoLevel: number
+  xpToNext: number | null // null at max level
+  xpPct: number
+  unspentPoints: number
+  /** allocated point COUNTS per stat (each point = +1% to that stat's effect) */
+  allocated: { hp: number; dmg: number; defend: number }
+  deckSize: number
+  deckLimit: number
+  graceAbilityIds: string[]
+  verseCount: number
+}
+
+/** A full status view-model for ONE party member (defaults to the run's hero; pass the local seat's
+ *  memberId in co-op). Joins the run PartyMember (level/hp/allocated/grace/deck) with the permanent
+ *  Character (xp/unspentPoints/verse) so the character screen can display + host stat allocation. */
+export function selectHeroStatus(state: GameState, memberId?: string): HeroStatusView | null {
+  const run = state.run
+  if (!run) return null
+  const member = run.party.find((m) => m.memberId === (memberId ?? run.heroMemberId)) ?? run.party[0]
+  if (!member) return null
+  const character = state.profile.slots.find((s) => s.id === member.characterId)?.character
+  const totalXp = character?.xp ?? 0
+  const prog = xpProgress(totalXp)
+  const stats = deriveStats(member.level, member.allocated, member.baseHp)
+  return {
+    memberId: member.memberId,
+    name: member.displayName ?? member.nameKey ?? 'Hero',
+    level: member.level,
+    hp: member.currentHp,
+    maxHp: stats.maxHp,
+    speed: stats.speed,
+    gold: run.inventory.currency,
+    xp: totalXp,
+    xpIntoLevel: prog.intoLevel,
+    xpToNext: prog.atMax ? null : prog.span,
+    xpPct: prog.pct,
+    unspentPoints: character ? unspentPoints(character) : 0,
+    allocated: { hp: allocPoints(member.allocated, 'hp'), dmg: allocPoints(member.allocated, 'dmg'), defend: allocPoints(member.allocated, 'defend') },
+    deckSize: (run.deckByMember[member.memberId] ?? []).length,
+    deckLimit: run.deckLimit,
+    graceAbilityIds: [...member.graceAbilityIds],
+    verseCount: character?.ownedVerseCardIds.length ?? 0,
+  }
 }

@@ -8,17 +8,31 @@
 //  real-but-bounded edge as they climb a decade, then the world catches up at the next bracket. A small
 //  within-run depth bump sits on top. There is no flat defense and no flesh cap — block is the only mitigation.
 
-import type { CombatStats, StatId, StatAllocation } from '../state/stats'
+import { allocPoints, type CombatStats, type StatAllocation } from '../state/stats'
 
 export const LVL_MIN = 1
 export const LVL_MAX = 99
 
 /** Hero base HP in level-1 units (default when a character has no per-type baseHp). */
 export const HP_UNIT = 50
-/** HP added per allocated `maxHp` point, in level-1 units (scaled by hpScale like the base). */
-export const HP_PER_POINT = 10
 /** Hard safety cap on a combatant HP pool. */
 export const ENEMY_HP_CAP = 9_999_999
+
+/** Skill points granted per level (spent into hp/dmg/defend). */
+export const POINTS_PER_LEVEL = 5
+/** Ceiling on an allocation bonus: at most +100% of the stat, approached with DIMINISHING RETURNS. */
+export const ALLOC_MAX_BONUS = 1.0
+/** Curve constant: the first points give ~ALLOC_MAX_BONUS/ALLOC_K each (≈+1%/point), tapering as you
+ *  invest more — so points are never wasted (each adds a sliver) and a stat can't run away. */
+export const ALLOC_K = 100
+/** Multiplier from N points in a stat: 1 + a diminishing bonus that asymptotes to +ALLOC_MAX_BONUS.
+ *  bonus = MAX·p/(p+K). Respec = reset the count. (50 pts → +33%, 100 → +50%, 490 → ~+83%.) */
+export const allocMult = (points: number): number => {
+  const p = Math.max(0, points)
+  return 1 + (ALLOC_MAX_BONUS * p) / (p + ALLOC_K)
+}
+/** Hard ceiling on a HERO's max HP — allocation cannot push past this (extra hp points are then wasted). */
+export const HERO_HP_CAP = 9999
 
 /** HP growth curve: ×1 at L1 → ×100 at L99. */
 export const hpScale = (level: number): number => Math.pow(100, (Math.max(1, level) - 1) / 98)
@@ -29,23 +43,14 @@ export function baseSpeed(level: number): number {
   return 5 + Math.round(level / 10)
 }
 
-/** Per-allocated-point deltas (level-1 units). */
-export const PER_POINT: Record<StatId, number> = {
-  maxHp: HP_PER_POINT,
-  speed: 1,
-}
-
-export function resolveStat(stat: StatId, level: number, allocated: StatAllocation, baseHp = HP_UNIT): number {
-  if (stat === 'maxHp') return Math.round((baseHp + allocated.maxHp * HP_PER_POINT) * hpScale(level))
-  // speed
-  return baseSpeed(level) + allocated.speed * PER_POINT.speed
-}
-
+/** Resolve a combatant's stats: HP = baseHp × level curve × hp-point bonus; speed from level (not
+ *  allocatable); attack 0 (heroes play cards). The dmg/defend point bonuses are applied in combat
+ *  (damage output / block gained), not here — see allocMult + encounterBuilder. */
 export function deriveStats(level: number, allocated: StatAllocation, baseHp = HP_UNIT): CombatStats {
   return {
-    maxHp: resolveStat('maxHp', level, allocated, baseHp),
+    maxHp: Math.min(HERO_HP_CAP, Math.round(baseHp * hpScale(level) * allocMult(allocPoints(allocated, 'hp')))),
     attack: 0, // heroes don't auto-attack; they play cards (damage scales via combatant.scale)
-    speed: resolveStat('speed', level, allocated),
+    speed: baseSpeed(level),
   }
 }
 

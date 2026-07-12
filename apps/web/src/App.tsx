@@ -24,6 +24,7 @@ import { SfxController } from './components/SfxController'
 import { SleepOverlay } from './components/SleepOverlay'
 import { PrayOverlay } from './components/PrayOverlay'
 import { DeckModal } from './components/DeckModal'
+import { CharacterModal } from './components/CharacterModal'
 import { InventoryLayer } from './components/InventoryLayer'
 import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -63,6 +64,7 @@ export function App() {
   const storyActive = useGame((s) => Boolean(s.state.run?.world.story))
   const praying = useGame((s) => s.praying)
   const deckOpen = useGame((s) => s.deckOpen)
+  const characterOpen = useGame((s) => s.characterOpen)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
   const booting = useGame((s) => s.booting)
   const endBoot = useGame((s) => s.endBoot)
@@ -111,6 +113,7 @@ export function App() {
         {dialogueActive && <DialogueOverlay />}
         {storyActive && <StoryScroll />}
         {deckOpen && <DeckModal />}
+        {characterOpen && <CharacterModal />}
         <InventoryLayer />
         <SleepOverlay />
         <PrayOverlay />

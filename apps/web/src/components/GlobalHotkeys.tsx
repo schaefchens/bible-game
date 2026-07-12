@@ -17,6 +17,8 @@ export function GlobalHotkeys() {
   const screen = useGame((s) => s.state.screen)
   const deckOpen = useGame((s) => s.deckOpen)
   const setDeckOpen = useGame((s) => s.setDeckOpen)
+  const characterOpen = useGame((s) => s.characterOpen)
+  const setCharacterOpen = useGame((s) => s.setCharacterOpen)
   const inventoryOpen = useGame((s) => s.inventoryOpen)
   const itemInteraction = useGame((s) => s.itemInteraction)
   const praying = useGame((s) => s.praying)
@@ -36,11 +38,14 @@ export function GlobalHotkeys() {
       const k = e.key.toLowerCase()
       if (k === 'd') {
         if (hasRun) setDeckOpen(!deckOpen)
+      } else if (k === 'c') {
+        if (hasRun) setCharacterOpen(!characterOpen)
       } else if (k === 'm') {
         cycleAudioMode()
       } else if (e.key === 'Escape') {
         if (itemInteraction || inventoryOpen) return // InventoryLayer closes the carry / the bag
         if (deckOpen) { setDeckOpen(false); return } // close the deck first
+        if (characterOpen) { setCharacterOpen(false); return } // then the character modal
         // a dialogue, story scroll, verse prompt, prayer, or any open modal owns Esc — don't yank to menu
         if (dialogue || story || prompt || praying || document.querySelector('.modal-overlay')) return
         if (hasRun && screen !== 'start') dispatch({ type: 'navigate', screen: 'start' })
@@ -48,7 +53,7 @@ export function GlobalHotkeys() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [hasRun, screen, deckOpen, setDeckOpen, inventoryOpen, itemInteraction, praying, dialogue, story, prompt, cycleAudioMode, dispatch, chatOpen])
+  }, [hasRun, screen, deckOpen, setDeckOpen, characterOpen, setCharacterOpen, inventoryOpen, itemInteraction, praying, dialogue, story, prompt, cycleAudioMode, dispatch, chatOpen])
 
   return null
 }

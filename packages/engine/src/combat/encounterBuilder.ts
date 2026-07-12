@@ -5,7 +5,8 @@
 
 import type { CardDef, CardInstance } from '../cards/types'
 import type { ContentBundle } from '../content/bundle'
-import { deriveStats, dmgScale, enemyDamageScale, scaleEnemy } from '../leveling/scaling'
+import { allocMult, deriveStats, dmgScale, enemyDamageScale, scaleEnemy } from '../leveling/scaling'
+import { allocPoints } from '../state/stats'
 import type { RngState } from '../rng/rng'
 import type { PartyMember } from '../state/character'
 import type { RunState } from '../state/gameState'
@@ -41,7 +42,9 @@ function partyCombatant(m: PartyMember): Combatant {
     row: 'front',
     stats,
     scale: dmgScale(m.level),
-    power: m.power,
+    // per-type power × the dmg-allocation bonus (+1%/point); defend-allocation lifts block gained
+    power: m.power * allocMult(allocPoints(m.allocated, 'dmg')),
+    blockMult: allocMult(allocPoints(m.allocated, 'defend')),
     statuses: [],
     memberId: m.memberId,
     contributesEnergy: m.contributesEnergy,

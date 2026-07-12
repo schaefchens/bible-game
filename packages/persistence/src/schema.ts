@@ -23,12 +23,12 @@ const CharacterSchema = z.object({
   name: z.string(),
   level: z.number(),
   xp: z.number(),
-  // Normalize on load: keep only the current stats (maxHp/speed), dropping legacy keys (attack/
-  // defense/spiritAffinity) from older saves and defaulting any missing key to 0 (no NaN).
+  // Normalize on load: keep only the current allocatable stats (hp/dmg/defend), dropping any legacy keys
+  // (maxHp/speed/attack/…) from older saves and defaulting any missing key to 0 (no NaN). Points are
+  // derived from level minus these counts, so there is no separate unspentPoints field to persist.
   allocated: z
     .record(z.string(), z.number())
-    .transform((a) => ({ maxHp: a.maxHp ?? 0, speed: a.speed ?? 0 })),
-  unspentPoints: z.number(),
+    .transform((a) => ({ hp: a.hp ?? 0, dmg: a.dmg ?? 0, defend: a.defend ?? 0 })),
   ownedVerseCardIds: z.array(z.string()),
   // .default(...) so saves written before verse-loss existed still validate (load uses .parse()).
   lostVerseCardIds: z.array(z.string()).default([]),

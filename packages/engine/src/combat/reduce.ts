@@ -1,6 +1,6 @@
 import type { Command } from '../commands/command'
 import type { GameEvent, ReduceResult } from '../events/event'
-import { grantXp } from '../leveling/scaling'
+import { grantXp, POINTS_PER_LEVEL } from '../leveling/scaling'
 import { applySpiritEvent } from '../spirit/spirit'
 import { nextLevelUpPrompt, type GameState } from '../state/gameState'
 import type { Character, PartyMember } from '../state/character'
@@ -271,16 +271,16 @@ function leaveReward(state: GameState): ReduceResult {
     if (!slot) continue
     const oldLevel = slot.character.level
     const res = grantXp(slot.character.xp, oldLevel, xp)
+    const pointsGained = res.levelsGained * POINTS_PER_LEVEL // for the toast only — points are derived from level
     const character = {
       ...slot.character,
       xp: res.totalXp,
       level: res.level,
-      unspentPoints: slot.character.unspentPoints + res.levelsGained,
     }
     profile = { ...profile, slots: profile.slots.map((s, i) => (i === idx ? { ...s, character } : s)) }
     party = party.map((m) => (m.memberId === memberId ? { ...m, level: res.level } : m))
     if (res.leveledUp) {
-      events.push({ type: 'leveledUp', memberId, level: res.level, points: res.levelsGained })
+      events.push({ type: 'leveledUp', memberId, level: res.level, points: pointsGained })
       const had = new Set(unlocksUpToLevel(run.content, oldLevel))
       const unlocked = unlocksUpToLevel(run.content, res.level).filter((id) => !had.has(id))
       if (unlocked.length) events.push({ type: 'cardsUnlocked', memberId, cardIds: unlocked })

@@ -29,6 +29,9 @@ export {
   partyMemberFromCharacter,
   heroMemberId,
   memberMaxHp,
+  unspentPoints,
+  totalSkillPoints,
+  spentPoints,
   type Character,
   type PartyMember,
   type MemberKind,
@@ -39,6 +42,7 @@ export {
   type CombatStats,
   STAT_IDS,
   emptyAllocation,
+  allocPoints,
 } from './state/stats'
 
 // ---- RNG ----
@@ -60,7 +64,9 @@ export {
   hpScale,
   dmgScale,
   deriveStats,
-  resolveStat,
+  allocMult,
+  HERO_HP_CAP,
+  POINTS_PER_LEVEL,
   grantXp,
   xpToNext,
   levelForXp,

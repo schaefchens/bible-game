@@ -465,7 +465,7 @@ function applyEffect(
       const targets = resolveTargets(combat, sourceId, op.target ?? 'self', chosenId)
       // Dexterity (the block-mirror of Strength) adds stacks×scale to block gained, read on the
       // casting source — exactly as Strength adds to damage in physicalAmount.
-      const amount = spiritScaled(card, op.amount, spirit, source.scale, { floor: 1 }) + dexterityBlockBonus(source)
+      const amount = Math.round((spiritScaled(card, op.amount, spirit, source.scale, { floor: 1 }) + dexterityBlockBonus(source)) * (source.blockMult ?? 1))
       for (const tid of targets) {
         combat = withCombatant(combat, tid, (x) => ({ ...x, block: x.block + amount }))
         events.push({ type: 'blockGained', targetId: tid, amount })
@@ -487,7 +487,7 @@ function applyEffect(
     case 'blockScaling': {
       const targets = resolveTargets(combat, sourceId, op.target ?? 'self', chosenId)
       // reuse the shared scaling-base helper (same formula as damageScaling) + Dexterity on top
-      const amount = scalingDamageBase(op, source, combat, undefined) + dexterityBlockBonus(source)
+      const amount = Math.round((scalingDamageBase(op, source, combat, undefined) + dexterityBlockBonus(source)) * (source.blockMult ?? 1))
       for (const tid of targets) {
         combat = withCombatant(combat, tid, (x) => ({ ...x, block: x.block + amount }))
         events.push({ type: 'blockGained', targetId: tid, amount })

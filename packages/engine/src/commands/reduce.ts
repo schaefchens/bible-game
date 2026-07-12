@@ -9,6 +9,7 @@ import {
   memberMaxHp,
   partyMemberFromCharacter,
   TEST_HERO_NAME,
+  unspentPoints,
   type Character,
   type PartyMember,
 } from '../state/character'
@@ -234,8 +235,9 @@ function createHero(state: GameState, id: string, name: string): ReduceResult {
 
   const base = createCharacter(id, trimmed, state.profile.nextCreateSeq)
   // Testing gimmick: a hero named "Enoch" is born at max level — Enoch "walked with God" (Gen 5:24).
-  // Handy for exercising the linear level scaling (HP/damage) without grinding a run. His full card
-  // library is unlocked at run time (see startRun + cards/pool effectivePool).
+  // Handy for exercising the level scaling (HP/damage) without grinding a run. His full card library is
+  // unlocked at run time (see startRun + cards/pool effectivePool). Skill points are DERIVED from level,
+  // so a max-level Enoch automatically has every point available to spend (nothing to bank).
   const character = trimmed === TEST_HERO_NAME ? { ...base, level: LVL_MAX, xp: totalXpForLevel(LVL_MAX) } : base
   const slot: CharacterSlot = { id, character }
   const profile: ProfileState = {
@@ -436,22 +438,22 @@ function allocateStat(state: GameState, memberId: string, stat: string): ReduceR
 
   const slotIdx = state.profile.slots.findIndex((s) => s.id === member.characterId)
   const slot = state.profile.slots[slotIdx]
-  if (!slot || slot.character.unspentPoints <= 0) return reject(state, 'no-points')
+  if (!slot || unspentPoints(slot.character) <= 0) return reject(state, 'no-points')
 
   if (!STAT_IDS.includes(stat as StatId)) return reject(state, 'bad-stat')
   const statKey = stat as StatId
+  // spending a point = incrementing the SPENT count; the derived unspent total drops by one automatically.
   const character = {
     ...slot.character,
-    allocated: { ...slot.character.allocated, [statKey]: slot.character.allocated[statKey] + 1 },
-    unspentPoints: slot.character.unspentPoints - 1,
+    allocated: { ...slot.character.allocated, [statKey]: (slot.character.allocated[statKey] ?? 0) + 1 },
   }
   const slots = state.profile.slots.map((s, i) => (i === slotIdx ? { ...s, character } : s))
   const party = state.run.party.map((m) =>
-    m.memberId === memberId ? { ...m, allocated: { ...m.allocated, [statKey]: m.allocated[statKey] + 1 } } : m,
+    m.memberId === memberId ? { ...m, allocated: { ...m.allocated, [statKey]: (m.allocated[statKey] ?? 0) + 1 } } : m,
   )
 
   let prompt = state.prompt
-  if (prompt?.kind === 'levelUp' && prompt.memberId === memberId && character.unspentPoints <= 0) {
+  if (prompt?.kind === 'levelUp' && prompt.memberId === memberId && unspentPoints(character) <= 0) {
     // this member is done — chain the shared prompt to the next member with points (co-op), else clear it
     prompt = nextLevelUpPrompt(state.run.party, slots)
   }

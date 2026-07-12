@@ -123,6 +123,9 @@ interface GameStore {
   /** transient UI flag: the top-bar Deck viewer modal is open (works on map + in battle) */
   deckOpen: boolean
   setDeckOpen: (open: boolean) => void
+  /** transient UI flag: the character/status modal is open (C key + HUD button) */
+  characterOpen: boolean
+  setCharacterOpen: (open: boolean) => void
   /** transient UI flag: the bag/inventory panel is open (works on map, scene, and in battle) */
   inventoryOpen: boolean
   setInventoryOpen: (open: boolean) => void
@@ -175,6 +178,7 @@ export const useGame = create<GameStore>((set, get) => ({
   sleeping: false,
   praying: false,
   deckOpen: false,
+  characterOpen: false,
   inventoryOpen: false,
   itemInteraction: null,
 
@@ -183,6 +187,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setSleeping: (sleeping) => set({ sleeping }),
   setPraying: (praying) => set({ praying }),
   setDeckOpen: (deckOpen) => set({ deckOpen }),
+  setCharacterOpen: (characterOpen) => set({ characterOpen }),
   setInventoryOpen: (inventoryOpen) => set({ inventoryOpen }),
   toggleInventory: () => set((s) => (s.inventoryOpen ? { inventoryOpen: false, itemInteraction: null } : { inventoryOpen: true })),
   holdItem: (itemId) => set({ itemInteraction: { phase: 'holding', itemId } }),

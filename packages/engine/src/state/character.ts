@@ -1,6 +1,6 @@
 import type { CardDefId, CharacterId, GraceAbilityId, I18nKey, MemberId } from '../types'
-import { deriveStats, HP_UNIT } from '../leveling/scaling'
-import { emptyAllocation, type StatAllocation } from './stats'
+import { deriveStats, HP_UNIT, POINTS_PER_LEVEL } from '../leveling/scaling'
+import { allocPoints, emptyAllocation, STAT_IDS, type StatAllocation } from './stats'
 
 /** Default starting purse when a character defines no per-type `startGold`. */
 export const DEFAULT_START_GOLD = 50
@@ -16,9 +16,9 @@ export interface Character {
   level: number
   /** total accumulated XP */
   xp: number
+  /** points SPENT per stat. Points are not a stored resource: total available = (level-1)·POINTS_PER_LEVEL
+   *  and unspent = that minus what's allocated here (see unspentPoints). A respec just zeroes this. */
   allocated: StatAllocation
-  /** stat points earned on level-up but not yet spent */
-  unspentPoints: number
   /** verse cards permanently earned (carry across runs) */
   ownedVerseCardIds: CardDefId[]
   /** verse cards lost by failing the gap-fill 3× — no longer offered when studying; must be
@@ -57,7 +57,6 @@ export function createCharacter(id: CharacterId, name: string, createdSeq: numbe
     level: 1,
     xp: 0,
     allocated: emptyAllocation(),
-    unspentPoints: 0,
     ownedVerseCardIds: [],
     lostVerseCardIds: [],
     verseAttempts: {},
@@ -65,6 +64,18 @@ export function createCharacter(id: CharacterId, name: string, createdSeq: numbe
     createdSeq,
   }
 }
+
+/** Total skill points a level grants (level 1 = 0). Points are earned purely by level — an algorithm,
+ *  not a stored resource — so a hero always has exactly this many, however they reached the level. */
+export const totalSkillPoints = (level: number): number => Math.max(0, (level - 1) * POINTS_PER_LEVEL)
+
+/** Points already spent across all stats. */
+export const spentPoints = (allocated: StatAllocation): number =>
+  STAT_IDS.reduce((sum, stat) => sum + allocPoints(allocated, stat), 0)
+
+/** Points still available to spend = the level's total minus what's allocated. */
+export const unspentPoints = (c: Pick<Character, 'level' | 'allocated'>): number =>
+  Math.max(0, totalSkillPoints(c.level) - spentPoints(c.allocated))
 
 export type MemberKind = 'hero' | 'companion'
 

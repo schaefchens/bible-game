@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { emptyAllocation } from '../state/stats'
 import {
+  allocMult,
   deriveStats,
   dmgScale,
   effectiveEnemyLevel,
   enemyBracketLevel,
   ENEMY_HP_CAP,
   grantXp,
+  HERO_HP_CAP,
   HP_UNIT,
   hpScale,
   levelForXp,
   LVL_MAX,
-  PER_POINT,
-  resolveStat,
   scaleEnemy,
   totalXpForLevel,
   xpToNext,
@@ -36,25 +36,33 @@ describe('the two growth curves', () => {
 
 describe('hero HP — non-linear (50 → 5000 across L1..99)', () => {
   it('scales 50 / ~76 / 500 / 5000 at L1/10/50/99', () => {
-    expect(resolveStat('maxHp', 1, emptyAllocation())).toBe(50)
-    expect(resolveStat('maxHp', 10, emptyAllocation())).toBe(76)
-    expect(resolveStat('maxHp', 50, emptyAllocation())).toBe(500)
-    expect(resolveStat('maxHp', 99, emptyAllocation())).toBe(HP_UNIT * 100)
+    expect(deriveStats(1, emptyAllocation()).maxHp).toBe(50)
+    expect(deriveStats(10, emptyAllocation()).maxHp).toBe(76)
+    expect(deriveStats(50, emptyAllocation()).maxHp).toBe(500)
+    expect(deriveStats(99, emptyAllocation()).maxHp).toBe(HP_UNIT * 100)
   })
 
   it('a per-type baseHp overrides the default 50', () => {
-    expect(resolveStat('maxHp', 1, emptyAllocation(), 80)).toBe(80)
-    expect(resolveStat('maxHp', 99, emptyAllocation(), 80)).toBe(80 * 100)
+    expect(deriveStats(1, emptyAllocation(), 80).maxHp).toBe(80)
+    expect(deriveStats(99, emptyAllocation(), 80).maxHp).toBe(80 * 100)
   })
 
-  it('allocated maxHp points add in level-1 units, then scale', () => {
-    expect(resolveStat('maxHp', 1, { ...emptyAllocation(), maxHp: 4 })).toBe(50 + 4 * PER_POINT.maxHp)
-    expect(resolveStat('maxHp', 10, { ...emptyAllocation(), maxHp: 4 })).toBe(Math.round((50 + 4 * PER_POINT.maxHp) * hpScale(10)))
+  it('allocated hp points give diminishing returns (asymptote +100%), never wasted', () => {
+    expect(allocMult(0)).toBe(1)
+    expect(allocMult(100)).toBeCloseTo(1.5) // +50% at the curve constant
+    expect(allocMult(200)).toBeGreaterThan(allocMult(100)) // more points always still help
+    expect(allocMult(1_000_000)).toBeGreaterThan(1.99) // approaches the +100% ceiling…
+    expect(allocMult(1_000_000)).toBeLessThan(2) // …but never exceeds it
+    expect(deriveStats(1, { ...emptyAllocation(), hp: 4 }).maxHp).toBe(Math.round(50 * allocMult(4)))
   })
 
-  it('speed has a base + per-point allocation (not level-scaled)', () => {
-    expect(resolveStat('speed', 1, emptyAllocation())).toBe(5)
-    expect(resolveStat('speed', 1, { ...emptyAllocation(), speed: 3 })).toBe(8)
+  it('hero max HP is hard-capped at HERO_HP_CAP regardless of level/baseHp/allocation', () => {
+    expect(deriveStats(99, { ...emptyAllocation(), hp: 490 }, 400).maxHp).toBe(HERO_HP_CAP)
+  })
+
+  it('speed is derived from level only (not allocatable)', () => {
+    expect(deriveStats(1, emptyAllocation()).speed).toBe(5)
+    expect(deriveStats(50, emptyAllocation()).speed).toBe(10) // 5 + round(50/10)
   })
 
   it('deriveStats returns {maxHp, attack:0, speed} — heroes have no auto-attack', () => {

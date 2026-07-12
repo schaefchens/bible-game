@@ -5,7 +5,7 @@ import type { WorldState } from '../map/types'
 import type { RngState } from '../rng/rng'
 import type { SpiritState } from '../spirit/types'
 import type { CardDefId, CharacterId, ItemId, Locale, MemberId } from '../types'
-import type { Character, PartyMember } from './character'
+import { unspentPoints, type Character, type PartyMember } from './character'
 
 export const GAME_STATE_VERSION = 1
 
@@ -107,7 +107,8 @@ export type GamePrompt =
 export function nextLevelUpPrompt(party: PartyMember[], slots: CharacterSlot[]): GamePrompt | null {
   for (const m of party) {
     if (!m.characterId) continue
-    const points = slots.find((s) => s.id === m.characterId)?.character.unspentPoints ?? 0
+    const character = slots.find((s) => s.id === m.characterId)?.character
+    const points = character ? unspentPoints(character) : 0
     if (points > 0) return { kind: 'levelUp', memberId: m.memberId, points }
   }
   return null

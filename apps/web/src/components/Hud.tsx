@@ -48,6 +48,8 @@ export function Hud() {
   const cycleAudioMode = useGame((s) => s.cycleAudioMode)
   const dispatch = useGame((s) => s.dispatch)
   const setDeckOpen = useGame((s) => s.setDeckOpen)
+  const characterOpen = useGame((s) => s.characterOpen)
+  const setCharacterOpen = useGame((s) => s.setCharacterOpen)
   const toggleInventory = useGame((s) => s.toggleInventory)
   const itemInteraction = useGame((s) => s.itemInteraction)
   const aimItemAt = useGame((s) => s.aimItemAt)
@@ -169,6 +171,14 @@ export function Hud() {
             aria-label={t('ui.deck.title')}
           >
             📚
+          </button>
+          <button
+            className={'hud-icon-btn' + (characterOpen ? ' active' : '')}
+            onClick={() => setCharacterOpen(!characterOpen)}
+            title={`${t('ui.character.title')} (C)`}
+            aria-label={t('ui.character.title')}
+          >
+            🧍
           </button>
           <button
             className="hud-icon-btn"

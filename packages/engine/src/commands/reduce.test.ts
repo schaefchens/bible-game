@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Command } from './command'
 import { newGame, reduce } from './reduce'
 import { totalXpForLevel } from '../leveling/scaling'
+import { unspentPoints } from '../state/character'
 import type { GameState } from '../state/gameState'
 import { testContent } from '../testing/fixtures'
 import { MAX_VERSE_ATTEMPTS } from '../verse/reduce'
@@ -141,7 +142,7 @@ describe('run lifecycle', () => {
         ...started.profile,
         slots: started.profile.slots.map((s) =>
           s.id === 'h1'
-            ? { ...s, character: { ...s.character, level: 3, xp: totalXpForLevel(3) + 5, allocated: { ...s.character.allocated, maxHp: 2 }, unspentPoints: 1, ownedVerseCardIds: ['v1'] } }
+            ? { ...s, character: { ...s.character, level: 3, xp: totalXpForLevel(3) + 5, allocated: { ...s.character.allocated, hp: 2 }, ownedVerseCardIds: ['v1'] } }
             : s,
         ),
       },
@@ -149,8 +150,7 @@ describe('run lifecycle', () => {
     const char = run(started, { type: 'abandonRun' }).state.profile.slots[0]!.character
     expect(char.level).toBe(3)
     expect(char.xp).toBe(totalXpForLevel(3)) // progress-to-next wiped, level floor kept
-    expect(char.allocated.maxHp).toBe(2) // stats kept
-    expect(char.unspentPoints).toBe(1) // points kept
+    expect(char.allocated.hp).toBe(2) // spent points kept (level + allocation = points are derived)
     expect(char.ownedVerseCardIds).toEqual(['v1']) // earned verses kept
   })
 
@@ -168,7 +168,7 @@ describe('stat allocation', () => {
       run(newGame(), { type: 'createHero', id: 'h1', name: 'A' }).state,
       { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed: 's', content: CONTENT },
     ).state
-    expect(eventTypes(started, { type: 'allocateStat', memberId: started.run!.heroMemberId, stat: 'maxHp' })).toEqual([
+    expect(eventTypes(started, { type: 'allocateStat', memberId: started.run!.heroMemberId, stat: 'hp' })).toEqual([
       'rejected',
     ])
   })
@@ -178,23 +178,23 @@ describe('stat allocation', () => {
       run(newGame(), { type: 'createHero', id: 'h1', name: 'A' }).state,
       { type: 'startRun', characterId: 'h1', worldId: 'world-01', seed: 's', content: CONTENT },
     ).state
-    // Grant a point by hand (level-up wiring arrives with combat in Phase 3).
+    // Points are derived from level: bump the hero to level 2 → 5 points available (nothing spent yet).
     const withPoint: GameState = {
       ...started,
       profile: {
         ...started.profile,
-        slots: started.profile.slots.map((s) => ({ ...s, character: { ...s.character, unspentPoints: 1 } })),
+        slots: started.profile.slots.map((s) => ({ ...s, character: { ...s.character, level: 2 } })),
       },
     }
     const { state, events } = run(withPoint, {
       type: 'allocateStat',
       memberId: withPoint.run!.heroMemberId,
-      stat: 'maxHp',
+      stat: 'hp',
     })
-    expect(state.profile.slots[0]!.character.allocated.maxHp).toBe(1)
-    expect(state.profile.slots[0]!.character.unspentPoints).toBe(0)
-    expect(state.run!.party[0]!.allocated.maxHp).toBe(1)
-    expect(events).toEqual([{ type: 'statAllocated', memberId: withPoint.run!.heroMemberId, stat: 'maxHp' }])
+    expect(state.profile.slots[0]!.character.allocated.hp).toBe(1) // one point spent
+    expect(unspentPoints(state.profile.slots[0]!.character)).toBe(4) // 5 (level 2) − 1 spent
+    expect(state.run!.party[0]!.allocated.hp).toBe(1)
+    expect(events).toEqual([{ type: 'statAllocated', memberId: withPoint.run!.heroMemberId, stat: 'hp' }])
   })
 })
 

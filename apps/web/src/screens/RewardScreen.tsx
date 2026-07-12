@@ -1,10 +1,66 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
 import { myMemberId, useSession } from '../store/useSession'
-import { selectReward } from '../selectors'
+import { selectReward, xpProgress } from '../selectors'
 import { CardFace } from '../components/CardFace'
+import { XpBar } from '../components/XpBar'
+
+/** FF-style XP payout: the gained amount counts DOWN while the bar fills RIGHT (and the level ticks up when
+ *  a boundary is crossed). XP isn't committed until leaveReward, so we animate from the pre-fight total. */
+function RewardXpBar({ startTotal, gained }: { startTotal: number; gained: number }) {
+  const { t } = useTranslation()
+  const reduced = useGame((s) => s.state.profile.settings.reducedMotion)
+  const [shown, setShown] = useState(startTotal)
+  const raf = useRef(0)
+  // at max level XP is meaningless — no gain to count, the bar just sits full (MAX).
+  const atMax = xpProgress(startTotal).atMax
+  const effGained = atMax ? 0 : gained
+
+  useEffect(() => {
+    const end = startTotal + effGained
+    if (effGained <= 0 || reduced) { setShown(end); return }
+    // "heavy train": a trapezoid velocity profile — ramp up from 0 over the first `A`, hold a steady pace
+    // through the middle, then a SHORTER ramp-down over the final `B` to glide to a halt. Slow + deliberate.
+    const A = 0.35 // longer acceleration
+    const B = 0.15 // shorter deceleration
+    const vmax = 1 / (1 - (A + B) / 2)
+    const cruise = (vmax * A) / 2 + vmax * (1 - B - A) // distance covered by the end of the steady phase
+    const ease = (p: number) => {
+      if (p < A) return (vmax / (2 * A)) * p * p // accelerate
+      if (p < 1 - B) return (vmax * A) / 2 + vmax * (p - A) // steady
+      const q = p - (1 - B)
+      return cruise + vmax * q - (vmax / (2 * B)) * q * q // decelerate to a stop
+    }
+    const dur = Math.min(6000, 2000 + effGained * 6) // much slower; scales with the payout, capped
+    let t0 = 0
+    const tick = (ts: number) => {
+      if (!t0) t0 = ts
+      const p = Math.min(1, (ts - t0) / dur)
+      setShown(startTotal + effGained * ease(p))
+      if (p < 1) raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [startTotal, effGained, reduced])
+
+  const prog = xpProgress(shown)
+  const remaining = Math.max(0, Math.round(startTotal + effGained - shown))
+  return (
+    <div className="reward-xp">
+      <div className="reward-xp-head">
+        <span>{t('ui.character.level')} {prog.level}</span>
+        {atMax ? (
+          <span className="reward-xp-gain">{t('ui.character.max')}</span>
+        ) : (
+          remaining > 0 && <span className="reward-xp-gain">{t('ui.character.xpGained', { n: remaining })}</span>
+        )}
+      </div>
+      <XpBar pct={prog.pct} instant />
+    </div>
+  )
+}
 
 export function RewardScreen() {
   const { t } = useTranslation()
@@ -15,6 +71,14 @@ export function RewardScreen() {
   const view = useMemo(() => selectReward(state, myMember ?? undefined), [state, myMember])
   const dispatch = useGame((s) => s.dispatch)
   const [stage, setStage] = useState<'spoils' | 'cards'>('spoils')
+
+  // XP payout for the animated bar: the seat's pre-fight total + the amount gained this fight (XP is only
+  // committed on leaveReward, so the Character still holds the pre-grant total here).
+  const seatId = myMember ?? state.run?.heroMemberId
+  const seat = state.run?.party.find((m) => m.memberId === seatId)
+  const startTotal = state.profile.slots.find((s) => s.id === seat?.characterId)?.character.xp ?? 0
+  const gained = (seat && state.combat?.reward?.xpByMember[seat.memberId]) ?? 0
+
   if (!view) return null
 
   // Two stages: claim gold/items first, then pick a card. With no spoils, jump straight to the cards.
@@ -35,6 +99,7 @@ export function RewardScreen() {
     <div className="screen reward centered" style={{ backgroundImage: assetBg(view.rewardBg) }}>
       <div className="vignette" />
       <div className="panel narrow">
+        <RewardXpBar startTotal={startTotal} gained={gained} />
         {showSpoils ? (
           <>
             <h2>{t('ui.reward.title')}</h2>

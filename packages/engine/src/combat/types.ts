@@ -61,8 +61,10 @@ export interface Combatant {
   /** level multiplier for this combatant's damage/block/heal output (party: dmgScale(level);
    *  enemy: enemyDamageScale(heroLevel, depth)). Content is authored in level-1 units; this scales it. */
   scale: number
-  /** per-type flesh-DAMAGE multiplier (archetype "power"); applied to damage output only, default 1. */
+  /** per-type flesh-DAMAGE multiplier (archetype "power" × dmg-allocation); applied to damage output, default 1. */
   power?: number
+  /** multiplier on block GAINED (from the defend allocation); applied to every block source, default 1. */
+  blockMult?: number
   statuses: StatusInstance[]
   /** persistent powers (Armor of God) that react to events via hooks — see combat/powers.ts */
   powers?: PowerInstance[]
