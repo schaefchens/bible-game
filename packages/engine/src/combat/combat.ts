@@ -283,17 +283,27 @@ export function downMemberCombat(c: CombatState, memberId: MemberId): CombatStep
   return step(fin.combat, [...purged.events, ...fin.events], [...purged.spiritEvents, ...fin.spiritEvents])
 }
 
+/** Shared energy for the currently-living party: the first member brings their full energy, each extra
+ *  member adds only +1 — mirrors encounterBuilder so a member leaving/dying mid-combat drops the pool by
+ *  one (5→4), not by their full contribution (which wrongly gave 5→2). */
+function partyEnergyMax(c: CombatState): number {
+  const party = Object.values(c.combatants).filter((x) => x.faction === 'party' && x.alive)
+  if (party.length === 0) return 0
+  return (party[0]!.contributesEnergy ?? 0) + (party.length - 1)
+}
+
 /** Companion/hero death: purge ALL their contributed cards from every pile + drop their energy. */
 function purgePartyMember(c: CombatState, id: CombatantId): CombatStep {
   const member = getC(c, id)
   if (!member) return step(c)
   const memberId = member.memberId
   const keep = (ci: CardInstance) => ci.ownerId !== memberId
-  const newMax = Math.max(0, c.energy.max - (member.contributesEnergy ?? 0))
 
+  const combatants = { ...c.combatants, [id]: { ...member, alive: false, hp: 0 } }
+  const newMax = partyEnergyMax({ ...c, combatants })
   const out: CombatState = {
     ...c,
-    combatants: { ...c.combatants, [id]: { ...member, alive: false, hp: 0 } },
+    combatants,
     drawPile: c.drawPile.filter(keep),
     hand: c.hand.filter(keep),
     discardPile: c.discardPile.filter(keep),

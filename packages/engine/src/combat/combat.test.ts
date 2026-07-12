@@ -329,6 +329,23 @@ describe('co-op: downMemberCombat (a dropped player is kicked mid-combat)', () =
     expect(res.events.some((e) => e.type === 'partyMemberDied' && (e as { memberId: string }).memberId === 'm-b')).toBe(true)
   })
 
+  it('drops shared energy by ONE per member left (3 co-op heroes: 5 → 4, not 5 → 2)', () => {
+    // a real co-op party: three heroes, pool = 3 + 1 + 1 = 5 (first full, extras +1 each)
+    const threeParty = thiefInit({
+      party: [
+        hero({ id: 'a', memberId: 'm-a', contributesEnergy: 3 }),
+        hero({ id: 'b', memberId: 'm-b', contributesEnergy: 3 }),
+        hero({ id: 'c', memberId: 'm-c', contributesEnergy: 3 }),
+      ],
+      deck: [...deck(['strike'], 'm-a'), ...deck(['strike'], 'm-b'), ...deck(['strike'], 'm-c')],
+      energyMax: 5,
+    })
+    const acting = ensureActing(startCombat(threeParty).combat).combat
+    expect(acting.energy.max).toBe(5)
+    const after = downMemberCombat(acting, 'm-c').combat // a player leaves mid-battle
+    expect(after.energy.max).toBe(4) // one fewer member → pool drops by 1, stays 4 for the rest of the fight
+  })
+
   it('finalizes to defeat when the LAST member is downed', () => {
     const acting = ensureActing(startCombat(thiefInit({ party: [hero({ id: 'a', memberId: 'm-a' })], deck: deck(['strike'], 'm-a') })).combat).combat
     expect(downMemberCombat(acting, 'm-a').combat.outcome).toBe('defeat')
