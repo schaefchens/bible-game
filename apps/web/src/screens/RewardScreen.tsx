@@ -47,10 +47,15 @@ function RewardXpBar({ startTotal, gained }: { startTotal: number; gained: numbe
 
   const prog = xpProgress(shown)
   const remaining = Math.max(0, Math.round(startTotal + effGained - shown))
+  // once the ANIMATED bar has climbed past the starting level, a small note appears — in sync with the fill
+  const leveledNow = prog.level > xpProgress(startTotal).level
   return (
     <div className="reward-xp">
       <div className="reward-xp-head">
-        <span>{t('ui.character.level')} {prog.level}</span>
+        <span>
+          {t('ui.character.level')} {prog.level}
+          {leveledNow && <span className="reward-xp-up"> ⬆ {t('ui.reward.levelUpShort')}</span>}
+        </span>
         {atMax ? (
           <span className="reward-xp-gain">{t('ui.character.max')}</span>
         ) : (
@@ -70,6 +75,7 @@ export function RewardScreen() {
   // co-op: show THIS seat's own card options + resolution (each player picks into their own deck)
   const view = useMemo(() => selectReward(state, myMember ?? undefined), [state, myMember])
   const dispatch = useGame((s) => s.dispatch)
+  const setPendingCharacterOpen = useGame((s) => s.setPendingCharacterOpen)
   const [stage, setStage] = useState<'spoils' | 'cards'>('spoils')
 
   // XP payout for the animated bar: the seat's pre-fight total + the amount gained this fight (XP is only
@@ -78,6 +84,9 @@ export function RewardScreen() {
   const seat = state.run?.party.find((m) => m.memberId === seatId)
   const startTotal = state.profile.slots.find((s) => s.id === seat?.characterId)?.character.xp ?? 0
   const gained = (seat && state.combat?.reward?.xpByMember[seat.memberId]) ?? 0
+  // this payout crosses a level boundary → new skill points to spend (committed once we leave to the map)
+  const newLevel = xpProgress(startTotal + gained).level
+  const leveledUp = newLevel > xpProgress(startTotal).level
 
   if (!view) return null
 
@@ -88,12 +97,15 @@ export function RewardScreen() {
   // Single-player: taking a card (or declining) resolves the reward and returns to the map in one motion.
   // Co-op: each player takes/declines their OWN card, then presses Continue — the server only leaves the
   // reward once EVERY connected player has confirmed (so no one's pick is forfeited by a teammate).
+  // when this fight leveled the hero up, arm the character screen to open once we're back on the map
+  // (where the new points are actually available) — whichever way the reward is resolved.
+  const armAllocate = () => { if (leveledUp) setPendingCharacterOpen(true) }
   const takeCard = (defId: string) => {
     dispatch({ type: 'combat/takeCard', defId })
-    if (!mpMode) dispatch({ type: 'combat/leaveReward' })
+    if (!mpMode) { armAllocate(); dispatch({ type: 'combat/leaveReward' }) }
   }
-  const skip = () => dispatch({ type: mpMode ? 'combat/skipCard' : 'combat/leaveReward' })
-  const leave = () => dispatch({ type: 'combat/leaveReward' })
+  const skip = () => { if (!mpMode) armAllocate(); dispatch({ type: mpMode ? 'combat/skipCard' : 'combat/leaveReward' }) }
+  const leave = () => { armAllocate(); dispatch({ type: 'combat/leaveReward' }) }
 
   return (
     <div className="screen reward centered" style={{ backgroundImage: assetBg(view.rewardBg) }}>
@@ -157,8 +169,8 @@ export function RewardScreen() {
                         ? t('ui.reward.noCards')
                         : ''}
                 </p>
-                <button className="btn primary block" onClick={leave}>
-                  {mpMode ? 'Continue' : t('ui.reward.leave')}
+                <button className={'btn primary block' + (leveledUp ? ' reward-allocate' : '')} onClick={leave}>
+                  {leveledUp ? t('ui.reward.allocate') : mpMode ? 'Continue' : t('ui.reward.leave')}
                 </button>
               </>
             )}

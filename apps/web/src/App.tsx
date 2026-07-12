@@ -65,10 +65,21 @@ export function App() {
   const praying = useGame((s) => s.praying)
   const deckOpen = useGame((s) => s.deckOpen)
   const characterOpen = useGame((s) => s.characterOpen)
+  const pendingCharacterOpen = useGame((s) => s.pendingCharacterOpen)
   const reducedMotion = useGame((s) => s.state.profile.settings.reducedMotion)
   const booting = useGame((s) => s.booting)
   const endBoot = useGame((s) => s.endBoot)
   const Screen = SCREENS[screen] ?? StartScreen
+
+  // Level-up → allocate: the reward screen sets pendingCharacterOpen when a fight levels you up; once XP is
+  // committed and we're back on the map, pop the character screen so you can spend the new points.
+  useEffect(() => {
+    if (screen === 'map' && pendingCharacterOpen) {
+      const g = useGame.getState()
+      g.setPendingCharacterOpen(false)
+      g.setCharacterOpen(true)
+    }
+  }, [screen, pendingCharacterOpen])
 
   useEffect(() => {
     const warm = (): void => {

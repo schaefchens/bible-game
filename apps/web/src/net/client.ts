@@ -71,12 +71,21 @@ function onMessage(msg: ServerMsg): void {
       session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId, title: msg.title, visibility: msg.visibility, lookingForMore: msg.lookingForMore })
       session.setPhase(msg.phase === 'inRun' ? 'inRun' : 'lobby')
       break
-    case 'state':
+    case 'state': {
       useGame.getState().setMpMode(true)
       session.setPhase('inRun')
       useGame.getState().applyServerState(msg.state, msg.events, msg.seq)
       persistMyHero()
+      // co-op: announce each level-up in the party chat (a ding SFX will hook in here later)
+      const party = useGame.getState().state.run?.party
+      for (const e of msg.events) {
+        if (e.type === 'leveledUp') {
+          const name = party?.find((m) => m.memberId === e.memberId)?.displayName ?? '?'
+          session.pushChat({ playerId: '', name: '', text: i18n.t('ui.coop.leveledUp', { name, n: e.level }), system: true })
+        }
+      }
       break
+    }
     case 'chat':
       session.pushChat({ playerId: msg.playerId, name: msg.name, text: msg.text })
       break

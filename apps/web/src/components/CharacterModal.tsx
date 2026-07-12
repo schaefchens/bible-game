@@ -53,7 +53,11 @@ export function CharacterModal() {
           <XpBar pct={status.xpPct} />
         </div>
 
-        {canSpend && <p className="char-points">{t('ui.character.points', { n: status.unspentPoints })}</p>}
+        {canSpend && (
+          <p className="char-points">
+            <span className="char-levelup">⬆ {t('ui.reward.levelUpShort')}</span> {t('ui.character.points', { n: status.unspentPoints })}
+          </p>
+        )}
 
         {/* the three allocatable specs — each point = +1% */}
         <div className="char-alloc">
@@ -67,15 +71,6 @@ export function CharacterModal() {
               )}
             </div>
           ))}
-        </div>
-
-        {/* read-only vitals */}
-        <div className="char-stats">
-          <div className="char-stat"><span className="char-stat-label">⚡ {t('ui.character.speed')}</span><span className="char-stat-val">{status.speed}</span></div>
-          <div className="char-stat"><span className="char-stat-label">🪙 {t('ui.character.gold')}</span><span className="char-stat-val">{status.gold}</span></div>
-          <div className="char-stat"><span className="char-stat-label">📚 {t('ui.character.deck')}</span><span className="char-stat-val">{status.deckSize} / {status.deckLimit}</span></div>
-          <div className="char-stat"><span className="char-stat-label">✝️ {t('ui.character.verses')}</span><span className="char-stat-val">{status.verseCount}</span></div>
-          <div className="char-stat"><span className="char-stat-label">🙏 {t('ui.character.grace')}</span><span className="char-stat-val">{status.graceAbilityIds.length}</span></div>
         </div>
       </motion.div>
     </div>

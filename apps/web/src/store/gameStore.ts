@@ -126,6 +126,10 @@ interface GameStore {
   /** transient UI flag: the character/status modal is open (C key + HUD button) */
   characterOpen: boolean
   setCharacterOpen: (open: boolean) => void
+  /** set on the reward screen when a level-up happened → open the character modal once back on the map
+   *  (points are only committed on leaveReward, so we can't allocate until then). */
+  pendingCharacterOpen: boolean
+  setPendingCharacterOpen: (pending: boolean) => void
   /** transient UI flag: the bag/inventory panel is open (works on map, scene, and in battle) */
   inventoryOpen: boolean
   setInventoryOpen: (open: boolean) => void
@@ -179,6 +183,7 @@ export const useGame = create<GameStore>((set, get) => ({
   praying: false,
   deckOpen: false,
   characterOpen: false,
+  pendingCharacterOpen: false,
   inventoryOpen: false,
   itemInteraction: null,
 
@@ -188,6 +193,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setPraying: (praying) => set({ praying }),
   setDeckOpen: (deckOpen) => set({ deckOpen }),
   setCharacterOpen: (characterOpen) => set({ characterOpen }),
+  setPendingCharacterOpen: (pendingCharacterOpen) => set({ pendingCharacterOpen }),
   setInventoryOpen: (inventoryOpen) => set({ inventoryOpen }),
   toggleInventory: () => set((s) => (s.inventoryOpen ? { inventoryOpen: false, itemInteraction: null } : { inventoryOpen: true })),
   holdItem: (itemId) => set({ itemInteraction: { phase: 'holding', itemId } }),

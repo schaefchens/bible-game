@@ -749,23 +749,23 @@ button.card-stack { background: none; padding: 0; font: inherit; cursor: pointer
 .char-modal { text-align: left; }
 .char-xp { margin: 0.4rem 0 0.8rem; }
 .char-xp-head { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px; }
-.char-points { margin: 0 0 0.6rem; color: var(--gold-bright); font-weight: 700; font-size: 0.85rem; }
+.char-points { margin: 0 0 0.6rem; color: var(--ink); font-weight: 600; font-size: 0.85rem; }
+.char-levelup { color: #1a160c; background: linear-gradient(90deg, var(--gold), var(--gold-bright)); padding: 1px 8px; border-radius: 999px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.74rem; }
 /* the three allocatable specs */
 .char-alloc { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.8rem; }
 .char-alloc-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: rgba(216,185,98,0.08); border: 1px solid var(--panel-edge); }
 .char-alloc-label { font-weight: 700; }
 .char-alloc-detail { font-variant-numeric: tabular-nums; }
 .char-alloc-bonus { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--gold-bright); font-weight: 700; }
-.char-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-.char-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,0.28); border: 1px solid var(--panel-edge); }
-.char-stat-label { font-size: 0.82rem; color: var(--ink); }
-.char-stat-val { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .char-plus { padding: 0 0.45rem; font-size: 0.9rem; line-height: 1.4; background: linear-gradient(180deg, var(--gold), #a8842f); color: #1a160c; border-color: var(--gold-bright); }
 
 /* ---- reward-screen XP payout (FF-style count-down + fill) ---- */
 .reward-xp { margin-bottom: 0.9rem; }
 .reward-xp-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; margin-bottom: 5px; color: var(--gold-bright); font-weight: 700; }
 .reward-xp-gain { font-variant-numeric: tabular-nums; color: var(--gold-bright); text-shadow: 0 0 8px rgba(244,231,161,0.5); }
+/* subtle "level up" note next to the level number — fades in when the animated bar ticks over */
+.reward-xp-up { color: var(--gold-bright); font-weight: 700; font-size: 0.78rem; animation: xpUpIn 0.35s ease-out; }
+@keyframes xpUpIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
 .deck-modal-head h3 { margin: 0; }
 .deck-modal-empty { text-align: center; padding: 1.6rem 0; }
 /* card-pick / pile modals: pin the title + footer buttons, scroll ONLY the cards. These carry both
