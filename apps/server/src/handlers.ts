@@ -62,6 +62,11 @@ type PresenceKind = 'joined' | 'left' | 'lost' | 'back'
 const presence = (room: Room, playerId: string, name: string, kind: PresenceKind): void =>
   broadcast(room, { t: 'presence', playerId, name, connected: kind === 'joined' || kind === 'back', kind })
 
+/** Is this hero held by a LIVING party member? A DOWNED same-hero seat is a leaver/kicked husk the same
+ *  player may reclaim on rejoin — not a genuine duplicate — so only a living match blocks a join. */
+const heroLivingInRun = (room: Room, characterId: string): boolean =>
+  room.state.run?.party.some((m) => m.characterId === characterId && m.currentHp > 0) ?? false
+
 /** Down a party member on the authoritative state + broadcast it (so the run continues past a
  *  leaver/kick without anyone pressing a button). No-op if the member isn't there / already down. */
 function downMemberAndBroadcast(room: Room, memberId: string | null): void {
@@ -106,7 +111,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       if (!room) return send(ws, { t: 'error', code: 'no-room', reason: 'no such room' })
       if (room.phase !== 'inRun' || !room.lookingForMore) return send(ws, { t: 'error', code: 'not-recruiting', reason: 'game not recruiting' })
       if (livingMembers(room) >= 3) return send(ws, { t: 'error', code: 'room-full', reason: 'party full' })
-      if (room.players.some((p) => p.character?.id === msg.character.id)) return send(ws, { t: 'error', code: 'dup-hero', reason: 'hero already in the party' })
+      if (heroLivingInRun(room, msg.character.id)) return send(ws, { t: 'error', code: 'dup-hero', reason: 'hero already in the party' })
       const requestId = addPendingJoin(room, msg.name, msg.character, ws, session)
       session.pendingReq = { code: room.code, id: requestId } // so a requester disconnect cleans up
       send(ws, { t: 'joinPending' })
@@ -126,7 +131,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       if (!msg.accept) return send(req.ws, { t: 'joinDeclined' })
       // re-check the slot (party may have filled since the request) + dup, then add
       if (livingMembers(ctx.room) >= 3) return send(req.ws, { t: 'error', code: 'room-full', reason: 'party full' })
-      if (ctx.room.players.some((p) => p.character?.id === req.character.id)) return send(req.ws, { t: 'error', code: 'dup-hero', reason: 'hero already in the party' })
+      if (heroLivingInRun(ctx.room, req.character.id)) return send(req.ws, { t: 'error', code: 'dup-hero', reason: 'hero already in the party' })
       const res = reduce(ctx.room.state, { type: 'coop/addMember', character: req.character })
       if (res.events.some((e) => e.type === 'rejected')) {
         const reason = (res.events.find((e) => e.type === 'rejected') as { reason: string }).reason
@@ -134,6 +139,10 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       }
       ctx.room.state = res.state
       ctx.room.lastActivity = Date.now()
+      // a rejoining player leaves a downed husk seat behind (same hero) — drop it so the reclaimed member
+      // isn't shared by two Player objects (memberId is derived from the character id).
+      const stale = ctx.room.players.find((p) => p.character?.id === req.character.id)
+      if (stale) removePlayer(ctx.room, stale.playerId)
       const joiner = addPlayerInRun(ctx.room, req.name, req.ws)
       joiner.character = req.character
       joiner.memberId = heroMemberId(req.character.id)

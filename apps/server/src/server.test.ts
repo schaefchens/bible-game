@@ -196,6 +196,35 @@ describe('co-op server pipeline', () => {
     expect(host.last('state')!.state.run!.party.length).toBe(2)
   })
 
+  it('a player who LEFT can rejoin via the game list with the same hero (reclaims their seat)', () => {
+    const host = conn()
+    host.say({ t: 'createParty', name: 'A', ...base })
+    const code = host.last('welcome')!.code
+    const guest = conn()
+    guest.say({ t: 'joinParty', code, name: 'B', ...compat })
+    host.say({ t: 'chooseHero', character: createCharacter('p1', 'David', 1) })
+    guest.say({ t: 'chooseHero', character: createCharacter('p2', 'Ruth', 2) })
+    host.say({ t: 'setReady', ready: true })
+    guest.say({ t: 'setReady', ready: true })
+    host.say({ t: 'startRun' })
+
+    // guest leaves for good → their seat is downed (currentHp 0), token dead
+    guest.say({ t: 'leave' })
+    expect(host.last('state')!.state.run!.party.find((m) => m.memberId === heroMemberId('p2'))!.currentHp).toBe(0)
+
+    // guest comes back via the game list with the SAME hero → host accepts → seat reclaimed + revived
+    host.say({ t: 'lookForMore', on: true })
+    const rejoin = conn()
+    rejoin.say({ t: 'joinRun', code, name: 'B', character: createCharacter('p2', 'Ruth', 2), ...compat })
+    expect(rejoin.last('error')).toBeUndefined() // no more dup-hero
+    const req = host.last('joinRequest')!
+    host.say({ t: 'joinDecision', requestId: req.requestId, accept: true })
+    const party = rejoin.last('state')!.state.run!.party
+    expect(party.filter((m) => m.memberId === heroMemberId('p2'))).toHaveLength(1) // one seat, not two
+    expect(party.find((m) => m.memberId === heroMemberId('p2'))!.currentHp).toBeGreaterThan(0) // revived
+    expect(party.length).toBe(2) // still a 2-person party (reclaimed, not appended)
+  })
+
   it('rejects a duplicate hero when a second player picks one already taken', () => {
     const host = conn()
     host.say({ t: 'createParty', name: 'A', ...base })

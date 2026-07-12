@@ -168,7 +168,11 @@ function downMember(state: GameState, memberId: MemberId): ReduceResult {
 function addMember(state: GameState, character: Character): ReduceResult {
   const run = state.run
   if (!run) return reject(state, 'no-run')
-  if (run.party.some((m) => m.characterId === character.id)) return reject(state, 'dup-hero')
+  // A member already holding this hero: if they're LIVING it's a genuine duplicate (reject); if they're
+  // DOWNED it's the SAME player coming back (they left/were kicked, leaving a downed husk) — reclaim that
+  // exact seat rather than rejecting. Character ids are unique per hero, so a match is always the same hero.
+  const sameIdx = run.party.findIndex((m) => m.characterId === character.id)
+  if (sameIdx >= 0 && run.party[sameIdx]!.currentHp > 0) return reject(state, 'dup-hero')
   if (run.party.filter((m) => m.currentHp > 0).length >= 3) return reject(state, 'party-full')
 
   const coopLevel = Math.max(1, ...run.party.map((m) => m.level))
@@ -178,10 +182,11 @@ function addMember(state: GameState, character: Character): ReduceResult {
 
   const party = [...run.party]
   const deckByMember = { ...run.deckByMember }
-  const downedIdx = party.findIndex((m) => m.currentHp <= 0)
-  if (party.length >= 3 && downedIdx >= 0) {
-    delete deckByMember[party[downedIdx]!.memberId] // reclaim the downed (left) slot
-    party[downedIdx] = newMember
+  // reclaim this exact hero's downed seat if present; else reclaim any downed slot at cap; else append.
+  const reclaimIdx = sameIdx >= 0 ? sameIdx : party.length >= 3 ? party.findIndex((m) => m.currentHp <= 0) : -1
+  if (reclaimIdx >= 0) {
+    delete deckByMember[party[reclaimIdx]!.memberId]
+    party[reclaimIdx] = newMember
   } else {
     party.push(newMember)
   }
