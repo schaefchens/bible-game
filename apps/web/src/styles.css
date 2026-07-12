@@ -360,10 +360,10 @@ body {
 .battlefield { position: relative; z-index: 2; flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding: 2rem 9% 1.5rem; }
 /* nudge the standing combatants down so they plant on the ground instead of hovering above the path */
 .side { display: flex; gap: 2rem; align-items: flex-end; transform: translateY(64px); }
-/* The party holds a fixed front position near the centre and grows LEFTWARD: row-reverse keeps the first
-   hero at the front (right) while extra teammates (a 2nd/3rd player) stack behind to the left — so adding
-   a member never shoves the front line toward the enemies. */
-.side.party { justify-self: end; flex-direction: row-reverse; margin-right: 5%; }
+/* The party is CENTRED within the left half and grows outward from there (row-reverse keeps the first hero
+   at the front, facing the enemy). So a solo hero sits comfortably on the left with a gap to the foe, and a
+   2–3 player party stays inside the left half instead of creeping into the enemies. */
+.side.party { justify-self: center; flex-direction: row-reverse; }
 /* enemies stay anchored toward the right edge (as before), growing leftward as their count rises */
 .side.enemies { justify-self: end; margin-right: 9%; }
 

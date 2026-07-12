@@ -6,7 +6,7 @@ import type { CardDef } from '../cards/types'
 import { itemPseudoCard, type ItemDef } from '../inventory/types'
 import { miracleChance, scaleSpiritValue } from '../spirit/spirit'
 import type { CardDefId, CombatantId } from '../types'
-import { absorb, executeDamageBase, physicalAmount, scalingDamageBase, swordBonus } from './damage'
+import { absorb, executeDamageBase, physicalAmount, scaled, scalingDamageBase, swordBonus } from './damage'
 import type { CombatState } from './types'
 
 export interface CardDamagePreview {
@@ -30,8 +30,9 @@ export function cardSource(c: CombatState, ownerMemberId: string): CombatantId |
   return owner ?? c.partyOrder.find((id) => c.combatants[id]?.alive) ?? c.partyOrder[0]
 }
 
+// mirrors combat.ts spiritScaled: clip to a whole number at the source (level curve is fractional)
 const bySpiritBase = (def: CardDef, amount: number, spirit: number, scale: number): number =>
-  def.layer === 'spirit' ? scaleSpiritValue(amount, spirit) : amount * scale
+  def.layer === 'spirit' ? Math.round(scaleSpiritValue(amount, spirit)) : scaled(amount, scale)
 
 /** Headline damage for a card's first damage op. null for cards that deal no direct damage.
  *  Pass an explicit `def` (e.g. an item's pseudo-card, not in c.cardDefs) to preview that instead. */
@@ -71,6 +72,8 @@ export function previewCardDamage(
     perHit = split.hpDamage
     blocked = split.blocked
   }
+  // `base` is already whole (bySpiritBase / scalingDamageBase / executeDamageBase clip at the source) and
+  // physicalAmount returns whole, so perHit is an integer whether or not a defender is aimed.
   return { perHit, hits, total: perHit * hits, spirit: def.layer === 'spirit', blocked }
 }
 
@@ -105,9 +108,11 @@ export function previewItemEffect(
  */
 export function cardDisplayValues(card: CardDef, scale: number, spirit: number): Record<string, number> {
   const out: Record<string, number> = {}
+  // dmg/block/heal come back already clipped to whole numbers (bySpiritBase / scaled), so the card text
+  // matches the base the combat pipeline uses — no decimals, no drift from the real hit.
   for (const op of card.effects) {
     if (op.kind === 'damage' && out.dmg === undefined) out.dmg = bySpiritBase(card, op.amount, spirit, scale)
-    else if (op.kind === 'execute' && out.dmg === undefined) out.dmg = op.amount * scale // baseline (the bonus is shown live on the card's damage badge)
+    else if (op.kind === 'execute' && out.dmg === undefined) out.dmg = scaled(op.amount, scale) // baseline (the bonus shows live on the damage badge)
     else if (op.kind === 'block' && out.block === undefined) out.block = bySpiritBase(card, op.amount, spirit, scale)
     else if (op.kind === 'heal' && out.heal === undefined) out.heal = bySpiritBase(card, op.amount, spirit, scale)
     else if ((op.kind === 'banish' || op.kind === 'protect') && out.chance === undefined) {

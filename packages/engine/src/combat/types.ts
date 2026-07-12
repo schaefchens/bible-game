@@ -58,9 +58,11 @@ export interface Combatant {
   side: Side
   row: Row
   stats: CombatStats
-  /** level multiplier for this combatant's damage/block/heal output (party: levelScale(level);
-   *  enemy: enemyScale(heroLevel, depth)). Content is authored in level-1 units; this scales it. */
+  /** level multiplier for this combatant's damage/block/heal output (party: dmgScale(level);
+   *  enemy: enemyDamageScale(heroLevel, depth)). Content is authored in level-1 units; this scales it. */
   scale: number
+  /** per-type flesh-DAMAGE multiplier (archetype "power"); applied to damage output only, default 1. */
+  power?: number
   statuses: StatusInstance[]
   /** persistent powers (Armor of God) that react to events via hooks — see combat/powers.ts */
   powers?: PowerInstance[]

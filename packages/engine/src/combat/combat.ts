@@ -12,7 +12,7 @@ import type { SpiritEvent } from '../spirit/spirit'
 import { chance, fork, nextFloat, pick, shuffle, type RngState } from '../rng/rng'
 import type { CardDefId, CombatantId, GraceAbilityId, MemberId } from '../types'
 import { pickIntent } from './ai'
-import { absorb, dexterityBlockBonus, executeDamageBase, physicalAmount, powerStacks, scalingDamageBase, statusStacks, swordBonus } from './damage'
+import { absorb, dexterityBlockBonus, executeDamageBase, physicalAmount, powerStacks, scaled, scalingDamageBase, statusStacks, swordBonus } from './damage'
 import { POWERS, type HookName } from './powers'
 import type {
   CombatFlags,
@@ -204,7 +204,7 @@ function damageTarget(
   // stacks×scale (a flat reduction, like Strength/Dexterity reads — not a hook). Once per round.
   let usedShield = false
   if (!opts.fromDot && target.faction === 'party' && hpDamage > 0 && !c.shieldUsedThisRound.includes(targetId) && powerStacks(target, 'bastion') > 0) {
-    hpDamage = Math.max(0, hpDamage - powerStacks(target, 'bastion') * target.scale)
+    hpDamage = Math.max(0, hpDamage - scaled(powerStacks(target, 'bastion'), target.scale))
     usedShield = true
     events.push({ type: 'shieldNegated', targetId })
   }
@@ -420,9 +420,9 @@ function refreshLastStand(c: CombatState): CombatStep {
  * carnal — no floor; other spirit cards keep a floor). `flesh` cards scale by the attacker's level.
  */
 function spiritScaled(card: CardDef, amount: number, spirit: number, scale: number, opts?: { floor?: number }): number {
-  if (card.layer !== 'spirit') return amount * scale
+  if (card.layer !== 'spirit') return scaled(amount, scale)
   const floor = card.type === 'verse' ? undefined : opts?.floor
-  return scaleSpiritValue(amount, spirit, floor !== undefined ? { floor } : {})
+  return Math.round(scaleSpiritValue(amount, spirit, floor !== undefined ? { floor } : {}))
 }
 
 /** Resolve a single EffectOp. `spirit` scales spirit-layer ops via potencyMult. */
@@ -1153,7 +1153,7 @@ function tickDots(c: CombatState): CombatStep {
     if (!x || !x.alive) continue
     const poison = statusStacks(x, 'poison')
     if (poison <= 0) continue
-    const r = damageTarget(combat, id, id, poison * x.scale, { nonLethal: false, fromDot: true })
+    const r = damageTarget(combat, id, id, scaled(poison, x.scale), { nonLethal: false, fromDot: true })
     combat = r.combat
     events.push(...r.events)
     spiritEvents.push(...r.spiritEvents)

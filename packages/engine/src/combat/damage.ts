@@ -15,14 +15,19 @@ export const statusStacks = (c: Combatant, id: StatusId): number =>
 export const powerStacks = (c: Combatant, id: PowerId): number =>
   c.powers?.find((p) => p.id === id)?.stacks ?? 0
 
+/** Apply a combatant's fractional level multiplier to a printed amount and CLIP to a whole number AT THE
+ *  SOURCE — so the same integer is the base for combat, preview, and card text alike. Every `× scale` in
+ *  the damage math funnels through here; nothing downstream ever sees a fraction. */
+export const scaled = (amount: number, scale: number): number => Math.round(amount * scale)
+
 /** Dexterity's flat addition to block gained (the block-mirror of Strength), read on the caster.
  *  Centralized so every block path stays consistent. */
-export const dexterityBlockBonus = (source: Combatant): number => statusStacks(source, 'dexterity') * source.scale
+export const dexterityBlockBonus = (source: Combatant): number => scaled(statusStacks(source, 'dexterity'), source.scale)
 
 /** Whetstone's flat damage bonus — single-hit attacks only (multi-hit relies on Strength).
  *  Shared by applyEffect + preview so the previewed number can never drift from the real hit. */
 export const swordBonus = (card: Pick<CardDef, 'type'>, source: Combatant, hits: number): number =>
-  card.type === 'attack' && hits === 1 ? powerStacks(source, 'whetstone') * source.scale : 0
+  card.type === 'attack' && hits === 1 ? scaled(powerStacks(source, 'whetstone'), source.scale) : 0
 
 /** The pre-pipeline base for a `damageScaling` op, shared by applyEffect + preview so the previewed
  *  number can never drift. `block` reads the SOURCE's (already-scaled) block; the other metrics are raw
@@ -33,9 +38,9 @@ export function scalingDamageBase(
   combat: { cardsPlayedThisTurn: number },
   target: Combatant | undefined,
 ): number {
-  if (op.per === 'block') return Math.max(0, op.amount * source.scale + op.coeff * source.block)
+  if (op.per === 'block') return Math.max(0, scaled(op.amount, source.scale) + op.coeff * source.block)
   const metric = op.per === 'cardsPlayedThisTurn' ? combat.cardsPlayedThisTurn : target ? statusStacks(target, 'poison') : 0
-  return Math.max(0, (op.amount + op.coeff * metric) * source.scale)
+  return Math.max(0, scaled(op.amount + op.coeff * metric, source.scale))
 }
 
 /** The pre-pipeline base for an `execute` op: amount, +bonus when the target is below the HP threshold.
@@ -46,7 +51,7 @@ export function executeDamageBase(
   target: Combatant | undefined,
 ): number {
   const low = target ? target.hp / Math.max(1, target.maxHp) < op.below : false
-  return (op.amount + (low ? op.bonus : 0)) * source.scale
+  return scaled(op.amount + (low ? op.bonus : 0), source.scale)
 }
 
 export interface HitResult {
@@ -55,16 +60,20 @@ export interface HitResult {
   capped: boolean
 }
 
-/** Physical damage from `base` (already level-scaled). Strength scales with the attacker's level. */
+/** Physical damage from `base` (already level-scaled). Strength scales with the attacker's level, then the
+ *  attacker's per-type `power` (archetype damage multiplier, default 1) scales the whole attack. The
+ *  situational multipliers accumulate into ONE factor and floor a single time — so stacked debuffs don't
+ *  compound their rounding and the result is order-independent (whole numbers, defender-favouring). */
 export function physicalAmount(base: number, attacker: Combatant, defender: Combatant): HitResult {
-  let dmg = base + statusStacks(attacker, 'strength') * attacker.scale
-  if (statusStacks(attacker, 'lastStand') > 0) dmg = Math.floor(dmg * 2) // a rallied lone foe hits twice as hard
-  if (statusStacks(attacker, 'weak') > 0) dmg = Math.floor(dmg * 0.75)
-  if (statusStacks(defender, 'vulnerable') > 0) dmg = Math.floor(dmg * 1.5)
-  if (attacker.row === 'back') dmg = Math.floor(dmg * 0.5)
-  if (defender.row === 'back') dmg = Math.floor(dmg * 0.5)
-  if (statusStacks(defender, 'lastStand') > 0) dmg = Math.floor(dmg * 0.5) // …and takes only half
-  return { amount: Math.max(0, Math.floor(dmg)), capped: false }
+  const raw = (base + scaled(statusStacks(attacker, 'strength'), attacker.scale)) * (attacker.power ?? 1)
+  let f = 1
+  if (statusStacks(attacker, 'lastStand') > 0) f *= 2 // a rallied lone foe hits twice as hard
+  if (statusStacks(attacker, 'weak') > 0) f *= 0.75
+  if (statusStacks(defender, 'vulnerable') > 0) f *= 1.5
+  if (attacker.row === 'back') f *= 0.5
+  if (defender.row === 'back') f *= 0.5
+  if (statusStacks(defender, 'lastStand') > 0) f *= 0.5 // …and takes only half
+  return { amount: Math.max(0, Math.floor(raw * f)), capped: false }
 }
 
 export interface AbsorbResult {

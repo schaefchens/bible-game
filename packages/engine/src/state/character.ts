@@ -1,6 +1,9 @@
 import type { CardDefId, CharacterId, GraceAbilityId, I18nKey, MemberId } from '../types'
-import { deriveStats } from '../leveling/scaling'
+import { deriveStats, HP_UNIT } from '../leveling/scaling'
 import { emptyAllocation, type StatAllocation } from './stats'
+
+/** Default starting purse when a character defines no per-type `startGold`. */
+export const DEFAULT_START_GOLD = 50
 
 /** Testing gimmick: a hero with this exact (trimmed) name spawns at max level with every card
  *  unlocked — for exercising scaling + the full card library without grinding. */
@@ -30,7 +33,22 @@ export interface Character {
   pool: CardDefId[]
   /** creation order, for stable slot sorting */
   createdSeq: number
+  // ---- per-type base stats (optional; undefined → the default hero). These make future archetypes
+  //      (tank / glass-cannon / merchant) a pure data change — see the characterX accessors below. ----
+  /** base HP in level-1 units (scaled by hpScale); default HP_UNIT (50). */
+  baseHp?: number
+  /** flesh-damage multiplier applied to this hero's card damage; default 1. */
+  power?: number
+  /** starting purse for this hero (co-op pools every member's); default DEFAULT_START_GOLD. */
+  startGold?: number
 }
+
+/** Base HP for a character (level-1 units), defaulting to the standard hero base. */
+export const characterBaseHp = (c: Pick<Character, 'baseHp'>): number => c.baseHp ?? HP_UNIT
+/** Flesh-damage multiplier for a character, defaulting to 1 (no change). */
+export const characterPower = (c: Pick<Character, 'power'>): number => c.power ?? 1
+/** Starting purse for a character, defaulting to DEFAULT_START_GOLD. */
+export const characterStartGold = (c: Pick<Character, 'startGold'>): number => c.startGold ?? DEFAULT_START_GOLD
 
 export function createCharacter(id: CharacterId, name: string, createdSeq: number): Character {
   return {
@@ -62,6 +80,10 @@ export interface PartyMember {
   isHuman: boolean
   level: number
   allocated: StatAllocation
+  /** per-type base HP (level-1 units) — carried so combat/rest re-derive HP without the Character */
+  baseHp: number
+  /** per-type flesh-damage multiplier (1 = default) */
+  power: number
   /** current HP persists between combats (healed at fireplaces) */
   currentHp: number
   /** energy this member contributes to the SHARED party pool */
@@ -79,7 +101,8 @@ export function partyMemberFromCharacter(
   deck: CardDefId[],
   graceAbilityIds: GraceAbilityId[],
 ): PartyMember {
-  const maxHp = deriveStats(character.level, character.allocated).maxHp
+  const baseHp = characterBaseHp(character)
+  const maxHp = deriveStats(character.level, character.allocated, baseHp).maxHp
   return {
     memberId: heroMemberId(character.id),
     kind: 'hero',
@@ -89,6 +112,8 @@ export function partyMemberFromCharacter(
     isHuman: true,
     level: character.level,
     allocated: { ...character.allocated },
+    baseHp,
+    power: characterPower(character),
     currentHp: maxHp,
     contributesEnergy: 3,
     contributesCardDefIds: [...deck],
@@ -96,4 +121,4 @@ export function partyMemberFromCharacter(
   }
 }
 
-export const memberMaxHp = (m: PartyMember): number => deriveStats(m.level, m.allocated).maxHp
+export const memberMaxHp = (m: PartyMember): number => deriveStats(m.level, m.allocated, m.baseHp).maxHp

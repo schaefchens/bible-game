@@ -45,11 +45,11 @@ describe('co-op: startCoopRun', () => {
     expect(a.run!.rng).toEqual(b.run!.rng)
   })
 
-  it('normalizes the party to the highest level (run-scoped; permanent heroes untouched)', () => {
+  it('keeps each member at THEIR OWN level (no party-level normalization)', () => {
     const heroes = [createCharacter('p1', 'David', 1), { ...createCharacter('p2', 'Ruth', 2), level: 8 }]
     const { state } = reduce(newGame(), { type: 'startCoopRun', heroes, worldId: 'world-01', seed: 'lvl', content })
-    expect(state.run!.party.map((m) => m.level)).toEqual([8, 8]) // both play at the party max
-    expect(state.profile.slots.find((s) => s.id === 'p1')!.character.level).toBe(1) // permanent hero not boosted
+    expect(state.run!.party.map((m) => m.level)).toEqual([1, 8]) // no re-leveling; per-member
+    expect(state.profile.slots.find((s) => s.id === 'p1')!.character.level).toBe(1) // permanent hero untouched
   })
 })
 
@@ -67,13 +67,14 @@ describe('co-op: downMember + addMember (drop-out & recruit)', () => {
     expect(reduce(state, { type: 'coop/downMember', memberId: 'nope' }).events).toEqual([{ type: 'rejected', reason: 'no-such-member' }])
   })
 
-  it('addMember appends a 3rd hero at the party level, full HP, with their own deck', () => {
+  it('addMember appends a 3rd hero at THEIR OWN level, full HP, with their own deck', () => {
     const heroes = [createCharacter('p1', 'David', 1), { ...createCharacter('p2', 'Ruth', 2), level: 5 }]
     const run = reduce(newGame(), { type: 'startCoopRun', heroes, worldId: 'world-01', seed: 'r', content }).state
-    const { state, events } = reduce(run, { type: 'coop/addMember', character: createCharacter('p3', 'Caleb', 1) })
+    const { state, events } = reduce(run, { type: 'coop/addMember', character: { ...createCharacter('p3', 'Caleb', 1), level: 3 } })
     expect(state.run!.party.map((m) => m.memberId)).toContain(heroMemberId('p3'))
     const joined = state.run!.party.find((m) => m.memberId === heroMemberId('p3'))!
-    expect(joined.level).toBe(5) // party-level parity
+    expect(joined.level).toBe(3) // own level, NOT re-leveled to the party
+    expect(state.run!.party.find((m) => m.memberId === heroMemberId('p2'))!.level).toBe(5) // others unchanged
     expect(joined.currentHp).toBeGreaterThan(0) // full HP
     expect(state.run!.deckByMember[heroMemberId('p3')]!.length).toBeGreaterThan(0) // own deck
     expect(state.profile.slots.map((s) => s.id)).toContain('p3') // upserted

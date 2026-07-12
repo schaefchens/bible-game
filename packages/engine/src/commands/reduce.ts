@@ -4,6 +4,7 @@ import type { GameEvent, ReduceResult } from '../events/event'
 import { LVL_MAX, totalXpForLevel } from '../leveling/scaling'
 import { reduceWorld } from '../map/reduce'
 import {
+  characterStartGold,
   createCharacter,
   memberMaxHp,
   partyMemberFromCharacter,
@@ -175,10 +176,10 @@ function addMember(state: GameState, character: Character): ReduceResult {
   if (sameIdx >= 0 && run.party[sameIdx]!.currentHp > 0) return reject(state, 'dup-hero')
   if (run.party.filter((m) => m.currentHp > 0).length >= 3) return reject(state, 'party-full')
 
-  const coopLevel = Math.max(1, ...run.party.map((m) => m.level))
+  // The joiner enters at THEIR OWN level (no party-level normalization) — enemies scale to the party's
+  // max level, and each hero's HP/damage scale to their own level.
   const { member, startDeck } = buildRunHero(character, run.content)
-  const leveled: PartyMember = { ...member, level: coopLevel }
-  const newMember: PartyMember = { ...leveled, currentHp: memberMaxHp(leveled) }
+  const newMember: PartyMember = { ...member, currentHp: memberMaxHp(member) }
 
   const party = [...run.party]
   const deckByMember = { ...run.deckByMember }
@@ -266,9 +267,6 @@ function selectHero(state: GameState, id: string): ReduceResult {
   return ok({ ...state, profile: { ...state.profile, lastSelectedId: id } }, [])
 }
 
-/** Gold every hero begins a run with — enough to reach the first shop. */
-const STARTER_GOLD = 50
-
 /** Materialize a run party member (+ its starting deck) from a permanent Character. EARN-PER-RUN:
  *  a run begins with NO verse cards — they're (re)earned each run by studying scripture at a fireplace
  *  (a deliberate deckbuilding choice). The "Enoch" testing hero is the exception: he starts with every
@@ -297,11 +295,11 @@ function startRun(
   if (!world) return reject(state, 'no-such-world')
 
   const { member: hero, startDeck } = buildRunHero(slot.character, content)
-  // Every run begins with a small purse so the first shop is reachable (STARTER_GOLD). The "Enoch"
-  // testing hero also starts with a bag of usable items + a deep purse, so the inventory's
-  // use/combine/shop flows can be exercised immediately (only items the bundle defines are seeded).
+  // Every run begins with the hero's starting purse so the first shop is reachable (per-type startGold;
+  // a merchant archetype would bring more). The "Enoch" testing hero also starts with a bag of usable
+  // items + a deep purse, so the inventory's use/combine/shop flows can be exercised immediately.
   const inventory =
-    slot.character.name === TEST_HERO_NAME ? testHeroInventory(content) : { ...emptyInventory(), currency: STARTER_GOLD }
+    slot.character.name === TEST_HERO_NAME ? testHeroInventory(content) : { ...emptyInventory(), currency: characterStartGold(slot.character) }
   const run: RunState = {
     seed,
     rng: seedRng(seed),
@@ -346,29 +344,25 @@ function startCoopRun(
     seen.add(h.id)
   }
 
-  // Level parity: the whole party plays at the highest level among them, so co-op is balanced and no
-  // one is dead weight (enemies scale to this shared level). RUN-SCOPED only — the permanent Characters
-  // and their XP writeback at run end are untouched (a level-1 tag-along isn't permanently boosted).
-  const coopLevel = Math.max(1, ...heroes.map((h) => h.level))
-
+  // No level normalization: each hero plays at THEIR OWN level (HP/damage scale per-member). Enemies scale
+  // to the party's MAX level (see buildEncounter). Permanent Characters + their XP writeback are untouched.
   const party: PartyMember[] = []
   const deckByMember: Record<MemberId, CardDefId[]> = {}
   let slots = state.profile.slots
   for (const character of heroes) {
     const { member, startDeck } = buildRunHero(character, content)
-    const leveled: PartyMember = { ...member, level: coopLevel }
-    party.push({ ...leveled, currentHp: memberMaxHp(leveled) }) // enter at full HP for the shared level
+    party.push({ ...member, currentHp: memberMaxHp(member) }) // enter at full HP for their own level
     deckByMember[member.memberId] = startDeck
     const idx = slots.findIndex((s) => s.id === character.id)
     const slot: CharacterSlot = { id: character.id, character }
     slots = idx >= 0 ? slots.map((s, i) => (i === idx ? slot : s)) : [...slots, slot]
   }
 
-  // Shared purse: each player brings their starter gold into the common inventory. If any player brought
-  // the "Enoch" testing hero, seed the test bag so the shop/inventory flows stay exercisable.
+  // Shared purse: each player brings their own starter gold into the common inventory. If any player
+  // brought the "Enoch" testing hero, seed the test bag so the shop/inventory flows stay exercisable.
   const inventory = heroes.some((h) => h.name === TEST_HERO_NAME)
     ? testHeroInventory(content)
-    : { ...emptyInventory(), currency: STARTER_GOLD * heroes.length }
+    : { ...emptyInventory(), currency: heroes.reduce((sum, h) => sum + characterStartGold(h), 0) }
 
   const run: RunState = {
     seed,

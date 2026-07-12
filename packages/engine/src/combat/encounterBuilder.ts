@@ -5,7 +5,7 @@
 
 import type { CardDef, CardInstance } from '../cards/types'
 import type { ContentBundle } from '../content/bundle'
-import { deriveStats, enemyScale, levelScale, scaleEnemy } from '../leveling/scaling'
+import { deriveStats, dmgScale, enemyDamageScale, scaleEnemy } from '../leveling/scaling'
 import type { RngState } from '../rng/rng'
 import type { PartyMember } from '../state/character'
 import type { RunState } from '../state/gameState'
@@ -27,7 +27,7 @@ const ARCHETYPE_POWERS: Record<string, PowerInstance[]> = {
 }
 
 function partyCombatant(m: PartyMember): Combatant {
-  const stats = deriveStats(m.level, m.allocated)
+  const stats = deriveStats(m.level, m.allocated, m.baseHp)
   return {
     id: m.memberId,
     faction: 'party',
@@ -40,7 +40,8 @@ function partyCombatant(m: PartyMember): Combatant {
     side: 'left',
     row: 'front',
     stats,
-    scale: levelScale(m.level),
+    scale: dmgScale(m.level),
+    power: m.power,
     statuses: [],
     memberId: m.memberId,
     contributesEnergy: m.contributesEnergy,
@@ -69,7 +70,7 @@ function enemyCombatant(
     side: t.side ?? 'right',
     row: t.row ?? 'front',
     stats,
-    scale: enemyScale(heroLevel, runDepth),
+    scale: enemyDamageScale(heroLevel, runDepth),
     statuses: [],
     powers: ARCHETYPE_POWERS[t.archetype],
     hidden: t.hidden,
@@ -93,10 +94,10 @@ export function buildEncounter(run: RunState, encounterId: EncounterId, nodeId: 
 
   const living = run.party.filter((m) => m.currentHp > 0)
   const partySize = Math.max(1, living.length)
-  // Scale enemies to the AVERAGE living hero level (co-op parties may be mixed-level); a solo run
-  // collapses to the lone hero's level. Rounded, min 1. Enemy HP additionally scales with partySize.
+  // Scale enemies to the MAX living hero level (co-op parties keep their own levels; the strongest sets
+  // the bracket, and enemies trail a decade behind via enemyBracketLevel). Solo → the lone hero's level.
   const levelPool = living.length > 0 ? living : run.party
-  const heroLevel = Math.max(1, Math.round(levelPool.reduce((s, m) => s + m.level, 0) / Math.max(1, levelPool.length)))
+  const heroLevel = Math.max(1, ...levelPool.map((m) => m.level))
 
   const party = living.map(partyCombatant)
   const enemies = enc.enemies.map((t) => enemyCombatant(t, heroLevel, run.depth, partySize, enc.lastStandWhenAlone))

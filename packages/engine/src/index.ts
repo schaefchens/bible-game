@@ -57,7 +57,8 @@ export {
 
 // ---- leveling / scaling ----
 export {
-  levelScale,
+  hpScale,
+  dmgScale,
   deriveStats,
   resolveStat,
   grantXp,
@@ -65,7 +66,8 @@ export {
   levelForXp,
   totalXpForLevel,
   scaleEnemy,
-  enemyScale,
+  enemyDamageScale,
+  enemyBracketLevel,
   effectiveEnemyLevel,
   ENEMY_HP_CAP,
   HP_UNIT,

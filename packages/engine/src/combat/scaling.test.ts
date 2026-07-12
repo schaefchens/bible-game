@@ -16,6 +16,7 @@ const C: Record<string, CardDef> = {
   shieldWall: { id: 'shieldWall', type: 'skill', layer: 'flesh', cost: 0, target: 'self', nameKey: '', textKey: '', effects: [{ kind: 'blockScaling', per: 'cardsPlayedThisTurn', amount: 3, coeff: 2, target: 'self' }] },
   filler: { id: 'filler', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: '', textKey: '', effects: [] },
   deathblow: { id: 'deathblow', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: '', textKey: '', effects: [{ kind: 'execute', amount: 12, bonus: 12, below: 0.2 }] },
+  strike: { id: 'strike', type: 'attack', layer: 'flesh', cost: 0, target: 'enemy', nameKey: '', textKey: '', effects: [{ kind: 'damage', amount: 10 }] },
 }
 
 const hero = (over: Partial<Combatant> = {}): Combatant => ({
@@ -78,5 +79,23 @@ describe('blockScaling', () => {
     c = playCard(c, iid(c, 'filler'), undefined, 0).combat // count → 2
     c = playCard(c, iid(c, 'shieldWall'), undefined, 0).combat // reads 2 → 3 + 2*2 = 7
     expect(c.combatants.hero!.block).toBe(7)
+  })
+})
+
+describe('power — per-type damage multiplier (archetype knob)', () => {
+  it('scales flesh DAMAGE only; preview mirrors it; block is unaffected', () => {
+    // a glass-cannon-ish hero: power 2. A 10-damage Strike hits for 20; a 10-block card still blocks 10.
+    let c = begin(init(['strike', 'bigBlock', 'filler', 'filler', 'filler'], { party: [hero({ power: 2 })] }))
+    expect(previewCardDamage(c, 'strike', 'm-hero', 0, 'foe')?.total).toBe(20) // 10 × scale(1) × power(2)
+    c = playCard(c, iid(c, 'strike'), 'foe', 0).combat
+    expect(c.combatants.foe!.hp).toBe(80) // 100 - 20
+    c = playCard(c, iid(c, 'bigBlock'), undefined, 0).combat
+    expect(c.combatants.hero!.block).toBe(10) // block NOT scaled by power
+  })
+
+  it('default power (undefined) leaves damage unchanged', () => {
+    let c = begin(init(['strike', 'filler', 'filler', 'filler', 'filler']))
+    c = playCard(c, iid(c, 'strike'), 'foe', 0).combat
+    expect(c.combatants.foe!.hp).toBe(90) // 100 - 10 (power defaults to 1)
   })
 })

@@ -11,7 +11,7 @@ import {
   previewCardDamage,
   previewMiracle,
   cardDisplayValues,
-  levelScale,
+  dmgScale,
   type GameState,
   type ItemKind,
   type NodeType,
@@ -141,7 +141,7 @@ export interface CardOfferView { defId: string; nameKey: string; textKey: string
 function runCardValues(run: NonNullable<GameState['run']>, defId: string): Record<string, number> | undefined {
   const def = run.content.cards[defId]
   if (!def) return undefined
-  return cardDisplayValues(def, levelScale(run.party[0]?.level ?? 1), run.spirit.spirit)
+  return cardDisplayValues(def, dmgScale(run.party[0]?.level ?? 1), run.spirit.spirit)
 }
 export interface RewardView {
   spoils: SpoilView[]
