@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { bgUrl } from '../asset'
-import { openCoop } from '../net'
+import { openCoop, reconnectCoop } from '../net'
 import { useGame } from '../store/gameStore'
+import { loadSavedSession } from '../store/useSession'
 
 export function StartScreen() {
   const { t } = useTranslation()
@@ -10,6 +11,7 @@ export function StartScreen() {
   const continueLast = useGame((s) => s.continueLast)
   const setLocale = useGame((s) => s.setLocale)
   const canContinue = useGame((s) => s.resumableIds.length > 0)
+  const canReconnect = loadSavedSession() !== null
 
   return (
     <div className="screen start centered" style={{ backgroundImage: bgUrl('bg-menu-startscreen.webp') }}>
@@ -26,6 +28,11 @@ export function StartScreen() {
         <button className={'btn block' + (canContinue ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
           {t('ui.start.enter')}
         </button>
+        {canReconnect && (
+          <button className="btn block coop-reconnect" onClick={() => reconnectCoop()}>
+            ↻ {t('ui.coop.reconnect')}
+          </button>
+        )}
         <button className="btn block" onClick={() => openCoop()}>
           {t('ui.coop.play')}
         </button>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CardDef, CardInstance } from '../cards/types'
 import { seedRng } from '../rng/rng'
-import { endTurn, ensureActing, flee, playCard, startCombat, useGrace, type CombatInit } from './combat'
+import { downMemberCombat, endTurn, ensureActing, flee, playCard, startCombat, useGrace, type CombatInit } from './combat'
 import type { Combatant } from './types'
 
 // ---- fixtures ----------------------------------------------------------------------------
@@ -304,5 +304,40 @@ describe('co-op: a card acts on behalf of its OWNER (playCard source = ownerId)'
     const after = playCard(acting, findInHand(acting, 'mend'), 'b', 0).combat
     expect(after.combatants['b']!.hp).toBe(30)
     expect(after.combatants['a']!.hp).toBe(40)
+  })
+})
+
+describe('co-op: downMemberCombat (a dropped player is kicked mid-combat)', () => {
+  const twoParty = () =>
+    thiefInit({
+      party: [hero({ id: 'a', memberId: 'm-a', contributesEnergy: 3 }), hero({ id: 'b', memberId: 'm-b', contributesEnergy: 2 })],
+      deck: [...deck(['strike', 'guard'], 'm-a'), ...deck(['strike', 'strike'], 'm-b')],
+      energyMax: 5,
+    })
+
+  it('downs the member, purges their cards + shared energy; the others fight on', () => {
+    const acting = ensureActing(startCombat(twoParty()).combat).combat
+    const maxBefore = acting.energy.max
+    const res = downMemberCombat(acting, 'm-b')
+    expect(res.combat.combatants['b']!.alive).toBe(false)
+    expect(res.combat.combatants['a']!.alive).toBe(true)
+    const owners = [...res.combat.hand, ...res.combat.drawPile, ...res.combat.discardPile, ...res.combat.exhaustPile].map((c) => c.ownerId)
+    expect(owners).not.toContain('m-b') // b's cards purged from every pile
+    expect(owners).toContain('m-a')
+    expect(res.combat.energy.max).toBe(maxBefore - 2) // shared energy dropped by b's contribution
+    expect(res.combat.outcome).toBe('ongoing') // a still alive
+    expect(res.events.some((e) => e.type === 'partyMemberDied' && (e as { memberId: string }).memberId === 'm-b')).toBe(true)
+  })
+
+  it('finalizes to defeat when the LAST member is downed', () => {
+    const acting = ensureActing(startCombat(thiefInit({ party: [hero({ id: 'a', memberId: 'm-a' })], deck: deck(['strike'], 'm-a') })).combat).combat
+    expect(downMemberCombat(acting, 'm-a').combat.outcome).toBe('defeat')
+  })
+
+  it('is a no-op for an unknown or already-downed member', () => {
+    const acting = ensureActing(startCombat(twoParty()).combat).combat
+    expect(downMemberCombat(acting, 'nope').combat).toEqual(acting)
+    const downed = downMemberCombat(acting, 'm-b').combat
+    expect(downMemberCombat(downed, 'm-b').combat).toEqual(downed) // already dead → unchanged
   })
 })

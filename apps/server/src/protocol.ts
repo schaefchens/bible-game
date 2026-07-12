@@ -47,6 +47,12 @@ export interface GameSummary {
   hostName: string
   players: number
   maxPlayers: number
+  /** true = a run already in progress that is recruiting (joined via joinRun, not joinParty) */
+  ongoing: boolean
+  /** how far the ongoing run has progressed (map depth); 0 for lobby games */
+  depth: number
+  /** i18n key of the run's current map node (where the party is); '' if unknown/at entrance. Client translates. */
+  node: string
 }
 
 /** Ephemeral, non-authoritative presence (never touches GameState), relayed to teammates: selected /
@@ -78,10 +84,17 @@ export interface Compat {
 export type ClientMsg =
   | ({ t: 'createParty'; name: string; title: string; visibility: Visibility; worldId: string } & Compat)
   | ({ t: 'joinParty'; code: RoomCode; name: string } & Compat)
+  // REQUEST to join a run already IN PROGRESS (recruiting) with your own hero — the HOST must accept
+  // (joinDecision) before the server adds you mid-run; the requester waits until then.
+  | ({ t: 'joinRun'; code: RoomCode; name: string; character: Character } & Compat)
+  // host-only: accept/decline a pending join request (by its id)
+  | { t: 'joinDecision'; requestId: string; accept: boolean }
   | { t: 'listGames' }
   | { t: 'chooseHero'; character: Character }
   | { t: 'setReady'; ready: boolean }
   | { t: 'kick'; playerId: PlayerId }
+  // in-run: toggle whether the party is recruiting (re-lists the ongoing game in the browser)
+  | { t: 'lookForMore'; on: boolean }
   | { t: 'startRun' }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }
@@ -95,13 +108,23 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; token: SessionToken; code: RoomCode }
   | { t: 'gameList'; games: GameSummary[] }
-  | { t: 'lobby'; code: RoomCode; phase: Phase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility }
+  | { t: 'lobby'; code: RoomCode; phase: Phase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility; lookingForMore: boolean }
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }
   | { t: 'activity'; playerId: PlayerId; name: string; activity: PeerActivity | null }
   | { t: 'pick'; playerId: PlayerId; name: string; pick: PickPresence | null }
   | { t: 'cinematic'; kind: 'sleep' | 'pray'; active: boolean }
-  | { t: 'presence'; playerId: PlayerId; connected: boolean }
+  // presence change, with WHY so the UI can distinguish a voluntary exit from a dropout:
+  //  joined = a new player entered a running game · left = quit for good (won't return) ·
+  //  lost = connection dropped (may reconnect) · back = reconnected. `connected` mirrors kind for
+  //  existing dot/peer logic (joined|back → true, left|lost → false).
+  | { t: 'presence'; playerId: PlayerId; name: string; connected: boolean; kind: 'joined' | 'left' | 'lost' | 'back' }
+  // to the HOST: someone wants to join the running game — show an accept/decline prompt
+  | { t: 'joinRequest'; requestId: string; name: string; heroName: string; heroLevel: number }
+  // to the REQUESTER: their join request is now awaiting the host's decision
+  | { t: 'joinPending' }
+  // to the REQUESTER: the host declined their join request
+  | { t: 'joinDeclined' }
   | { t: 'kicked' }
   | { t: 'rejected'; reason: string }
   | { t: 'error'; code: string; reason: string }

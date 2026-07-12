@@ -355,13 +355,17 @@ body {
 /* ---------- combat ---------- */
 /* generous side padding pulls both sides in off the browser edges; the enemy side is right-anchored
    and grows leftward (toward centre), so a 2–3 enemy row still fits without overflowing the edge */
-.battlefield { position: relative; z-index: 2; flex: 1; display: flex; justify-content: space-between; align-items: flex-end; padding: 2rem 9% 1.5rem; }
+/* two fixed halves: each side is anchored at its INNER edge (near the centre) so party & enemies keep a
+   stable gap and neither pushes the other as members are added/removed. */
+.battlefield { position: relative; z-index: 2; flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding: 2rem 9% 1.5rem; }
 /* nudge the standing combatants down so they plant on the ground instead of hovering above the path */
 .side { display: flex; gap: 2rem; align-items: flex-end; transform: translateY(64px); }
-/* both sides read better set further in from their edge (≈ double the battlefield inset) rather than
-   hugging the rim — keeps a lone foe from sitting "too far back" against the right edge */
-.side.party { margin-left: 9%; }
-.side.enemies { margin-right: 9%; }
+/* The party holds a fixed front position near the centre and grows LEFTWARD: row-reverse keeps the first
+   hero at the front (right) while extra teammates (a 2nd/3rd player) stack behind to the left — so adding
+   a member never shoves the front line toward the enemies. */
+.side.party { justify-self: end; flex-direction: row-reverse; margin-right: 5%; }
+/* enemies stay anchored toward the right edge (as before), growing leftward as their count rises */
+.side.enemies { justify-self: end; margin-right: 9%; }
 
 /* Flee / Hold live in the top corners (just under the top bar), clear of the figures + the hand */
 .corner-action { position: absolute; top: 70px; z-index: 6; display: flex; gap: 0.4rem; }
@@ -1119,6 +1123,19 @@ body.holding-item, body.holding-item * { cursor: none; }
 .coop-game-title { font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coop-game-sub { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coop-game-count { font-variant-numeric: tabular-nums; color: var(--gold-bright); font-weight: 700; font-size: 1.05rem; }
+/* ongoing (in-progress) games are re-listed for recruiting — mark them apart from open lobbies */
+.coop-game-row.ongoing { border-color: #3f8f9e; background: linear-gradient(180deg, rgba(28,54,60,0.5), rgba(0,0,0,0.32)); }
+.coop-game-row.ongoing:hover:not(:disabled) { border-color: #6fd0e0; background: rgba(30,60,68,0.7); }
+.coop-game-row.ongoing .coop-game-count { color: #8fe0ee; font-size: 0.9rem; }
+.coop-game-badge { margin-left: 0.5rem; padding: 1px 7px; border-radius: 999px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; color: #d6f4fa; background: rgba(63,143,158,0.5); border: 1px solid #3f8f9e; }
+/* MY own dropped game — clicking resumes (token reconnect), like the Start-screen button; teal to match it */
+.coop-game-row.mine { border-color: #6fd0e0; background: linear-gradient(180deg, rgba(40,80,90,0.55), rgba(0,0,0,0.32)); }
+.coop-game-row.mine:hover:not(:disabled) { border-color: #bfe8ef; background: rgba(45,90,102,0.75); }
+.coop-game-row.mine .coop-game-badge { color: #001417; background: #8fe0ee; border-color: #bfe8ef; }
+/* pick-a-hero-to-join step */
+.coop-joinrun { text-align: center; }
+.coop-joinrun-art { width: 100%; height: 96px; border-radius: 10px; background-size: cover; background-position: center; margin-bottom: 0.6rem; border: 1px solid rgba(0,0,0,0.5); }
+.coop-joinrun-pick { display: flex; flex-direction: column; gap: 0.35rem; text-align: left; font-size: 0.85rem; margin: 0.6rem 0; }
 .coop-browser-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.4rem; }
 /* the small, remembered "Playing as {name} ✎" line */
 .coop-namestrip { font-size: 0.82rem; }
@@ -1159,6 +1176,21 @@ body.holding-item, body.holding-item * { cursor: none; }
 .queue-num { color: var(--gold-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
 .queue-cancel { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .queue-spinner { animation: none; } }
+
+/* co-op drop-out: blocking "waiting for a dropped player" modal (reuses the queue-panel look) */
+.coop-wait-overlay { z-index: 55; }
+.coop-wait-list { display: flex; flex-direction: column; gap: 0.6rem; margin: 0.6rem 0 0.2rem; }
+.coop-wait-row { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.coop-wait-name { color: var(--ink); }
+.coop-wait-remove { flex: none; }
+/* the reconnect entry on the start screen — a distinct teal "resume" accent, set apart from the gold menu */
+.coop-reconnect {
+  color: #bfe8ef; border-color: #3f8f9e;
+  background: linear-gradient(180deg, rgba(40,110,125,0.55), rgba(20,60,70,0.55));
+  box-shadow: inset 0 0 0 1px rgba(120,210,225,0.25), 0 0 14px rgba(60,150,170,0.28);
+}
+.coop-reconnect:hover { border-color: #6fc5d6; box-shadow: inset 0 0 0 1px rgba(120,210,225,0.45), 0 0 18px rgba(80,180,200,0.4); }
+.mp-leave-warn { color: #ffb3aa; }
 
 /* ---- lobby: inline party chat (below the roster; same conversation as the in-game T-key chat) ---- */
 .coop-chat { margin: 0.6rem 0; }
@@ -1210,6 +1242,21 @@ body.holding-item, body.holding-item * { cursor: none; }
 .mp-banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 220; display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.6rem; border-radius: 10px; background: rgba(0,0,0,0.7); border: 1px solid var(--panel-edge); font-size: 0.85rem; }
 .mp-recon { color: var(--gold-bright); }
 .mp-notice { color: var(--ink); }
+
+/* ---- in-run party roster (presence at a glance + host kick) ---- */
+.mp-roster { position: fixed; top: 8px; left: 8px; z-index: 215; display: flex; flex-direction: column; gap: 3px; padding: 5px 7px; border-radius: 10px; background: rgba(0,0,0,0.62); border: 1px solid var(--panel-edge); font-size: 0.78rem; max-width: 210px; }
+.mp-roster-row { display: flex; align-items: center; gap: 6px; }
+.mp-roster-row.offline { opacity: 0.6; }
+.mp-roster-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-roster-kick { opacity: 0.5; }
+.mp-roster-row:hover .mp-roster-kick { opacity: 1; }
+.btn.tiny { padding: 0.1rem 0.4rem; font-size: 0.7rem; line-height: 1.3; border-radius: 6px; }
+
+/* ---- join request (host) + waiting (requester) ---- */
+.coop-joinreq { text-align: center; }
+.coop-joinreq-who { font-size: 1.05rem; margin: 0.3rem 0; }
+.coop-joinreq-hint { margin-bottom: 0.9rem; }
+.coop-joinreq-actions { display: flex; gap: 0.6rem; justify-content: center; }
 
 /* ---- multi-hero HUD party strip (the other players' heroes) ---- */
 .hud-party { display: flex; gap: 0.5rem; align-items: center; margin-left: 0.6rem; }

@@ -43,6 +43,52 @@ describe('co-op: startCoopRun', () => {
   })
 })
 
+describe('co-op: downMember + addMember (drop-out & recruit)', () => {
+  const twoPlayerRun = () => reduce(newGame(), { type: 'startCoopRun', heroes: twoHeroes(), worldId: 'world-01', seed: 'r', content }).state
+
+  it('downMember marks a member out (currentHp 0); the run continues for the rest', () => {
+    const run = twoPlayerRun()
+    const { state, events } = reduce(run, { type: 'coop/downMember', memberId: heroMemberId('p2') })
+    expect(state.run!.party.find((m) => m.memberId === heroMemberId('p2'))!.currentHp).toBe(0)
+    expect(state.run!.party.find((m) => m.memberId === heroMemberId('p1'))!.currentHp).toBeGreaterThan(0)
+    expect(events.some((e) => e.type === 'partyMemberDied')).toBe(true)
+    // already-down / unknown → rejected
+    expect(reduce(state, { type: 'coop/downMember', memberId: heroMemberId('p2') }).events).toEqual([{ type: 'rejected', reason: 'already-down' }])
+    expect(reduce(state, { type: 'coop/downMember', memberId: 'nope' }).events).toEqual([{ type: 'rejected', reason: 'no-such-member' }])
+  })
+
+  it('addMember appends a 3rd hero at the party level, full HP, with their own deck', () => {
+    const heroes = [createCharacter('p1', 'David', 1), { ...createCharacter('p2', 'Ruth', 2), level: 5 }]
+    const run = reduce(newGame(), { type: 'startCoopRun', heroes, worldId: 'world-01', seed: 'r', content }).state
+    const { state, events } = reduce(run, { type: 'coop/addMember', character: createCharacter('p3', 'Caleb', 1) })
+    expect(state.run!.party.map((m) => m.memberId)).toContain(heroMemberId('p3'))
+    const joined = state.run!.party.find((m) => m.memberId === heroMemberId('p3'))!
+    expect(joined.level).toBe(5) // party-level parity
+    expect(joined.currentHp).toBeGreaterThan(0) // full HP
+    expect(state.run!.deckByMember[heroMemberId('p3')]!.length).toBeGreaterThan(0) // own deck
+    expect(state.profile.slots.map((s) => s.id)).toContain('p3') // upserted
+    expect(events.some((e) => e.type === 'memberJoined')).toBe(true)
+  })
+
+  it('addMember reclaims a DOWNED slot instead of growing past 3', () => {
+    const three = [createCharacter('p1', 'David', 1), createCharacter('p2', 'Ruth', 1), createCharacter('p3', 'Caleb', 1)]
+    let state = reduce(newGame(), { type: 'startCoopRun', heroes: three, worldId: 'world-01', seed: 'r', content }).state
+    state = reduce(state, { type: 'coop/downMember', memberId: heroMemberId('p2') }).state // p2 leaves/downed
+    state = reduce(state, { type: 'coop/addMember', character: createCharacter('p4', 'Joel', 1) }).state
+    expect(state.run!.party).toHaveLength(3) // still 3 — p4 took p2's slot
+    expect(state.run!.party.map((m) => m.memberId)).not.toContain(heroMemberId('p2'))
+    expect(state.run!.party.map((m) => m.memberId)).toContain(heroMemberId('p4'))
+    expect(state.run!.deckByMember[heroMemberId('p2')]).toBeUndefined() // old deck reclaimed
+  })
+
+  it('addMember rejects a duplicate hero and a full living party', () => {
+    const run = twoPlayerRun()
+    expect(reduce(run, { type: 'coop/addMember', character: createCharacter('p1', 'David', 1) }).events).toEqual([{ type: 'rejected', reason: 'dup-hero' }])
+    const three = reduce(run, { type: 'coop/addMember', character: createCharacter('p3', 'Caleb', 1) }).state
+    expect(reduce(three, { type: 'coop/addMember', character: createCharacter('p4', 'Joel', 1) }).events).toEqual([{ type: 'rejected', reason: 'party-full' }])
+  })
+})
+
 describe('co-op: enemy HP scaling by party size', () => {
   it('partyScale is 1 / 1.8 / 2.6 for 1 / 2 / 3 players', () => {
     expect(partyScale(1)).toBe(1)

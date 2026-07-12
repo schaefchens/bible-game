@@ -7,7 +7,7 @@ import type { Character, PartyMember } from '../state/character'
 import { canAddCopy, effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
 import { fork } from '../rng/rng'
 import type { CardDefId, MemberId } from '../types'
-import { advanceEnemyTurn, beginEnemyTurnFromParty, endTurn, ensureActing, flee, playCard, reposition, useGrace, useItem, type CombatStep } from './combat'
+import { advanceEnemyTurn, beginEnemyTurnFromParty, downMemberCombat, endTurn, ensureActing, flee, playCard, reposition, useGrace, useItem, type CombatStep } from './combat'
 import { itemCount, shouldConsume } from '../inventory/types'
 import type { CombatantId, ItemId } from '../types'
 import type { CombatState, RewardChoice } from './types'
@@ -72,6 +72,9 @@ export function reduceCombat(state: GameState, cmd: Command): ReduceResult {
       break
     case 'combat/advanceEnemyTurn':
       result = advanceEnemyTurn(combat)
+      break
+    case 'coop/downMember':
+      result = downMemberCombat(combat, cmd.memberId)
       break
     default:
       return reject(state, 'unknown-combat-command')

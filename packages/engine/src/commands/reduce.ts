@@ -79,6 +79,10 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
       return startRun(state, cmd.characterId, cmd.worldId, cmd.seed, cmd.content)
     case 'startCoopRun':
       return startCoopRun(state, cmd.heroes, cmd.worldId, cmd.seed, cmd.content)
+    case 'coop/downMember':
+      return downMember(state, cmd.memberId)
+    case 'coop/addMember':
+      return addMember(state, cmd.character)
     case 'abandonRun':
       return abandonRun(state)
     case 'allocateStat':
@@ -131,6 +135,67 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
       return reject(state, 'unknown-command')
     }
   }
+}
+
+/**
+ * Co-op: down a party member on demand (a dropped player was kicked). An ongoing combat is routed
+ * through the combat reducer (killing their combatant → cards purged, shared energy dropped, defeat
+ * finalized if they were the last alive); otherwise we just mark the run. Either way we force
+ * currentHp:0 so the map + clients treat them as out immediately (a campfire rest revives them).
+ */
+function downMember(state: GameState, memberId: MemberId): ReduceResult {
+  const run = state.run
+  if (!run) return reject(state, 'no-run')
+  const member = run.party.find((m) => m.memberId === memberId)
+  if (!member) return reject(state, 'no-such-member')
+  if (member.currentHp <= 0) return reject(state, 'already-down')
+
+  const res =
+    state.combat && state.combat.outcome === 'ongoing'
+      ? reduceCombat(state, { type: 'coop/downMember', memberId })
+      : ok(state, [{ type: 'partyMemberDied', memberId }])
+  const outRun = res.state.run ?? run
+  const party = outRun.party.map((m) => (m.memberId === memberId ? { ...m, currentHp: 0 } : m))
+  return ok({ ...res.state, run: { ...outRun, party } }, res.events)
+}
+
+/**
+ * Co-op: a new player joins an ONGOING run with their own hero. Built exactly like a startCoopRun member
+ * (party-level parity, full HP, own starter deck, upserted profile slot). If the party is already at 3
+ * total but has a DOWNED member (a kicked/left player), the newcomer takes that slot; otherwise appended.
+ * Never touches `state.combat` — they enter the next `buildEncounter`.
+ */
+function addMember(state: GameState, character: Character): ReduceResult {
+  const run = state.run
+  if (!run) return reject(state, 'no-run')
+  if (run.party.some((m) => m.characterId === character.id)) return reject(state, 'dup-hero')
+  if (run.party.filter((m) => m.currentHp > 0).length >= 3) return reject(state, 'party-full')
+
+  const coopLevel = Math.max(1, ...run.party.map((m) => m.level))
+  const { member, startDeck } = buildRunHero(character, run.content)
+  const leveled: PartyMember = { ...member, level: coopLevel }
+  const newMember: PartyMember = { ...leveled, currentHp: memberMaxHp(leveled) }
+
+  const party = [...run.party]
+  const deckByMember = { ...run.deckByMember }
+  const downedIdx = party.findIndex((m) => m.currentHp <= 0)
+  if (party.length >= 3 && downedIdx >= 0) {
+    delete deckByMember[party[downedIdx]!.memberId] // reclaim the downed (left) slot
+    party[downedIdx] = newMember
+  } else {
+    party.push(newMember)
+  }
+  deckByMember[newMember.memberId] = startDeck
+
+  // upsert the joiner's permanent character into profile slots (server holds every player's hero)
+  const idx = state.profile.slots.findIndex((s) => s.id === character.id)
+  const slot: CharacterSlot = { id: character.id, character }
+  const slots = idx >= 0 ? state.profile.slots.map((s, i) => (i === idx ? slot : s)) : [...state.profile.slots, slot]
+
+  return ok(
+    { ...state, profile: { ...state.profile, slots }, run: { ...run, party, deckByMember } },
+    [{ type: 'memberJoined', memberId: newMember.memberId }],
+  )
 }
 
 /**

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { bgUrl } from '../asset'
-import { createParty, chooseHero, joinParty, kick, leaveParty, listGames, sendChat, setReady, startRun } from '../net'
-import type { Visibility } from '../net/protocol'
+import { createParty, chooseHero, joinParty, joinRun, kick, leaveParty, listGames, reconnectCoop, sendChat, setReady, startRun } from '../net'
+import type { GameSummary, Visibility } from '../net/protocol'
 import { useGame } from '../store/gameStore'
-import { isHost, useSession } from '../store/useSession'
+import { isHost, loadSavedSession, useSession } from '../store/useSession'
 import { WORLDS, worldMeta } from '../worlds'
 
 // Co-op front door. Three views, by session phase:
@@ -23,6 +23,7 @@ export function LobbyOverlay() {
   const roomTitle = useSession((s) => s.roomTitle)
   const roomVisibility = useSession((s) => s.roomVisibility)
   const chat = useSession((s) => s.chat)
+  const joinWaiting = useSession((s) => s.joinWaiting)
   const playerId = useSession((s) => s.playerId)
   const name = useSession((s) => s.name)
   const setName = useSession((s) => s.setName)
@@ -35,6 +36,8 @@ export function LobbyOverlay() {
 
   const [joinCode, setJoinCode] = useState('')
   const [showJoin, setShowJoin] = useState(false)
+  // when set, the browser shows a "pick your hero to join this ongoing run" step for that game
+  const [joiningGame, setJoiningGame] = useState<GameSummary | null>(null)
   // edit the name inline; start open when no name is remembered yet
   const [editName, setEditName] = useState(() => !useSession.getState().name.trim())
   const [title, setTitle] = useState('')
@@ -128,6 +131,47 @@ export function LobbyOverlay() {
     </div>
   )
 
+  // ---- waiting on the host to accept our join request ----
+  if (phase === 'browser' && joinWaiting) {
+    return (
+      <div className="modal-overlay coop-overlay">
+        <div className="queue-panel">
+          <div className="queue-glow" />
+          <h2 className="queue-title">{t('ui.coop.joinWaitTitle')}</h2>
+          <div className="queue-spinner" />
+          <p className="queue-flavour">{t('ui.coop.joinWaitHint')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---- join in progress: pick which hero to bring into an ongoing run ----
+  if (phase === 'browser' && joiningGame) {
+    const jw = worldMeta(joiningGame.worldId)
+    return (
+      <div className="modal-overlay coop-overlay">
+        <div className="panel narrow coop-panel coop-joinrun">
+          <div className="coop-joinrun-art" style={{ backgroundImage: jw.bg ? bgUrl(jw.bg) : undefined }} />
+          <h2>{t('ui.coop.joinRunTitle')}</h2>
+          <p className="muted">{joiningGame.title}{joiningGame.node && <> · 📍 {t(joiningGame.node)}</>} · {t('ui.coop.depth', { n: joiningGame.depth })}</p>
+          {error && <p className="coop-error">{t(error)}</p>}
+          <label className="coop-joinrun-pick">
+            {t('ui.coop.pickHero')}
+            <select className="text-input" value={selectedHeroId ?? ''} onChange={(e) => setHeroId(e.target.value)}>
+              {slots.map((s) => (
+                <option key={s.id} value={s.id}>{s.character.name} · {t('ui.coop.lv')} {s.character.level}</option>
+              ))}
+            </select>
+          </label>
+          <button className="btn primary block" disabled={!canName || !hero} onClick={() => hero && joinRun(joiningGame.code, name.trim(), hero)}>
+            {t('ui.coop.joinRun')}
+          </button>
+          <button className="btn small ghost block" onClick={() => setJoiningGame(null)}>{t('ui.common.cancel')}</button>
+        </div>
+      </div>
+    )
+  }
+
   // ---- browser: the games list is the centre of attention ----
   if (phase === 'browser') {
     return (
@@ -158,15 +202,28 @@ export function LobbyOverlay() {
             ) : (
               games.map((g) => {
                 const w = worldMeta(g.worldId)
+                // is this MY dropped game? (a saved session for this exact room) → clicking it must do the
+                // SAME as the Start-screen Resume button: token reconnect (re-enter my downed seat), NOT a
+                // fresh joinRun (which the server rejects as dup-hero since my seat still holds this hero).
+                const mine = g.ongoing && loadSavedSession()?.code === g.code
+                const onClick = () => {
+                  if (!canName) return
+                  if (mine) void reconnectCoop()
+                  else if (g.ongoing) setJoiningGame(g)
+                  else joinParty(g.code, name.trim())
+                }
                 return (
                   <li key={g.code}>
-                    <button className="coop-game-row" disabled={!canName} onClick={() => canName && joinParty(g.code, name.trim())} title={canName ? t('ui.coop.join') : t('ui.coop.setNameFirst')}>
+                    <button className={'coop-game-row' + (g.ongoing ? ' ongoing' : '') + (mine ? ' mine' : '')} disabled={!canName} onClick={onClick} title={mine ? t('ui.coop.reconnect') : canName ? t('ui.coop.join') : t('ui.coop.setNameFirst')}>
                       <span className="coop-game-art" style={{ backgroundImage: w.bg ? bgUrl(w.bg) : undefined }} />
                       <span className="coop-game-info">
-                        <span className="coop-game-title">{g.title}</span>
-                        <span className="muted coop-game-sub">{t(w.titleKey)} · 👤 {g.hostName}</span>
+                        <span className="coop-game-title">{g.title}{g.ongoing && <span className="coop-game-badge">{mine ? t('ui.coop.reconnect') : t('ui.coop.ongoing')}</span>}</span>
+                        <span className="muted coop-game-sub">
+                          {t(w.titleKey)} · 👤 {g.hostName}
+                          {g.ongoing && g.node && <> · 📍 {t(g.node)}</>}
+                        </span>
                       </span>
-                      <span className="coop-game-count">{g.players}/{g.maxPlayers}</span>
+                      <span className="coop-game-count">{g.ongoing ? t('ui.coop.depth', { n: g.depth }) : `${g.players}/${g.maxPlayers}`}</span>
                     </button>
                   </li>
                 )

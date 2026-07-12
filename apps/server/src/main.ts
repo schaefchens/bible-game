@@ -12,7 +12,7 @@ const wss = new WebSocketServer({ port: PORT })
 wss.on('connection', (ws) => {
   const session: Session = {}
   ws.on('message', (data) => handleMessage(ws, typeof data === 'string' ? data : data.toString(), session))
-  ws.on('close', () => handleClose(session))
+  ws.on('close', () => handleClose(ws, session))
   // swallow low-level socket errors; the close handler performs the cleanup
   ws.on('error', () => {})
 })

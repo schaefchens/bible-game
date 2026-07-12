@@ -39,6 +39,13 @@ export type Command =
   // has no access to other players' local profiles). Entropy (seed) is supplied by the authoritative
   // server, which is the only caller. `heroes[0]` becomes the hero (party[0] / heroMemberId).
   | { type: 'startCoopRun'; heroes: Character[]; worldId: string; seed: string; content: ContentBundle }
+  // Co-op: down a party member on demand (server-authored — e.g. a dropped player was kicked). Their
+  // hero goes to 0 HP (out of play, revived at the next campfire like any downed member); if in combat,
+  // their combatant is killed (cards purged, shared energy dropped).
+  | { type: 'coop/downMember'; memberId: MemberId }
+  // Co-op: a new player joins an ongoing run with their OWN hero (server-authored). The member is added
+  // to the party at the party's co-op level, full HP, own starter deck — active from the next encounter.
+  | { type: 'coop/addMember'; character: Character }
   | { type: 'abandonRun' }
   // ---- leveling ----
   // `memberId` is the member whose points are spent — in co-op the server validates it belongs to the sender.

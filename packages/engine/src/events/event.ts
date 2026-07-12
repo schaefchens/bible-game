@@ -80,6 +80,7 @@ export type GameEvent =
   | { type: 'enemyTurnEnded' }
   | { type: 'combatantDied'; id: CombatantId; isHuman: boolean; mode: DefeatMode }
   | { type: 'partyMemberDied'; memberId: MemberId }
+  | { type: 'memberJoined'; memberId: MemberId }
   | { type: 'roundAdvanced'; round: number }
   | { type: 'combatEnded'; outcome: Outcome }
   | { type: 'rewardOffered' }

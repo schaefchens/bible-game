@@ -48,6 +48,12 @@ interface SessionStore {
   roomTitle: string
   /** the current room's visibility (the lobby only shows "share the code" for private games) */
   roomVisibility: Visibility
+  /** in-run: whether the party is currently recruiting (re-listing the ongoing game) */
+  roomLookingForMore: boolean
+  /** host only: a newcomer's pending request to join the running game (accept/decline prompt) */
+  pendingJoin: { requestId: string; name: string; heroName: string; heroLevel: number } | null
+  /** requester only: true while a joinRun request awaits the host's decision */
+  joinWaiting: boolean
   /** true while the dynamic co-op server boots → show the WoW-style queue modal */
   serverBooting: boolean
 
@@ -61,8 +67,10 @@ interface SessionStore {
   /** the host kicked us: drop room membership, return to the browser with a message (keep the socket + name) */
   kicked: () => void
   setMyCharacterId: (id: string | null) => void
+  setPendingJoin: (p: SessionStore['pendingJoin']) => void
+  setJoinWaiting: (waiting: boolean) => void
   setWelcome: (w: { playerId: string; token: string; code: string }) => void
-  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility }) => void
+  setLobby: (l: { code: string; phase: NetPhase; hostId: string; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility; lookingForMore: boolean }) => void
   setConnection: (c: 'up' | 'down') => void
   setError: (e: string | null) => void
   setNotice: (n: string | null) => void
@@ -92,7 +100,38 @@ const saveName = (name: string): void => {
   }
 }
 
-export const useSession = create<SessionStore>((set) => ({
+// The active co-op session (room + seat + hero) is remembered so a reload can offer a reconnect.
+export interface SavedSession {
+  code: string
+  token: string
+  playerId: string
+  characterId: string | null
+}
+const SESSION_KEY = 'bible-game/coop-session'
+export const loadSavedSession = (): SavedSession | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? (JSON.parse(raw) as SavedSession) : null
+  } catch {
+    return null
+  }
+}
+const saveSavedSession = (s: SavedSession): void => {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s))
+  } catch {
+    /* ignore */
+  }
+}
+export const clearSavedSession = (): void => {
+  try {
+    localStorage.removeItem(SESSION_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+export const useSession = create<SessionStore>((set, get) => ({
   phase: 'idle',
   code: null,
   playerId: null,
@@ -112,11 +151,15 @@ export const useSession = create<SessionStore>((set) => ({
   worldId: null,
   roomTitle: '',
   roomVisibility: 'public',
+  roomLookingForMore: false,
+  pendingJoin: null,
+  joinWaiting: false,
   serverBooting: false,
 
   openMenu: () => set({ phase: 'browser', error: null }),
   openCreate: () => set({ phase: 'create', error: null }),
-  reset: () =>
+  reset: () => {
+    clearSavedSession()
     set({
       phase: 'idle',
       code: null,
@@ -137,8 +180,12 @@ export const useSession = create<SessionStore>((set) => ({
       worldId: null,
       roomTitle: '',
       roomVisibility: 'public',
+      roomLookingForMore: false,
+      pendingJoin: null,
+      joinWaiting: false,
       serverBooting: false,
-    }),
+    })
+  },
   setPhase: (phase) => set({ phase }),
   setGames: (games) => set({ games }),
   setName: (name) => {
@@ -146,11 +193,22 @@ export const useSession = create<SessionStore>((set) => ({
     set({ name })
   },
   setServerBooting: (serverBooting) => set({ serverBooting }),
-  kicked: () =>
-    set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'ui.coop.errKicked' }),
-  setMyCharacterId: (myCharacterId) => set({ myCharacterId }),
-  setWelcome: ({ playerId, token, code }) => set({ playerId, token, code, error: null }),
-  setLobby: ({ code, phase, hostId, roster, worldId, title, visibility }) => set({ code, phase, hostId, roster, worldId, roomTitle: title, roomVisibility: visibility }),
+  kicked: () => {
+    clearSavedSession()
+    set({ phase: 'browser', code: null, playerId: null, token: null, myCharacterId: null, roster: [], hostId: null, worldId: null, error: 'ui.coop.errKicked' })
+  },
+  setMyCharacterId: (myCharacterId) => {
+    set({ myCharacterId })
+    const s = get()
+    if (s.code && s.token && s.playerId) saveSavedSession({ code: s.code, token: s.token, playerId: s.playerId, characterId: myCharacterId })
+  },
+  setPendingJoin: (pendingJoin) => set({ pendingJoin }),
+  setJoinWaiting: (joinWaiting) => set({ joinWaiting }),
+  setWelcome: ({ playerId, token, code }) => {
+    set({ playerId, token, code, error: null })
+    saveSavedSession({ code, token, playerId, characterId: get().myCharacterId })
+  },
+  setLobby: ({ code, phase, hostId, roster, worldId, title, visibility, lookingForMore }) => set({ code, phase, hostId, roster, worldId, roomTitle: title, roomVisibility: visibility, roomLookingForMore: lookingForMore }),
   setConnection: (connection) => set({ connection }),
   setError: (error) => set({ error }),
   setNotice: (notice) => set({ notice }),

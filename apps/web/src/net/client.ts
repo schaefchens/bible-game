@@ -5,8 +5,9 @@
 
 import { GAME_STATE_VERSION, type Character } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
+import { i18n } from '../i18n'
 import { setMpTransport, useGame } from '../store/gameStore'
-import { useSession } from '../store/useSession'
+import { clearSavedSession, loadSavedSession, useSession } from '../store/useSession'
 import type { ClientMsg, PeerActivity, PickPresence, ServerMsg, Visibility } from './protocol'
 import { heartbeat, probeWs, resolveReadyWsUrl, wake } from './serverResolve'
 import { Socket } from './socket'
@@ -60,13 +61,14 @@ function onMessage(msg: ServerMsg): void {
   const session = useSession.getState()
   switch (msg.t) {
     case 'welcome':
+      session.setJoinWaiting(false) // a pending join was accepted (or any normal entry) → clear the wait
       session.setWelcome({ playerId: msg.playerId, token: msg.token, code: msg.code })
       break
     case 'gameList':
       session.setGames(msg.games)
       break
     case 'lobby':
-      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId, title: msg.title, visibility: msg.visibility })
+      session.setLobby({ code: msg.code, phase: msg.phase, hostId: msg.hostId, roster: msg.roster, worldId: msg.worldId, title: msg.title, visibility: msg.visibility, lookingForMore: msg.lookingForMore })
       session.setPhase(msg.phase === 'inRun' ? 'inRun' : 'lobby')
       break
     case 'state':
@@ -90,11 +92,27 @@ function onMessage(msg: ServerMsg): void {
       else useGame.getState().setSleeping(msg.active)
       break
     case 'presence': {
-      const who = session.roster.find((r) => r.playerId === msg.playerId)?.name ?? 'A player'
-      session.pushChat({ playerId: msg.playerId, name: '', text: `${who} ${msg.connected ? 'reconnected' : 'disconnected'}`, system: true })
-      if (!msg.connected) session.clearPeer(msg.playerId) // drop a disconnected peer's stale highlight
+      // distinct, localized message per reason (joined / left for good / lost connection / reconnected):
+      // a system chat line for the log + a prominent banner toast so nobody misses it.
+      const text = i18n.t(`ui.coop.presence.${msg.kind}`, { name: msg.name })
+      session.pushChat({ playerId: msg.playerId, name: '', text, system: true })
+      session.setNotice(text)
+      if (!msg.connected) session.clearPeer(msg.playerId) // drop a gone peer's stale highlight
       break
     }
+    case 'joinRequest':
+      // host only: a newcomer wants in → show the accept/decline prompt
+      session.setPendingJoin({ requestId: msg.requestId, name: msg.name, heroName: msg.heroName, heroLevel: msg.heroLevel })
+      break
+    case 'joinPending':
+      // requester: our request is now waiting on the host
+      session.setJoinWaiting(true)
+      break
+    case 'joinDeclined':
+      // requester: the host said no → back to the browser list with a message
+      session.setJoinWaiting(false)
+      session.setError('ui.coop.err.joinDeclined')
+      break
     case 'kicked':
       // the host removed us — back to the games browser with a notice (socket stays up so we can rejoin)
       session.kicked()
@@ -103,6 +121,11 @@ function onMessage(msg: ServerMsg): void {
       session.setNotice(rejectionText(msg.reason))
       break
     case 'error':
+      // a failed reconnect (stale token / room gone) → drop the saved session + fall back to the browser
+      if (msg.code === 'bad-token' || msg.code === 'no-room') {
+        clearSavedSession()
+        session.openMenu()
+      }
       session.setError(errorText(msg.code))
       session.setNotice(errorText(msg.code))
       break
@@ -138,46 +161,57 @@ function stopHeartbeat(): void {
   heartbeatTimer = null
 }
 
-/** Open the co-op browser. Dev (or an already-awake same-origin server): the default /ws answers, use it.
- *  Otherwise (production) wake the dynamic server via the endpoint, and — showing the queue modal — poll
- *  until it's ready AND its `websocketUrl` actually accepts a connection, then connect to that URL. */
-export async function openCoop(): Promise<void> {
+/** Resolve the co-op WS server (shared by openCoop + reconnect): dev/same-origin default if it answers,
+ *  else wake the dynamic (production) server — showing the queue modal — until its `websocketUrl` is
+ *  ready + reachable. Sets `wsUrlOverride` + starts the heartbeat when dynamic. Returns true on success;
+ *  sets a session error and returns false otherwise. */
+async function resolveServer(): Promise<boolean> {
   const session = useSession.getState()
-  // dev / same-origin server already up → use it directly, no wake, no heartbeat.
   if (await probeWs(wsUrl())) {
-    wsUrlOverride = null
-    connectAndBrowse()
-    return
+    wsUrlOverride = null // dev / already-awake same-origin server
+    return true
   }
-  // production: wake the dynamic server via the endpoint (this POST also seeds the heartbeat).
   resolveAbort = new AbortController()
   const first = await wake(resolveAbort.signal)
   if (first === null) {
-    session.openMenu()
     session.setError('ui.coop.errNoServer')
-    return
+    return false
   }
-  // already ready AND its WS is listening → connect straight to the endpoint's URL, no modal.
   if (first.status === 'ready' && first.websocketUrl && (await probeWs(first.websocketUrl, 2500))) {
     wsUrlOverride = first.websocketUrl
     startHeartbeat()
-    connectAndBrowse()
-    return
+    return true
   }
-  // still booting → show the queue modal, poll until the endpoint's WS URL is ready + reachable.
   session.setServerBooting(true)
   try {
     wsUrlOverride = await resolveReadyWsUrl({ signal: resolveAbort.signal, onWaiting: () => {} })
     session.setServerBooting(false)
     startHeartbeat()
-    connectAndBrowse()
+    return true
   } catch {
     session.setServerBooting(false)
-    if (!resolveAbort.signal.aborted) {
-      session.openMenu()
-      session.setError('ui.coop.errSlowServer')
-    }
+    if (!resolveAbort.signal.aborted) session.setError('ui.coop.errSlowServer')
+    return false
   }
+}
+
+/** Open the co-op browser (waking the dynamic server first if needed). */
+export async function openCoop(): Promise<void> {
+  if (await resolveServer()) connectAndBrowse()
+  else useSession.getState().openMenu() // show the browser with the resolve error
+}
+
+/** Reconnect to the co-op game saved from a prior session (after a reload). Restores the seat, resolves
+ *  the server, and the socket's onOpen sends `{t:'reconnect'}`. A bad token / gone room is handled by
+ *  the 'error' message (clears the saved session). No-op if nothing is saved. */
+export async function reconnectCoop(): Promise<void> {
+  const saved = loadSavedSession()
+  if (!saved) return
+  const session = useSession.getState()
+  session.setMyCharacterId(saved.characterId) // restore which hero is our seat
+  session.setWelcome({ playerId: saved.playerId, token: saved.token, code: saved.code }) // so onOpen reconnects
+  if (await resolveServer()) ensureConnected() // server replies lobby/state → phase flips to lobby/inRun
+  else useSession.getState().openMenu()
 }
 
 function connectAndBrowse(): void {
@@ -210,6 +244,26 @@ export function joinParty(code: string, name: string): void {
   const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, ...compat }
   if (s.connected) s.send(msg)
   else pendingOnOpen = msg
+}
+
+/** Join a run already IN PROGRESS (a recruiting "ongoing" game) with a chosen hero. */
+export async function joinRun(code: string, name: string, character: Character): Promise<void> {
+  useSession.getState().setMyCharacterId(character.id)
+  const msg: ClientMsg = { t: 'joinRun', code: code.toUpperCase(), name, character, ...compat }
+  if (await resolveServer()) {
+    const s = ensureConnected()
+    if (s.connected) s.send(msg)
+    else pendingOnOpen = msg
+  } else useSession.getState().openMenu()
+}
+
+/** In-run: toggle whether the party is recruiting (re-lists the ongoing game in the browser). */
+export const lookForMore = (on: boolean): void => void socket?.send({ t: 'lookForMore', on })
+
+/** Host only: accept or decline a pending join request, then dismiss its prompt. */
+export function joinDecision(requestId: string, accept: boolean): void {
+  socket?.send({ t: 'joinDecision', requestId, accept })
+  useSession.getState().setPendingJoin(null)
 }
 
 export function chooseHero(character: Character): void {

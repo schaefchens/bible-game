@@ -3,7 +3,7 @@
 // mid-combat" restriction). Nothing here is persisted in v1 (rooms live only while a process runs).
 
 import type { WebSocket } from 'ws'
-import { newGame, type Character, type GameState } from '@bible/engine'
+import { newGame, worldMapOf, type Character, type GameState } from '@bible/engine'
 import type { GameSummary, Phase, PlayerId, RoomCode, RosterEntry, ServerMsg, SessionToken, Visibility } from './protocol'
 
 export interface Player {
@@ -18,6 +18,21 @@ export interface Player {
   memberId: string | null
   ready: boolean
   connected: boolean
+  /** true once the player QUIT for good (voluntary leave or host kick) — as opposed to a mere dropout.
+   *  Drives the "left the game" (won't return) presence message + keeps them out of reconnection. */
+  left: boolean
+}
+
+/** A newcomer's request to join a running game, awaiting the host's accept/decline. */
+export interface PendingJoin {
+  id: string
+  name: string
+  character: Character
+  /** the requester's live socket — welcome/state (accept) or joinDeclined (decline) is sent here */
+  ws: WebSocket
+  /** the requester's own connection session — bound to the room by the host's accept (the decision runs
+   *  on the HOST's connection, so we can't bind it there without this reference). */
+  session: { code?: string; playerId?: string }
 }
 
 export interface Room {
@@ -31,6 +46,12 @@ export interface Room {
   visibility: Visibility
   /** the chosen adventure, fixed at creation; startRun uses it */
   worldId: string
+  /** in-run: the party is recruiting — the game is re-listed in the browser so a newcomer can join */
+  lookingForMore: boolean
+  /** in-run: join requests awaiting the host's decision, keyed by request id */
+  pendingJoins: Map<string, PendingJoin>
+  /** monotonic counter for pending-join request ids (avoids RNG) */
+  joinSeq: number
   /** authoritative game state; a fresh newGame() until the run starts */
   state: GameState
   /** monotonic broadcast counter */
@@ -85,6 +106,9 @@ export function createRoom(
     title: opts.title.trim(),
     visibility: opts.visibility,
     worldId: opts.worldId,
+    lookingForMore: false,
+    pendingJoins: new Map(),
+    joinSeq: 0,
     state: newGame(),
     seq: 0,
     buildHash,
@@ -103,6 +127,28 @@ export function addPlayer(room: Room, name: string, ws: WebSocket): Player | { e
   room.players.push(player)
   tokenIndex.set(player.token, { code: room.code, playerId: player.playerId })
   return player
+}
+
+/** Add a player to an ONGOING run (joinRun). The caller has already validated recruiting + a free slot;
+ *  the engine `coop/addMember` adds their hero to the party. */
+export function addPlayerInRun(room: Room, name: string, ws: WebSocket): Player {
+  const player = newPlayer(name, ws)
+  room.players.push(player)
+  tokenIndex.set(player.token, { code: room.code, playerId: player.playerId })
+  return player
+}
+
+/** Living party members in an active run (currentHp > 0) — the co-op "player slots" that count. */
+export const livingMembers = (room: Room): number => room.state.run?.party.filter((m) => m.currentHp > 0).length ?? 0
+
+/** i18n key of the run's current map node (where the party is standing), for the browser list. Empty
+ *  when there's no run, no current node (still at the entrance), or the node is unknown. The client
+ *  translates it; the server never renders localized text. */
+const currentNodeNameKey = (state: GameState): string => {
+  const run = state.run
+  if (!run) return ''
+  const node = worldMapOf(run.content, run.world.worldId)?.nodes[run.world.current]
+  return node?.nameKey ?? ''
 }
 
 /** Set a player's chosen hero (in the lobby). Rejects a hero another connected player already picked —
@@ -125,6 +171,7 @@ function newPlayer(name: string, ws: WebSocket): Player {
     memberId: null,
     ready: false,
     connected: true,
+    left: false,
   }
 }
 
@@ -141,6 +188,34 @@ export function removePlayer(room: Room, playerId: PlayerId): void {
 }
 
 /** Promote the first connected player to host (economy is not tied to host, only lifecycle actions are). */
+/** A deliberate in-run exit (voluntary leave OR host kick): KEEP the seat (so teammates still see the
+ *  member, now downed) but invalidate the token + flag `left` so they cannot rejoin and teammates get a
+ *  "left the game" (won't return) message rather than a "dropped, may reconnect" one. */
+export function leaveInRun(room: Room, playerId: PlayerId): void {
+  const p = room.players.find((x) => x.playerId === playerId)
+  if (!p) return
+  tokenIndex.delete(p.token)
+  p.connected = false
+  p.left = true
+  p.ws = null
+  p.ready = false
+  if (room.hostPlayerId === playerId) migrateHost(room)
+}
+
+/** Register a newcomer's join request; returns its id (the host is notified separately). */
+export function addPendingJoin(room: Room, name: string, character: Character, ws: WebSocket, session: { code?: string; playerId?: string }): string {
+  const id = `j${++room.joinSeq}`
+  room.pendingJoins.set(id, { id, name, character, ws, session })
+  return id
+}
+
+/** Drop any pending join requests made on this socket (the requester disconnected before a decision). */
+export function dropPendingJoinsByWs(ws: WebSocket): void {
+  for (const room of rooms.values()) {
+    for (const [id, req] of room.pendingJoins) if (req.ws === ws) room.pendingJoins.delete(id)
+  }
+}
+
 export function migrateHost(room: Room): void {
   const next = room.players.find((p) => p.connected) ?? room.players[0]
   if (next) room.hostPlayerId = next.playerId
@@ -155,8 +230,17 @@ const hostName = (room: Room): string => room.players.find((p) => p.playerId ===
 export function listPublicGames(): GameSummary[] {
   const out: GameSummary[] = []
   for (const room of rooms.values()) {
-    if (room.phase !== 'lobby' || room.visibility !== 'public' || room.players.length >= MAX_PLAYERS) continue
-    out.push({ code: room.code, title: room.title || room.code, worldId: room.worldId, hostName: hostName(room), players: room.players.length, maxPlayers: MAX_PLAYERS })
+    const base = { code: room.code, title: room.title || room.code, worldId: room.worldId, hostName: hostName(room), maxPlayers: MAX_PLAYERS }
+    // open public lobbies (as before)
+    if (room.phase === 'lobby' && room.visibility === 'public' && room.players.length < MAX_PLAYERS) {
+      out.push({ ...base, players: room.players.length, ongoing: false, depth: 0, node: '' })
+      continue
+    }
+    // ongoing runs that are recruiting (a leaver's slot or a never-filled seat) — any visibility, so a
+    // private game's host can still open it up
+    if (room.phase === 'inRun' && room.lookingForMore && livingMembers(room) < MAX_PLAYERS) {
+      out.push({ ...base, players: livingMembers(room), ongoing: true, depth: room.state.run?.depth ?? 0, node: currentNodeNameKey(room.state) })
+    }
   }
   return out
 }
@@ -184,7 +268,7 @@ export function broadcast(room: Room, msg: ServerMsg): void {
 }
 
 export const broadcastLobby = (room: Room): void =>
-  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room), worldId: room.worldId, title: room.title, visibility: room.visibility })
+  broadcast(room, { t: 'lobby', code: room.code, phase: room.phase, hostId: room.hostPlayerId, roster: roster(room), worldId: room.worldId, title: room.title, visibility: room.visibility, lookingForMore: room.lookingForMore })
 
 /** For a periodic GC sweep: drop rooms idle past the TTL. */
 export function sweepIdleRooms(now: number, ttlMs: number): void {

@@ -272,6 +272,17 @@ function killCombatant(c: CombatState, id: CombatantId, viaMercy: boolean): Comb
   return step(out, events, spiritEvents)
 }
 
+/** Co-op: down a party member ON DEMAND (a dropped player was kicked). Kills their combatant (purging
+ *  cards + dropping shared energy) and finalizes the combat (defeat if they were the last one alive).
+ *  No-op if they aren't a living party combatant. The run-side currentHp:0 writeback is the caller's job. */
+export function downMemberCombat(c: CombatState, memberId: MemberId): CombatStep {
+  const victim = Object.values(c.combatants).find((x) => x.faction === 'party' && x.memberId === memberId && x.alive)
+  if (!victim) return step(c)
+  const purged = purgePartyMember(c, victim.id)
+  const fin = finalizeIfEnded(purged.combat)
+  return step(fin.combat, [...purged.events, ...fin.events], [...purged.spiritEvents, ...fin.spiritEvents])
+}
+
 /** Companion/hero death: purge ALL their contributed cards from every pile + drop their energy. */
 function purgePartyMember(c: CombatState, id: CombatantId): CombatStep {
   const member = getC(c, id)

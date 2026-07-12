@@ -62,6 +62,12 @@ export interface GameSummary {
   hostName: string
   players: number
   maxPlayers: number
+  /** true = a run already in progress that is recruiting (join via joinRun, with a chosen hero) */
+  ongoing: boolean
+  /** how far the ongoing run has progressed (map depth); 0 for lobby games */
+  depth: number
+  /** i18n key of the run's current map node (where the party is); '' if unknown/at entrance. Translate with t(). */
+  node: string
 }
 
 // ---- client → server ----
@@ -70,10 +76,15 @@ export interface GameSummary {
 export type ClientMsg =
   | ({ t: 'createParty'; name: string; title: string; visibility: Visibility; worldId: string } & Compat)
   | ({ t: 'joinParty'; code: RoomCode; name: string } & Compat)
+  // REQUEST to join a running game with your own hero — the host must accept before you're added.
+  | ({ t: 'joinRun'; code: RoomCode; name: string; character: Character } & Compat)
+  // host-only: accept/decline a pending join request
+  | { t: 'joinDecision'; requestId: string; accept: boolean }
   | { t: 'listGames' }
   | { t: 'chooseHero'; character: Character }
   | { t: 'setReady'; ready: boolean }
   | { t: 'kick'; playerId: PlayerId }
+  | { t: 'lookForMore'; on: boolean }
   | { t: 'startRun' }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }
@@ -87,13 +98,21 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; token: SessionToken; code: RoomCode }
   | { t: 'gameList'; games: GameSummary[] }
-  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility }
+  | { t: 'lobby'; code: RoomCode; phase: NetPhase; hostId: PlayerId; roster: RosterEntry[]; worldId: string; title: string; visibility: Visibility; lookingForMore: boolean }
   | { t: 'state'; seq: number; state: LeanState; events: GameEvent[] }
   | { t: 'chat'; playerId: PlayerId; name: string; text: string; ts: number }
   | { t: 'activity'; playerId: PlayerId; name: string; activity: PeerActivity | null }
   | { t: 'pick'; playerId: PlayerId; name: string; pick: PickPresence | null }
   | { t: 'cinematic'; kind: 'sleep' | 'pray'; active: boolean }
-  | { t: 'presence'; playerId: PlayerId; connected: boolean }
+  // presence change + WHY (joined new · left for good · lost connection · reconnected). `connected`
+  // mirrors kind (joined|back → true, left|lost → false) for the existing dot/peer-clear logic.
+  | { t: 'presence'; playerId: PlayerId; name: string; connected: boolean; kind: 'joined' | 'left' | 'lost' | 'back' }
+  // to the HOST: someone wants to join the running game
+  | { t: 'joinRequest'; requestId: string; name: string; heroName: string; heroLevel: number }
+  // to the REQUESTER: awaiting the host's decision
+  | { t: 'joinPending' }
+  // to the REQUESTER: the host declined
+  | { t: 'joinDeclined' }
   | { t: 'kicked' }
   | { t: 'rejected'; reason: string }
   | { t: 'error'; code: string; reason: string }

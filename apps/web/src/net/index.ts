@@ -4,9 +4,13 @@
 export {
   initNet,
   openCoop,
+  reconnectCoop,
   cancelServerResolve,
   createParty,
   joinParty,
+  joinRun,
+  joinDecision,
+  lookForMore,
   listGames,
   chooseHero,
   setReady,
