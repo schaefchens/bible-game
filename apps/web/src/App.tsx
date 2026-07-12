@@ -33,7 +33,6 @@ import { LobbyOverlay } from './components/LobbyOverlay'
 import { MpBanner } from './components/MpBanner'
 import { ServerQueueModal } from './components/ServerQueueModal'
 import { CoopWaitModal } from './components/CoopWaitModal'
-import { CoopRoster } from './components/CoopRoster'
 import { JoinRequestModal } from './components/JoinRequestModal'
 
 // Warm the intro + start-menu "shell" into the SW cache once per app load, so the installed app opens
@@ -127,7 +126,6 @@ export function App() {
           run; the lobby modal for create/join. All render nothing unless a co-op session is active. */}
       <ChatOverlay />
       <MpBanner />
-      <CoopRoster />
       <LobbyOverlay />
       <ServerQueueModal />
       <CoopWaitModal />

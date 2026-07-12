@@ -95,6 +95,8 @@ export type ClientMsg =
   | { t: 'kick'; playerId: PlayerId }
   // in-run: toggle whether the party is recruiting (re-lists the ongoing game in the browser)
   | { t: 'lookForMore'; on: boolean }
+  // rename the game (its label in the browser list) — any member may make it more enticing to recruits
+  | { t: 'setTitle'; title: string }
   | { t: 'startRun' }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }

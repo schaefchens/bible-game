@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { potencyTier, type AudioMode } from '@bible/engine'
+import { leaveParty } from '../net'
 import { useGame } from '../store/gameStore'
 import { useSession } from '../store/useSession'
 import { heroSummary, selectLocation, selectParty } from '../selectors'
@@ -38,6 +39,8 @@ export function Hud() {
   const partyOrder = party.map((m) => m.memberId)
   const abandon = useGame((s) => s.abandon)
   const [confirmAbandon, setConfirmAbandon] = useState(false)
+  // co-op: leaving takes the SP abandon button's slot (a shared run has no local "abandon")
+  const [confirmLeave, setConfirmLeave] = useState(false)
   const spirit = state.run?.spirit.spirit ?? 0
   // Energy + Grace exist only during a battle; the bar degrades gracefully off-combat (map/scene).
   const combat = useGame((s) => s.state.combat)
@@ -136,8 +139,12 @@ export function Hud() {
         <div className="hud-bar-center">
           {location.nodeNameKey && <span className="hud-loc-node">{t(location.nodeNameKey)}</span>}
           {/* abandon sits beside the location so it reads as "abandon THIS run" (guarded by a confirm).
-              Hidden in co-op — leaving a shared run is done via the co-op banner (server-side teardown). */}
-          {!mpMode && (
+              In co-op there's no local abandon — the same slot becomes "Leave co-op" (also guarded). */}
+          {mpMode ? (
+            <button className="btn hud-abandon-btn" onClick={() => setConfirmLeave(true)} title={t('ui.coop.leaveCoop')}>
+              {t('ui.coop.leaveCoop')}
+            </button>
+          ) : (
             <button className="btn hud-abandon-btn" onClick={() => setConfirmAbandon(true)} title={t('ui.map.abandon')}>
               {t('ui.map.abandon')}
             </button>
@@ -207,6 +214,21 @@ export function Hud() {
               <div className="row gap">
                 <button className="btn small" onClick={() => setConfirmAbandon(false)}>{t('ui.common.no')}</button>
                 <button className="btn danger small" onClick={() => void abandon()}>{t('ui.common.yes')}</button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {/* co-op: leaving mid-run is permanent (hero left behind, can't rejoin) → same confirm pattern */}
+      {confirmLeave &&
+        createPortal(
+          <div className="modal-overlay" style={{ position: 'fixed', zIndex: 100 }} onClick={() => setConfirmLeave(false)}>
+            <div className="panel narrow hud-abandon-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>{t('ui.coop.leaveCoop')}</h3>
+              <p className="muted">{t('ui.coop.leaveConfirm')}</p>
+              <div className="row gap">
+                <button className="btn small" onClick={() => setConfirmLeave(false)}>{t('ui.coop.leaveNo')}</button>
+                <button className="btn danger small" onClick={() => leaveParty()}>{t('ui.coop.leaveYes')}</button>
               </div>
             </div>
           </div>,

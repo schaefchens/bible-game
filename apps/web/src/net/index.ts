@@ -11,6 +11,7 @@ export {
   joinRun,
   joinDecision,
   lookForMore,
+  setRoomTitle,
   listGames,
   chooseHero,
   setReady,

@@ -260,6 +260,9 @@ export async function joinRun(code: string, name: string, character: Character):
 /** In-run: toggle whether the party is recruiting (re-lists the ongoing game in the browser). */
 export const lookForMore = (on: boolean): void => void socket?.send({ t: 'lookForMore', on })
 
+/** Rename the game — updates its label in the browser list (any member may). */
+export const setRoomTitle = (title: string): void => void socket?.send({ t: 'setTitle', title })
+
 /** Host only: accept or decline a pending join request, then dismiss its prompt. */
 export function joinDecision(requestId: string, accept: boolean): void {
   socket?.send({ t: 'joinDecision', requestId, accept })

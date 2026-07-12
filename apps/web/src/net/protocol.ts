@@ -85,6 +85,7 @@ export type ClientMsg =
   | { t: 'setReady'; ready: boolean }
   | { t: 'kick'; playerId: PlayerId }
   | { t: 'lookForMore'; on: boolean }
+  | { t: 'setTitle'; title: string }
   | { t: 'startRun' }
   | { t: 'gameCommand'; cmd: Command; round?: number }
   | { t: 'activity'; activity: PeerActivity | null }

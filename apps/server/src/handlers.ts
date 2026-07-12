@@ -167,6 +167,15 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       return
     }
 
+    case 'setTitle': {
+      // any member may rename the game (its label in the browser list) — e.g. to entice recruits
+      const ctx = resolve(session)
+      if (!ctx) return
+      ctx.room.title = msg.title.trim().slice(0, 40)
+      broadcastLobby(ctx.room)
+      return
+    }
+
     case 'joinParty': {
       if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
       const room = getRoom(msg.code)
