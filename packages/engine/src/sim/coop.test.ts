@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { newGame, reduce } from '../commands/reduce'
+import { buildEncounter } from '../combat/encounterBuilder'
 import { createCharacter, heroMemberId } from '../state/character'
 import { partyScale, scaleEnemy } from '../leveling/scaling'
 import { testContent } from '../testing/fixtures'
@@ -21,6 +22,15 @@ describe('co-op: startCoopRun', () => {
     // shared purse = each player's starter gold pooled
     expect(state.run!.inventory.currency).toBe(100)
     expect(events.some((e) => e.type === 'runStarted')).toBe(true)
+  })
+
+  it('shared combat energy = 3 for one player, +1 per extra party member (3 / 4 / 5)', () => {
+    const heroesOf = (n: number) => Array.from({ length: n }, (_, i) => createCharacter(`p${i + 1}`, `H${i + 1}`, 1))
+    for (const [n, expected] of [[1, 3], [2, 4], [3, 5]] as const) {
+      const { state } = reduce(newGame(), { type: 'startCoopRun', heroes: heroesOf(n), worldId: 'world-01', seed: `e${n}`, content })
+      const step = buildEncounter(state.run!, 'beast', 'n2', state.run!.rng)
+      expect(step.combat!.energy.max).toBe(expected)
+    }
   })
 
   it('rejects duplicate hero ids (a deterministic memberId would collide)', () => {

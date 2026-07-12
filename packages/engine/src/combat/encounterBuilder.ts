@@ -106,14 +106,16 @@ export function buildEncounter(run: RunState, encounterId: EncounterId, nodeId: 
   // materializes the player's cards, but combat must also resolve defs it doesn't start with:
   // enemy-injected clutter (Spike) and the `+` forms a `hone` card swaps in mid-battle.
   const cardDefs: Record<CardDefId, CardDef> = { ...run.content.cards }
+  // Shared energy pool: the first party member brings their full energy; each ADDITIONAL member adds only
+  // +1 (not their full contribution) — so a co-op party of 1/2/3 has 3/4/5 energy, not 3/6/9.
   let energyMax = 0
-  for (const m of living) {
-    energyMax += m.contributesEnergy
+  living.forEach((m, i) => {
+    energyMax += i === 0 ? m.contributesEnergy : 1
     const defs = run.deckByMember[m.memberId] ?? []
-    defs.forEach((defId, i) => {
-      deck.push({ iid: `${m.memberId}#${i}`, defId, ownerId: m.memberId })
+    defs.forEach((defId, j) => {
+      deck.push({ iid: `${m.memberId}#${j}`, defId, ownerId: m.memberId })
     })
-  }
+  })
 
   return startCombat({
     rng,
