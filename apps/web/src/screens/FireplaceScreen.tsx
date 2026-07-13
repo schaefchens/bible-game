@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
+import { myMemberId, useSession } from '../store/useSession'
 import { selectFireplace, selectUpgradeable } from '../selectors'
 import { CardFace } from '../components/CardFace'
 
 export function FireplaceScreen() {
   const { t } = useTranslation()
   const state = useGame((s) => s.state)
-  const view = useMemo(() => selectFireplace(state), [state])
-  const upgradeable = useMemo(() => selectUpgradeable(state), [state])
+  const myMember = useSession(myMemberId)
+  const view = useMemo(() => selectFireplace(state, myMember ?? undefined), [state, myMember])
+  const upgradeable = useMemo(() => selectUpgradeable(state, myMember ?? undefined), [state, myMember])
   const dispatch = useGame((s) => s.dispatch)
   const setSleeping = useGame((s) => s.setSleeping)
   const setPraying = useGame((s) => s.setPraying)

@@ -147,7 +147,7 @@ export function useCombatFeedback(): CombatFeedback {
       // let the final blow (and its death cry) land first, then the win sting swells in ~½s later.
       // NOT in timersRef: the same step flips screen→reward and unmounts CombatScreen, whose cleanup
       // would clear timersRef and cancel this — a fire-and-forget one-shot must outlive the unmount.
-      setTimeout(() => sfxManager.play('sfx/battle-won', { gain: 0.5 }), 500)
+      setTimeout(() => sfxManager.play('sfx/battle-won', { gain: 0.5 }), 250)
     } else if (ended?.outcome === 'defeat') sfxManager.play('sfx/battle-lost')
 
     // A single enemy's step (one `enemyActed`, UI-paced): wind up (lunge) now, land the hit shortly

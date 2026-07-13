@@ -583,12 +583,15 @@ export interface RestView {
   canUpgrade: boolean
 }
 
-export function selectFireplace(state: GameState): RestView | null {
+export function selectFireplace(state: GameState, memberId?: string): RestView | null {
   const run = state.run
   if (!run) return null
   const node = run.content.worlds[run.worldId]?.map.nodes[run.world.current]
   if (!node) return null
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  // hone is once-per-node PER MEMBER — resolve against the LOCAL seat (co-op) / hero (single-player),
+  // matching the engine's `fireplace:<node>:upgraded:<member>` flag so the button disables after honing.
+  const actor = memberId ?? run.heroMemberId
+  const deck = run.deckByMember[actor] ?? []
   // Scripture Fragments held in the inventory — each opens its verse gap-fill when studied.
   const fragments = Object.entries(run.inventory.stacks)
     .filter(([id, n]) => n > 0 && run.content.items[id]?.kind === 'fragment')
@@ -600,7 +603,7 @@ export function selectFireplace(state: GameState): RestView | null {
     rested: Boolean(run.world.flags[`fireplace:${node.id}:rested`]),
     prayed: Boolean(run.world.flags[`fireplace:${node.id}:prayed`]),
     fragments,
-    upgraded: Boolean(run.world.flags[`fireplace:${node.id}:upgraded`]),
+    upgraded: Boolean(run.world.flags[`fireplace:${node.id}:upgraded:${actor}`]),
     canUpgrade: deck.some((id) => Boolean(run.content.cards[id]?.upgradeTo)),
   }
 }
@@ -692,10 +695,10 @@ export function selectShop(state: GameState): ShopView | null {
   }
 }
 
-export function selectUpgradeable(state: GameState): UpgradeOption[] {
+export function selectUpgradeable(state: GameState, memberId?: string): UpgradeOption[] {
   const run = state.run
   if (!run) return []
-  const deck = run.deckByMember[run.heroMemberId] ?? []
+  const deck = run.deckByMember[memberId ?? run.heroMemberId] ?? []
   const out: UpgradeOption[] = []
   deck.forEach((id, index) => {
     const def = run.content.cards[id]

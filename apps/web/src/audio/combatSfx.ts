@@ -34,8 +34,9 @@ export function isWindupSound(key: string): boolean {
 // far longer than the lunge→impact beat (~160ms). Play only the TAIL starting ~0.15s BEFORE that impact
 // (offsetFromEnd ≈ duration − 0.6s) at the wind-up, so you hear the incoming whoosh and the impact lands
 // ON the visual hit. (A smaller value lands in the dead decay tail → no audible hit.) Tune to taste.
-const PLAY_OPTS: Record<string, { offsetFromEnd?: number }> = {
+const PLAY_OPTS: Record<string, { gain?: number; offsetFromEnd?: number }> = {
   'sfx/strike-arrow': { offsetFromEnd: 0.55 },
+  'sfx/strike-goliath': { gain: 0.25 }, // the giant's bash clip is hot — pull it down so it doesn't peak
 }
 export function sfxOpts(key: string): { gain?: number; offsetFromEnd?: number } | undefined {
   return PLAY_OPTS[key]
