@@ -36,15 +36,17 @@ function RewardXpBar({ startTotal, gained }: { startTotal: number; gained: numbe
       return cruise + vmax * q - (vmax / (2 * B)) * q * q // decelerate to a stop
     }
     const dur = Math.min(6000, 2000 + effGained * 6) // much slower; scales with the payout, capped
+    const stopCharge = sfxManager.loop('sfx/xp-charge', { gain: 0.1 }) // sustained hum while the bar fills (quiet)
     let t0 = 0
     const tick = (ts: number) => {
       if (!t0) t0 = ts
       const p = Math.min(1, (ts - t0) / dur)
       setShown(startTotal + effGained * ease(p))
       if (p < 1) raf.current = requestAnimationFrame(tick)
+      else stopCharge() // finished counting → cut the hum
     }
     raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
+    return () => { cancelAnimationFrame(raf.current); stopCharge() }
   }, [startTotal, effGained, reduced])
 
   const prog = xpProgress(shown)
@@ -86,8 +88,8 @@ export function RewardScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const setPendingCharacterOpen = useGame((s) => s.setPendingCharacterOpen)
   const [stage, setStage] = useState<'spoils' | 'cards'>('spoils')
-  // decode the level-up ding up front so it fires exactly when the bar ticks over (no first-use delay)
-  useEffect(() => void sfxManager.preload(['sfx/levelup']), [])
+  // decode the level-up ding + xp-charge hum up front so they fire without a first-use delay
+  useEffect(() => void sfxManager.preload(['sfx/levelup', 'sfx/xp-charge']), [])
 
   // XP payout for the animated bar: the seat's pre-fight total + the amount gained this fight (XP is only
   // committed on leaveReward, so the Character still holds the pre-grant total here).

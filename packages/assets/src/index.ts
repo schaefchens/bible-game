@@ -108,6 +108,9 @@ const REGISTRY: Record<string, string> = {
   'sfx/death-goliath': 'sfx-death-goliath.mp3',
   'sfx/incapacitate': 'sfx-incapacitate.mp3',
   'sfx/levelup': 'sfx-levelup.mp3', // played when a hero reaches a new level (reward screen + co-op chat)
+  'sfx/battle-won': 'sfx-battle-won.mp3', // last enemy defeated
+  'sfx/battle-lost': 'sfx-battle-lost.mp3', // the hero (party) died
+  'sfx/xp-charge': 'sfx-xp-charge.mp3', // sustained hum while the reward XP bar animates (looped, stopped on finish)
   // Studio-logo intro stings (StartupSequence). One-shots; gated/scaled like other SFX.
   'sfx/logo-whoosh': 'sfx-logo-whoosh.mp3',
   'sfx/logo-whoosh-soft': 'sfx-logo-whoosh-soft.mp3',

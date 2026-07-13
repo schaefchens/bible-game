@@ -129,15 +129,15 @@ export const ELAH_MAP: WorldMap = {
 
 const soldier = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineSoldier', nameKey: 'enemy.philistineSoldier', isHuman: true,
-  scaling: { baseHp: 30, baseAtk: 4 }, ...over,
+  scaling: { baseHp: 60, baseAtk: 4 }, ...over,
 })
 const archer = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineArcher', nameKey: 'enemy.philistineArcher', isHuman: true, row: 'back',
-  scaling: { baseHp: 22, baseAtk: 4 }, ...over,
+  scaling: { baseHp: 44, baseAtk: 4 }, ...over,
 })
 const shield = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'shieldBearer', nameKey: 'enemy.shieldBearer', isHuman: true,
-  scaling: { baseHp: 46, baseAtk: 3 }, ...over,
+  scaling: { baseHp: 92, baseAtk: 3 }, ...over,
 })
 
 /** battleBg/rewardBg pair from a combat-bg stem (sideview for the battle, plain for the reward). */
@@ -146,11 +146,14 @@ const money = (amount: number) => [{ id: 'money', kind: 'money' as const, amount
 /** a Scripture Fragment spoil (claimed like a relic, by item id) — Elah's fragment source */
 const frag = (defId: string) => ({ id: 'fragment', kind: 'relic' as const, defId })
 
-export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
+// Base-difficulty tuning for Elah (level-1 hero vs level-1 enemies). The HP toughening pass (formerly a
+// ×2 scaler) is now BAKED into each enemy's authored baseHp below, so tune HP by editing the numbers
+// directly. The leveling curve + enemy brackets are applied on top of these bases by the engine.
+const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistineScouts: {
     id: 'philistineScouts',
     // small 1-2 foe skirmish: attack DOUBLED vs the base helper so the early fights bite (the 3+ and boss fights keep base damage)
-    enemies: [soldier('sol', { scaling: { baseHp: 30, baseAtk: 8 } }), archer('arch', { side: 'right', scaling: { baseHp: 22, baseAtk: 8 } })],
+    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 8 } }), archer('arch', { side: 'right', scaling: { baseHp: 44, baseAtk: 8 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(28), rewardXp: 24, ...bg('bg-combat-shepherds-track'),
@@ -158,7 +161,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistinePatrol: {
     id: 'philistinePatrol',
     // small 2-foe skirmish: attack DOUBLED
-    enemies: [soldier('sol1', { scaling: { baseHp: 30, baseAtk: 8 } }), soldier('sol2', { side: 'right', scaling: { baseHp: 30, baseAtk: 8 } })],
+    enemies: [soldier('sol1', { scaling: { baseHp: 60, baseAtk: 8 } }), soldier('sol2', { side: 'right', scaling: { baseHp: 60, baseAtk: 8 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(32), rewardXp: 28, ...bg('bg-combat-dry-wash'),
@@ -167,7 +170,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     // a soldier behind a shield-bearer — learn to drop the screen / use the back row
     id: 'slingStones',
     // small 2-foe screen puzzle: attack DOUBLED
-    enemies: [soldier('sol', { scaling: { baseHp: 30, baseAtk: 8 } }), shield('shield', { side: 'right', scaling: { baseHp: 46, baseAtk: 6 } })],
+    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 8 } }), shield('shield', { side: 'right', scaling: { baseHp: 92, baseAtk: 6 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(36), rewardXp: 30, ...bg('bg-combat-broken-toll-gate'),
@@ -187,7 +190,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     enemies: [{
       id: 'dread', archetype: 'spiritOfDread', nameKey: 'enemy.spiritOfDread', isHuman: false, isDemon: true,
       aiProfileId: 'dreadSpirit', row: 'back',
-      scaling: { baseHp: 34, baseAtk: 10 }, // lone foe: attack DOUBLED
+      scaling: { baseHp: 68, baseAtk: 20 }, // lone foe: attack DOUBLED; spirit hits twice as hard
     }],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -198,10 +201,10 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'dagonZealot',
     enemies: [
       { id: 'zealot', archetype: 'dagonZealot', nameKey: 'enemy.dagonZealot', isHuman: true, revealsId: 'idol',
-        scaling: { baseHp: 34, baseAtk: 8 } }, // small 1-2 foe fight: attack DOUBLED
+        scaling: { baseHp: 68, baseAtk: 8 } }, // small 1-2 foe fight: attack DOUBLED
       { id: 'idol', archetype: 'idolSpirit', nameKey: 'enemy.idolSpirit', isHuman: false, isDemon: true,
         hidden: true, boundToId: 'zealot', row: 'back',
-        scaling: { baseHp: 24, baseAtk: 8 } },
+        scaling: { baseHp: 48, baseAtk: 16 } }, // spirit hits twice as hard
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -221,7 +224,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'champion',
     enemies: [
       { id: 'champ', archetype: 'philistineChampion', nameKey: 'enemy.philistineChampion', isHuman: true, aiProfileId: 'champion', banishImmune: true,
-        scaling: { baseHp: 64, baseAtk: 5 } },
+        scaling: { baseHp: 128, baseAtk: 5 } },
       shield('shield', { side: 'left' }),
       archer('arch', { side: 'right' }),
     ],
@@ -243,7 +246,7 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     // the herald who taunts the armies of the living God — a hard single champion before the giant
     id: 'taunting',
     enemies: [{ id: 'herald', archetype: 'philistineChampion', nameKey: 'enemy.philistineChampion', isHuman: true, aiProfileId: 'champion', banishImmune: true,
-      scaling: { baseHp: 84, baseAtk: 12 } }], // lone champion (not a 3+ line, not the boss): attack DOUBLED
+      scaling: { baseHp: 168, baseAtk: 12 } }], // lone champion (not a 3+ line, not the boss): attack DOUBLED
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: [...money(70), frag('fragment_luke_10_27')], rewardXp: 55, battleMusic: 'music/battle-intense', ...bg('bg-combat-ridge-path'), // Loving Mercy from the taunting herald
@@ -255,9 +258,9 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'goliath',
     enemies: [
       { id: 'goliath', archetype: 'goliath', nameKey: 'enemy.goliath', isHuman: true, aiProfileId: 'goliath', banishImmune: true, row: 'front',
-        scaling: { baseHp: 140, baseAtk: 5, baseSpeed: 0 } },
-      shield('goliathShield', { side: 'left', scaling: { baseHp: 28, baseAtk: 3 } }),
-      archer('goliathArcher', { side: 'right', scaling: { baseHp: 18, baseAtk: 4 } }),
+        scaling: { baseHp: 280, baseAtk: 5, baseSpeed: 0 } },
+      shield('goliathShield', { side: 'left', scaling: { baseHp: 56, baseAtk: 3 } }),
+      archer('goliathArcher', { side: 'right', scaling: { baseHp: 36, baseAtk: 4 } }),
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: true },
     winCondition: { kind: 'allEnemiesDefeated' },
@@ -265,6 +268,8 @@ export const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     battleBg: 'bg-boss-narrow-gate-sideview', rewardBg: 'bg-boss-narrow-gate',
   },
 }
+
+export { ELAH_ENCOUNTERS }
 
 // Calm, predictable revisits — a light chance of a roaming patrol, no events.
 export const ELAH_AMBUSH_TABLE = { combat: 0.25, event: 0, combatEncounterId: 'philistinePatrol' } as const

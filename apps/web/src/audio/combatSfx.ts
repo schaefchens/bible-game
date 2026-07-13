@@ -17,6 +17,8 @@ export const ALL_COMBAT_SFX: string[] = [
   'sfx/death-monster',
   'sfx/death-goliath',
   'sfx/incapacitate',
+  'sfx/battle-won',
+  'sfx/battle-lost',
 ]
 
 const pick = <T>(pool: readonly T[]): T => pool[Math.floor(Math.random() * pool.length)]!

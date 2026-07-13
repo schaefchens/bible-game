@@ -139,7 +139,12 @@ export function useCombatFeedback(): CombatFeedback {
     // `enemyTurnEnded`. (The batch path used by reduced motion emits neither → no banner, instant.)
     if (lastEvents.some((e) => e.type === 'enemyTurnBegan')) commit({ cue: 'enemy' })
     const endedTurn = lastEvents.some((e) => e.type === 'enemyTurnEnded')
-    const combatEnded = lastEvents.some((e) => e.type === 'combatEnded')
+    const ended = lastEvents.find((e): e is Extract<GameEvent, { type: 'combatEnded' }> => e.type === 'combatEnded')
+    const combatEnded = !!ended
+    // battle result sting: a WIN is victory OR peaceful (subdued — no humans killed); lose on defeat.
+    // 'fled' plays neither. (SFX ignores reduced-motion — it's audio, not animation.)
+    if (ended?.outcome === 'victory' || ended?.outcome === 'peaceful') sfxManager.play('sfx/battle-won', { gain: 0.5 })
+    else if (ended?.outcome === 'defeat') sfxManager.play('sfx/battle-lost')
 
     // A single enemy's step (one `enemyActed`, UI-paced): wind up (lunge) now, land the hit shortly
     // after so the strike reads as cause → effect. Everything else (the player's own card/grace/item,

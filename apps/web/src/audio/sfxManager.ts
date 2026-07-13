@@ -139,6 +139,46 @@ class SfxManager {
     })
   }
 
+  /** Start a LOOPING sound and return a stop() handle — for sustained cues (e.g. the XP-charge hum that
+   *  runs while the reward bar fills). No-op stop when disabled. Decodes on demand if not preloaded. */
+  loop(key: string, opts?: { gain?: number }): () => void {
+    if (!this.enabled) return () => {}
+    const gain = opts?.gain ?? 1
+    const ctx = this.ensureCtx()
+    if (!ctx) return this.loopFallback(key, gain)
+    let stopped = false
+    let src: AudioBufferSourceNode | null = null
+    const startWith = (buf: AudioBuffer) => {
+      if (stopped || !this.enabled) return
+      void ctx.resume()
+      src = ctx.createBufferSource()
+      src.buffer = buf
+      src.loop = true
+      const g = ctx.createGain()
+      g.gain.value = clamp01(this.master * gain)
+      src.connect(g)
+      g.connect(ctx.destination)
+      src.start(0)
+    }
+    const buf = this.buffers.get(key)
+    if (buf) startWith(buf)
+    else void this.load(key, ctx).then((b) => b && startWith(b))
+    return () => {
+      stopped = true
+      try { src?.stop() } catch { /* already stopped */ }
+    }
+  }
+
+  private loopFallback(key: string, gain: number): () => void {
+    const url = resolveAsset(key)
+    if (!url) return () => {}
+    const el = new Audio(url)
+    el.loop = true
+    el.volume = clamp01(this.master * gain)
+    void el.play().catch(() => { /* autoplay blocked until a gesture */ })
+    return () => { try { el.pause() } catch { /* noop */ } }
+  }
+
   private fire(ctx: AudioContext, buf: AudioBuffer, gain: number, offsetFromEnd?: number): void {
     try {
       const src = ctx.createBufferSource()
