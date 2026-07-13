@@ -1268,6 +1268,13 @@ body.holding-item, body.holding-item * { cursor: none; }
   box-shadow: inset 0 0 0 1px rgba(120,210,225,0.25), 0 0 14px rgba(60,150,170,0.28);
 }
 .coop-reconnect:hover { border-color: #6fc5d6; box-shadow: inset 0 0 0 1px rgba(120,210,225,0.45), 0 0 18px rgba(80,180,200,0.4); }
+/* "Start New Game" — its own green CTA colour, distinct from gold (continue/fire) and teal (reconnect). */
+.start-new {
+  color: #d9f2d0; border-color: #4f9a4a; font-weight: 600;
+  background: linear-gradient(180deg, rgba(70,140,62,0.75), rgba(38,86,34,0.75));
+  box-shadow: inset 0 0 0 1px rgba(140,210,120,0.3), 0 0 14px rgba(80,165,70,0.32);
+}
+.start-new:hover { border-color: #74c46a; box-shadow: inset 0 0 0 1px rgba(140,210,120,0.5), 0 0 18px rgba(100,190,85,0.44); }
 .mp-leave-warn { color: #ffb3aa; }
 
 /* ---- lobby: inline party chat (below the roster; same conversation as the in-game T-key chat) ---- */

@@ -28,6 +28,10 @@ const CARD_ART: Record<string, string> = {
   sharpen: '⚒️',
   cast_off: '🪶',
   prepare: '🛤️',
+  // flesh — class signature cards (Zealot / Shepherd / Merchant)
+  wrath: '💢', // Wrath — a zealous, furious blow
+  shepherds_staff: '🦯', // Shepherd's Staff — guard + tend
+  barter: '🤝', // Barter — a trade that turns the deck over
   // flesh — debuffs (ids keep old names; display is plain — see i18n)
   venom: '🐍', // Venom
   miasma: '🌫️', // Miasma

@@ -11,6 +11,7 @@ export function StartScreen() {
   const continueLast = useGame((s) => s.continueLast)
   const setLocale = useGame((s) => s.setLocale)
   const canContinue = useGame((s) => s.resumableIds.length > 0)
+  const hasHeroes = useGame((s) => s.state.profile.slots.length > 0)
   const canReconnect = loadSavedSession() !== null
 
   return (
@@ -20,19 +21,31 @@ export function StartScreen() {
       <p className="subtitle">{t('ui.appSubtitle')}</p>
 
       <div className="start-actions">
+        {/* Order: continue co-op, then continue offline, then start-new (only when neither is available),
+            then the fire, then the rest. */}
+        {canReconnect && (
+          <button className="btn block coop-reconnect" onClick={() => reconnectCoop()}>
+            ↻ {t('ui.coop.reconnect')}
+          </button>
+        )}
         {canContinue && (
           <button className="btn primary block" onClick={() => continueLast()}>
             {t('ui.start.continue')}
           </button>
         )}
-        {/* "Around the Fire" = start a fresh journey (hero selection). It's the primary action whenever
-            there's nothing to continue — no single-player run AND no co-op game to reconnect to. */}
-        <button className={'btn block' + (canContinue || canReconnect ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
-          {t('ui.start.enter')}
-        </button>
-        {canReconnect && (
-          <button className="btn block coop-reconnect" onClick={() => reconnectCoop()}>
-            ↻ {t('ui.coop.reconnect')}
+        {/* Beginner shortcut: when there's nothing to continue (no single-player run and no co-op game to
+            reconnect to), a clearly-labeled "Start New Game" with its own colour — new players don't know
+            what "Around the Fire" means. Does the same as the fire entry: go to hero selection. */}
+        {!canContinue && !canReconnect && (
+          <button className="btn block start-new" onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
+            {t('ui.start.newGame')}
+          </button>
+        )}
+        {/* The fire = manage/pick your existing pilgrims. Hidden when you have none — nothing to gather
+            around yet; the "Start New Game" button takes a newcomer there to create their first hero. */}
+        {hasHeroes && (
+          <button className={'btn block' + (canContinue ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
+            {t('ui.start.enter')}
           </button>
         )}
         <button className="btn block" onClick={() => openCoop()}>
