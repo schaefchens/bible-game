@@ -129,11 +129,11 @@ export const ELAH_MAP: WorldMap = {
 
 const soldier = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineSoldier', nameKey: 'enemy.philistineSoldier', isHuman: true,
-  scaling: { baseHp: 60, baseAtk: 4 }, ...over,
+  scaling: { baseHp: 60, baseAtk: 6 }, ...over,
 })
 const archer = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'philistineArcher', nameKey: 'enemy.philistineArcher', isHuman: true, row: 'back',
-  scaling: { baseHp: 44, baseAtk: 4 }, ...over,
+  scaling: { baseHp: 44, baseAtk: 6 }, ...over,
 })
 const shield = (id: string, over: Partial<EnemyTemplate> = {}): EnemyTemplate => ({
   id, archetype: 'shieldBearer', nameKey: 'enemy.shieldBearer', isHuman: true,
@@ -153,7 +153,7 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistineScouts: {
     id: 'philistineScouts',
     // small 1-2 foe skirmish: attack DOUBLED vs the base helper so the early fights bite (the 3+ and boss fights keep base damage)
-    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 8 } }), archer('arch', { side: 'right', scaling: { baseHp: 44, baseAtk: 8 } })],
+    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 12 } }), archer('arch', { side: 'right', scaling: { baseHp: 44, baseAtk: 12 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(28), rewardXp: 24, ...bg('bg-combat-shepherds-track'),
@@ -161,7 +161,7 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
   philistinePatrol: {
     id: 'philistinePatrol',
     // small 2-foe skirmish: attack DOUBLED
-    enemies: [soldier('sol1', { scaling: { baseHp: 60, baseAtk: 8 } }), soldier('sol2', { side: 'right', scaling: { baseHp: 60, baseAtk: 8 } })],
+    enemies: [soldier('sol1', { scaling: { baseHp: 60, baseAtk: 12 } }), soldier('sol2', { side: 'right', scaling: { baseHp: 60, baseAtk: 12 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(32), rewardXp: 28, ...bg('bg-combat-dry-wash'),
@@ -170,7 +170,7 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     // a soldier behind a shield-bearer — learn to drop the screen / use the back row
     id: 'slingStones',
     // small 2-foe screen puzzle: attack DOUBLED
-    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 8 } }), shield('shield', { side: 'right', scaling: { baseHp: 92, baseAtk: 6 } })],
+    enemies: [soldier('sol', { scaling: { baseHp: 60, baseAtk: 12 } }), shield('shield', { side: 'right', scaling: { baseHp: 92, baseAtk: 6 } })],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: money(36), rewardXp: 30, ...bg('bg-combat-broken-toll-gate'),
@@ -260,7 +260,7 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
       { id: 'goliath', archetype: 'goliath', nameKey: 'enemy.goliath', isHuman: true, aiProfileId: 'goliath', banishImmune: true, row: 'front',
         scaling: { baseHp: 280, baseAtk: 5, baseSpeed: 0 } },
       shield('goliathShield', { side: 'left', scaling: { baseHp: 56, baseAtk: 3 } }),
-      archer('goliathArcher', { side: 'right', scaling: { baseHp: 36, baseAtk: 4 } }),
+      archer('goliathArcher', { side: 'right', scaling: { baseHp: 36, baseAtk: 6 } }),
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: true },
     winCondition: { kind: 'allEnemiesDefeated' },
