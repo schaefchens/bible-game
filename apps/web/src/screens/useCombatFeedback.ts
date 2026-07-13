@@ -143,8 +143,12 @@ export function useCombatFeedback(): CombatFeedback {
     const combatEnded = !!ended
     // battle result sting: a WIN is victory OR peaceful (subdued — no humans killed); lose on defeat.
     // 'fled' plays neither. (SFX ignores reduced-motion — it's audio, not animation.)
-    if (ended?.outcome === 'victory' || ended?.outcome === 'peaceful') sfxManager.play('sfx/battle-won', { gain: 0.5 })
-    else if (ended?.outcome === 'defeat') sfxManager.play('sfx/battle-lost')
+    if (ended?.outcome === 'victory' || ended?.outcome === 'peaceful') {
+      // let the final blow (and its death cry) land first, then the win sting swells in ~½s later.
+      // NOT in timersRef: the same step flips screen→reward and unmounts CombatScreen, whose cleanup
+      // would clear timersRef and cancel this — a fire-and-forget one-shot must outlive the unmount.
+      setTimeout(() => sfxManager.play('sfx/battle-won', { gain: 0.5 }), 500)
+    } else if (ended?.outcome === 'defeat') sfxManager.play('sfx/battle-lost')
 
     // A single enemy's step (one `enemyActed`, UI-paced): wind up (lunge) now, land the hit shortly
     // after so the strike reads as cause → effect. Everything else (the player's own card/grace/item,

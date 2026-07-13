@@ -189,8 +189,8 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
     id: 'dreadWhisper',
     enemies: [{
       id: 'dread', archetype: 'spiritOfDread', nameKey: 'enemy.spiritOfDread', isHuman: false, isDemon: true,
-      aiProfileId: 'dreadSpirit', row: 'back',
-      scaling: { baseHp: 68, baseAtk: 20 }, // lone foe: attack DOUBLED; spirit hits twice as hard
+      aiProfileId: 'dreadSpirit', row: 'front',
+      scaling: { baseHp: 136, baseAtk: 20 }, // lone front-row foe: HP doubled, attack halved back to 20
     }],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
@@ -204,7 +204,7 @@ const ELAH_ENCOUNTERS: Record<string, EncounterDef> = {
         scaling: { baseHp: 68, baseAtk: 8 } }, // small 1-2 foe fight: attack DOUBLED
       { id: 'idol', archetype: 'idolSpirit', nameKey: 'enemy.idolSpirit', isHuman: false, isDemon: true,
         hidden: true, boundToId: 'zealot', row: 'back',
-        scaling: { baseHp: 48, baseAtk: 16 } }, // spirit hits twice as hard
+        scaling: { baseHp: 96, baseAtk: 32 } }, // spirit HP + damage doubled again
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: false },
     winCondition: { kind: 'allDemonsDestroyed' },
