@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CLASS_IDS, HERO_CLASSES, type ClassId } from '@bible/engine'
+import { heroClassSpriteUrl } from '../sprites'
 import { useGame } from '../store/gameStore'
 
-// Icon per class (art can replace these later, like the battle sprites).
+// Emoji fallback per class until (or if) its battle sprite is present.
 const CLASS_ICON: Record<ClassId, string> = { zealot: '⚔️', shepherd: '🐑', merchant: '💰' }
+
+// The class portrait shown in the picker — the class sprite, falling back to its emoji on load error.
+function ClassAvatar({ classId }: { classId: ClassId }) {
+  const url = heroClassSpriteUrl(classId)
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <span className="class-icon">{CLASS_ICON[classId]}</span>
+  return <img className="class-avatar-img" src={url} alt="" draggable={false} onError={() => setFailed(true)} />
+}
 
 export function HeroCreation() {
   const { t } = useTranslation()
@@ -46,7 +55,7 @@ export function HeroCreation() {
                 onClick={() => setClassId(id)}
                 aria-pressed={classId === id}
               >
-                <span className="class-icon">{CLASS_ICON[id]}</span>
+                <ClassAvatar classId={id} />
                 <span className="class-name">{t(`ui.heroClass.${id}.name`)}</span>
                 <span className="class-tagline muted">{t(`ui.heroClass.${id}.tagline`)}</span>
                 <span className="class-stats muted">

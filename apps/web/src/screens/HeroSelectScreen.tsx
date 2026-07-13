@@ -4,10 +4,11 @@ import { resolveAsset } from '@bible/assets'
 import { bgUrl } from '../asset'
 import { useGame } from '../store/gameStore'
 
-// The pilgrim at a seat: the real hero sprite, falling back to the kneeling-figure emoji until the art
-// is present (mirrors the combat CombatSprite onError fallback). All heroes share the 'hero' sprite.
-function SeatSprite() {
-  const url = resolveAsset('sprite/hero')
+// The pilgrim at a seat: the hero's CLASS sprite (Shepherd reuses the default-hero art), falling back
+// to the kneeling-figure emoji until the art is present (mirrors the combat CombatSprite onError).
+const SEAT_CLASS_SPRITE: Record<string, string> = { zealot: 'sprite/zealot', shepherd: 'sprite/hero', merchant: 'sprite/merchant' }
+function SeatSprite({ classId }: { classId?: string }) {
+  const url = resolveAsset((classId && SEAT_CLASS_SPRITE[classId]) || 'sprite/hero')
   const [failed, setFailed] = useState(false)
   if (!url || failed) return <span className="seat-token">🧎</span>
   return <img className="seat-token seat-sprite" src={url} alt="" draggable={false} onError={() => setFailed(true)} />
@@ -74,7 +75,7 @@ export function HeroSelectScreen() {
               style={style}
               onClick={() => { setSelected(slot.id); setConfirmForget(false) }}
             >
-              <SeatSprite />
+              <SeatSprite classId={slot.character.classId} />
               <span className="seat-name">{slot.character.name}</span>
               <span className="seat-lvl">
                 {t('ui.common.level')} {slot.character.level}

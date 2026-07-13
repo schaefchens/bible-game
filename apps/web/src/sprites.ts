@@ -6,9 +6,25 @@
 import { resolveAsset } from '@bible/assets'
 import type { CombatantView } from './selectors'
 
-/** Sprite image URL for a combatant by archetype (sprite/<archetype>), or undefined → spriteEmoji(). */
+// A party hero renders its CLASS sprite (Shepherd reuses the default-hero art). Non-heroes and
+// classless heroes fall through to the archetype sprite. Keep in sync with @bible/assets SPRITE_FILES.
+const CLASS_SPRITE: Record<string, string> = {
+  zealot: 'sprite/zealot',
+  shepherd: 'sprite/hero',
+  merchant: 'sprite/merchant',
+}
+
+/** Sprite image URL for a combatant — the hero's class sprite when set, else sprite/<archetype>.
+ *  undefined → spriteEmoji() (via the <img> onError fallback in CombatSprite). */
 export function spriteUrl(c: CombatantView): string | undefined {
-  return resolveAsset(`sprite/${c.archetype}`)
+  const key = c.classId && CLASS_SPRITE[c.classId] ? CLASS_SPRITE[c.classId] : `sprite/${c.archetype}`
+  return resolveAsset(key)
+}
+
+/** The hero portrait for a class (Shepherd = the default-hero art). undefined → caller shows an emoji.
+ *  Shared by the campfire seats and the Character modal avatar. */
+export function heroClassSpriteUrl(classId?: string): string | undefined {
+  return resolveAsset((classId && CLASS_SPRITE[classId]) || 'sprite/hero')
 }
 
 /** Emoji fallback (unchanged behaviour) until the PNG for an archetype is registered + present. */

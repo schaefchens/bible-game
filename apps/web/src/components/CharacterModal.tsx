@@ -1,11 +1,21 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { allocMult, HERO_HP_CAP, type StatId } from '@bible/engine'
 import { selectHeroStatus } from '../selectors'
+import { heroClassSpriteUrl } from '../sprites'
 import { useGame } from '../store/gameStore'
 import { myMemberId, useSession } from '../store/useSession'
 import { XpBar } from './XpBar'
+
+// The hero portrait beside the stats — the class sprite, falling back to the standing-figure emoji
+// until its art is present (mirrors the campfire SeatSprite onError fallback).
+function CharAvatar({ classId }: { classId?: string }) {
+  const url = heroClassSpriteUrl(classId)
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <span className="char-avatar-emoji">🧍</span>
+  return <img className="char-avatar-img" src={url} alt="" draggable={false} onError={() => setFailed(true)} />
+}
 
 // The player status screen (C key / HUD button). Shows the LOCAL hero's level + XP progress, core stats,
 // and the three allocatable specs (HP / Damage / Defense) — each point is a small +1% bonus. When level-
@@ -41,7 +51,7 @@ export function CharacterModal() {
       >
         <div className="deck-modal-head">
           <h3>
-            🧍 {status.name}{' '}
+            {status.name}{' '}
             <span className="muted">
               · {status.classId ? `${t(`ui.heroClass.${status.classId}.name`)} · ` : ''}
               {t('ui.character.level')} {status.level}
@@ -49,35 +59,43 @@ export function CharacterModal() {
           </h3>
           <button className="hud-icon-btn" onClick={close} aria-label={t('ui.common.close')}>✕</button>
         </div>
-        {status.classId && <p className="muted char-perk">{t(`ui.heroClass.${status.classId}.perk`)}</p>}
 
-        {/* XP progress */}
-        <div className="char-xp">
-          <div className="char-xp-head">
-            <span>{t('ui.character.xp')}</span>
-            <span className="muted">{status.xpToNext === null ? t('ui.character.max') : `${status.xpIntoLevel} / ${status.xpToNext}`}</span>
-          </div>
-          <XpBar pct={status.xpPct} />
-        </div>
+        <div className="char-body">
+          {/* hero avatar on the left */}
+          <div className="char-avatar"><CharAvatar classId={status.classId} /></div>
 
-        {canSpend && (
-          <p className="char-points">
-            <span className="char-levelup">⬆ {t('ui.reward.levelUpShort')}</span> {t('ui.character.points', { n: status.unspentPoints })}
-          </p>
-        )}
+          <div className="char-main">
+            {status.classId && <p className="muted char-perk">{t(`ui.heroClass.${status.classId}.perk`)}</p>}
 
-        {/* the three allocatable specs — each point = +1% */}
-        <div className="char-alloc">
-          {specs.map(({ stat, icon, label, detail, capped }) => (
-            <div className="char-alloc-row" key={stat}>
-              <span className="char-alloc-label">{icon} {label}</span>
-              {detail && <span className="muted char-alloc-detail">{detail}</span>}
-              <span className="char-alloc-bonus">{capped ? t('ui.character.max') : `+${bonusPct(status.allocated[stat])}%`}</span>
-              {canSpend && !capped && (
-                <button className="btn tiny char-plus" onClick={() => allocate(stat)} title={t('ui.character.spend')} aria-label={t('ui.character.spend')}>+</button>
-              )}
+            {/* XP progress */}
+            <div className="char-xp">
+              <div className="char-xp-head">
+                <span>{t('ui.character.xp')}</span>
+                <span className="muted">{status.xpToNext === null ? t('ui.character.max') : `${status.xpIntoLevel} / ${status.xpToNext}`}</span>
+              </div>
+              <XpBar pct={status.xpPct} />
             </div>
-          ))}
+
+            {canSpend && (
+              <p className="char-points">
+                <span className="char-levelup">⬆ {t('ui.reward.levelUpShort')}</span> {t('ui.character.points', { n: status.unspentPoints })}
+              </p>
+            )}
+
+            {/* the three allocatable specs — each point = +1% */}
+            <div className="char-alloc">
+              {specs.map(({ stat, icon, label, detail, capped }) => (
+                <div className="char-alloc-row" key={stat}>
+                  <span className="char-alloc-label">{icon} {label}</span>
+                  {detail && <span className="muted char-alloc-detail">{detail}</span>}
+                  <span className="char-alloc-bonus">{capped ? t('ui.character.max') : `+${bonusPct(status.allocated[stat])}%`}</span>
+                  {canSpend && !capped && (
+                    <button className="btn tiny char-plus" onClick={() => allocate(stat)} title={t('ui.character.spend')} aria-label={t('ui.character.spend')}>+</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
