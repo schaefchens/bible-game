@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { newGame, reduce, type Command, type GameState } from '@bible/engine'
+import { newGame, reduce, type Command, type ContentBundle, type GameState } from '@bible/engine'
 import { resources } from '@bible/i18n'
 import { createContent } from './index'
 
-const content = createContent()
+// These are FLOW tests (routing, gating, mercy, hidden nodes) that play THROUGH Jericho combat, not
+// balance tests. Production bakes a hard Jericho; cap every enemy to trivially-winnable stats here so the
+// scripted level-1 playthrough always resolves, independent of world balance.
+const softenForFlow = (b: ContentBundle): ContentBundle => ({
+  ...b,
+  encounters: Object.fromEntries(
+    Object.entries(b.encounters).map(([k, e]) => [
+      k,
+      { ...e, enemies: e.enemies.map((t) => ({ ...t, scaling: { ...t.scaling, baseHp: Math.min(t.scaling.baseHp, 10), baseAtk: Math.min(t.scaling.baseAtk, 3) } })) },
+    ]),
+  ),
+})
+const content = softenForFlow(createContent())
 const dispatch = (s: GameState, cmd: Command): GameState => reduce(s, cmd).state
 
 function boot(seed = 'jericho-1'): GameState {
@@ -61,6 +73,16 @@ describe('Jericho Road — content & integration', () => {
   it('is referentially valid (createContent did not throw) with 23 nodes', () => {
     expect(Object.keys(content.worlds['world-01']!.map.nodes)).toHaveLength(23)
     expect(content.worlds['world-01']!.map.entrance).toBe('road')
+  })
+
+  it('ships the baked Jericho balance', () => {
+    const enc = createContent().encounters
+    expect(enc.roadRobbers!.enemies[0]!.scaling).toMatchObject({ baseHp: 35, baseAtk: 10 })
+    expect(enc.roadRobbers!.enemies[1]!.scaling).toMatchObject({ baseHp: 25, baseAtk: 10 })
+    expect(enc.roadAmbush!.enemies[0]!.scaling).toMatchObject({ baseHp: 45, baseAtk: 15 })
+    expect(enc.thiefGreed!.enemies[0]!.scaling).toMatchObject({ baseHp: 80, baseAtk: 15 }) // thief
+    expect(enc.thiefGreed!.enemies[1]!.scaling).toMatchObject({ baseHp: 100, baseAtk: 20 }) // greed
+    expect(enc.accuser!.enemies[0]!.scaling).toMatchObject({ baseHp: 200, baseAtk: 25 }) // boss
   })
 
   it('begins on the map; entering the road starts the intro combat', () => {

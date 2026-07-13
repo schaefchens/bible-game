@@ -6,7 +6,18 @@ import { migrateSave } from './migrations'
 import { CURRENT_SCHEMA_VERSION } from './schema'
 import { SaveStore } from './store'
 
-const content = createContent()
+// flow/persistence test plays through Jericho combat → cap enemies to trivially-winnable stats so the
+// scripted level-1 playthrough always resolves, independent of the (much harder) production balance.
+const rawContent = createContent()
+const content: ReturnType<typeof createContent> = {
+  ...rawContent,
+  encounters: Object.fromEntries(
+    Object.entries(rawContent.encounters).map(([k, e]) => [
+      k,
+      { ...e, enemies: e.enemies.map((t) => ({ ...t, scaling: { ...t.scaling, baseHp: Math.min(t.scaling.baseHp, 10), baseAtk: Math.min(t.scaling.baseAtk, 3) } })) },
+    ]),
+  ),
+}
 let keySeq = 0
 const freshStore = () => new SaveStore(`test-save-${keySeq++}`)
 const apply = (s: GameState, cmd: Command) => reduce(s, cmd).state

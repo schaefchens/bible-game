@@ -127,12 +127,15 @@ export const WORLD_01_MAP: WorldMap = {
 // Demons (the Spirit of Greed, the Accuser) are the real foe: bigger HP pools + dread. Flesh can
 // fell them (it is never capped), but their dread punishes a long, flesh-only grind.
 
+// Final base-difficulty values for the Jericho Road (level-1 hero vs level-1 enemies). The former
+// x5 HP / x5 dmg toughening pass is BAKED into each enemy below — tune HP/attack by editing the numbers
+// directly. The leveling curve + enemy brackets are applied on top of these bases by the engine.
 export const ENCOUNTERS: Record<string, EncounterDef> = {
   roadRobbers: {
     id: 'roadRobbers',
     enemies: [
-      { id: 'robber1', archetype: 'robber', nameKey: 'enemy.robber', isHuman: true, scaling: { baseHp: 7, baseAtk: 2 } },
-      { id: 'robber2', archetype: 'robber', nameKey: 'enemy.robber', isHuman: true, side: 'right', row: 'back', scaling: { baseHp: 5, baseAtk: 2 } },
+      { id: 'robber1', archetype: 'robber', nameKey: 'enemy.robber', isHuman: true, scaling: { baseHp: 35, baseAtk: 10 } },
+      { id: 'robber2', archetype: 'robber', nameKey: 'enemy.robber', isHuman: true, side: 'right', row: 'back', scaling: { baseHp: 25, baseAtk: 10 } },
     ],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
@@ -143,7 +146,7 @@ export const ENCOUNTERS: Record<string, EncounterDef> = {
   },
   roadAmbush: {
     id: 'roadAmbush',
-    enemies: [{ id: 'ambusher', archetype: 'robber', nameKey: 'enemy.ambusher', isHuman: true, scaling: { baseHp: 9, baseAtk: 3 } }],
+    enemies: [{ id: 'ambusher', archetype: 'robber', nameKey: 'enemy.ambusher', isHuman: true, scaling: { baseHp: 45, baseAtk: 15 } }],
     flags: { mandatory: false, allowFlee: true, isBoss: false },
     winCondition: { kind: 'allEnemiesDefeated' },
     rewardOptions: [{ id: 'money', kind: 'money', amount: 22 }],
@@ -154,8 +157,8 @@ export const ENCOUNTERS: Record<string, EncounterDef> = {
   thiefGreed: {
     id: 'thiefGreed',
     enemies: [
-      { id: 'thief', archetype: 'thief', nameKey: 'enemy.thief', isHuman: true, revealsId: 'greed', scaling: { baseHp: 8, baseAtk: 2 } },
-      { id: 'greed', archetype: 'demon', nameKey: 'enemy.greed', isHuman: false, isDemon: true, hidden: true, boundToId: 'thief', aiProfileId: 'greed', scaling: { baseHp: 5, baseAtk: 4 } },
+      { id: 'thief', archetype: 'thief', nameKey: 'enemy.thief', isHuman: true, revealsId: 'greed', scaling: { baseHp: 80, baseAtk: 15 } },
+      { id: 'greed', archetype: 'demon', nameKey: 'enemy.greed', isHuman: false, isDemon: true, hidden: true, boundToId: 'thief', aiProfileId: 'greed', scaling: { baseHp: 100, baseAtk: 20 } },
     ],
     // The Spirit of Greed binds you to the spot — once joined, there is no fleeing the rocky pass.
     // (You may still avoid the pass entirely by routing around it on the map.)
@@ -169,7 +172,7 @@ export const ENCOUNTERS: Record<string, EncounterDef> = {
   accuser: {
     id: 'accuser',
     enemies: [
-      { id: 'accuser', archetype: 'demon', nameKey: 'enemy.accuser', isHuman: false, isDemon: true, aiProfileId: 'accuser', scaling: { baseHp: 20, baseAtk: 5 } },
+      { id: 'accuser', archetype: 'demon', nameKey: 'enemy.accuser', isHuman: false, isDemon: true, aiProfileId: 'accuser', scaling: { baseHp: 200, baseAtk: 25 } },
     ],
     flags: { mandatory: false, allowFlee: false, isBoss: true },
     winCondition: { kind: 'allDemonsDestroyed' },
