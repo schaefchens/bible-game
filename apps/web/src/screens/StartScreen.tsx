@@ -25,7 +25,9 @@ export function StartScreen() {
             {t('ui.start.continue')}
           </button>
         )}
-        <button className={'btn block' + (canContinue ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
+        {/* "Around the Fire" = start a fresh journey (hero selection). It's the primary action whenever
+            there's nothing to continue — no single-player run AND no co-op game to reconnect to. */}
+        <button className={'btn block' + (canContinue || canReconnect ? '' : ' primary')} onClick={() => dispatch({ type: 'navigate', screen: 'heroSelect' })}>
           {t('ui.start.enter')}
         </button>
         {canReconnect && (

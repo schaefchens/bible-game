@@ -75,8 +75,15 @@ function onMessage(msg: ServerMsg): void {
     case 'state': {
       useGame.getState().setMpMode(true)
       session.setPhase('inRun')
+      const hadRun = useGame.getState().state.run !== null
       useGame.getState().applyServerState(msg.state, msg.events, msg.seq)
       persistMyHero()
+      // Once the shared adventure is OVER, there is nothing to reconnect to — drop the saved session so
+      // the Start screen stops offering "Continue co-op". Terminal = the party was defeated (gameOver) or
+      // the run ended (finished the adventure / abandoned → run goes non-null → null). A lobby session
+      // (run never started) is left intact so pre-run reconnects still work.
+      const after = useGame.getState().state
+      if (after.screen === 'gameOver' || (hadRun && after.run === null)) clearSavedSession()
       // co-op: announce each level-up in the party chat + ding. My own level-up already dinged on my
       // reward screen, so here only a TEAMMATE's level-up plays the sound (alongside the chat line).
       const party = useGame.getState().state.run?.party
