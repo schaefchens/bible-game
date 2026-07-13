@@ -4,6 +4,7 @@ import { assetBg } from '@bible/assets'
 import { useGame } from '../store/gameStore'
 import { myMemberId, useSession } from '../store/useSession'
 import { selectReward, xpProgress } from '../selectors'
+import { sfxManager } from '../audio/sfxManager'
 import { CardFace } from '../components/CardFace'
 import { XpBar } from '../components/XpBar'
 
@@ -14,6 +15,7 @@ function RewardXpBar({ startTotal, gained }: { startTotal: number; gained: numbe
   const reduced = useGame((s) => s.state.profile.settings.reducedMotion)
   const [shown, setShown] = useState(startTotal)
   const raf = useRef(0)
+  const dinged = useRef(false)
   // at max level XP is meaningless — no gain to count, the bar just sits full (MAX).
   const atMax = xpProgress(startTotal).atMax
   const effGained = atMax ? 0 : gained
@@ -49,6 +51,13 @@ function RewardXpBar({ startTotal, gained }: { startTotal: number; gained: numbe
   const remaining = Math.max(0, Math.round(startTotal + effGained - shown))
   // once the ANIMATED bar has climbed past the starting level, a small note appears — in sync with the fill
   const leveledNow = prog.level > xpProgress(startTotal).level
+  // ding the moment the bar ticks over (once); gated/scaled by the audio settings inside sfxManager
+  useEffect(() => {
+    if (leveledNow && !dinged.current) {
+      dinged.current = true
+      sfxManager.play('sfx/levelup')
+    }
+  }, [leveledNow])
   return (
     <div className="reward-xp">
       <div className="reward-xp-head">
@@ -77,6 +86,8 @@ export function RewardScreen() {
   const dispatch = useGame((s) => s.dispatch)
   const setPendingCharacterOpen = useGame((s) => s.setPendingCharacterOpen)
   const [stage, setStage] = useState<'spoils' | 'cards'>('spoils')
+  // decode the level-up ding up front so it fires exactly when the bar ticks over (no first-use delay)
+  useEffect(() => void sfxManager.preload(['sfx/levelup']), [])
 
   // XP payout for the animated bar: the seat's pre-fight total + the amount gained this fight (XP is only
   // committed on leaveReward, so the Character still holds the pre-grant total here).

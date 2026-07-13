@@ -6,8 +6,9 @@
 import { GAME_STATE_VERSION, type Character } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { i18n } from '../i18n'
+import { sfxManager } from '../audio/sfxManager'
 import { setMpTransport, useGame } from '../store/gameStore'
-import { clearSavedSession, loadSavedSession, useSession } from '../store/useSession'
+import { clearSavedSession, loadSavedSession, myMemberId, useSession } from '../store/useSession'
 import type { ClientMsg, PeerActivity, PickPresence, ServerMsg, Visibility } from './protocol'
 import { heartbeat, probeWs, resolveReadyWsUrl, wake } from './serverResolve'
 import { Socket } from './socket'
@@ -76,12 +77,15 @@ function onMessage(msg: ServerMsg): void {
       session.setPhase('inRun')
       useGame.getState().applyServerState(msg.state, msg.events, msg.seq)
       persistMyHero()
-      // co-op: announce each level-up in the party chat (a ding SFX will hook in here later)
+      // co-op: announce each level-up in the party chat + ding. My own level-up already dinged on my
+      // reward screen, so here only a TEAMMATE's level-up plays the sound (alongside the chat line).
       const party = useGame.getState().state.run?.party
+      const myId = myMemberId(useSession.getState())
       for (const e of msg.events) {
         if (e.type === 'leveledUp') {
           const name = party?.find((m) => m.memberId === e.memberId)?.displayName ?? '?'
           session.pushChat({ playerId: '', name: '', text: i18n.t('ui.coop.leveledUp', { name, n: e.level }), system: true })
+          if (e.memberId !== myId) sfxManager.play('sfx/levelup')
         }
       }
       break

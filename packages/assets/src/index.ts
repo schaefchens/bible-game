@@ -107,6 +107,7 @@ const REGISTRY: Record<string, string> = {
   'sfx/death-monster': 'sfx-death-monster.mp3',
   'sfx/death-goliath': 'sfx-death-goliath.mp3',
   'sfx/incapacitate': 'sfx-incapacitate.mp3',
+  'sfx/levelup': 'sfx-levelup.mp3', // played when a hero reaches a new level (reward screen + co-op chat)
   // Studio-logo intro stings (StartupSequence). One-shots; gated/scaled like other SFX.
   'sfx/logo-whoosh': 'sfx-logo-whoosh.mp3',
   'sfx/logo-whoosh-soft': 'sfx-logo-whoosh-soft.mp3',
