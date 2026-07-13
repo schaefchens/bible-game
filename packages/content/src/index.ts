@@ -6,6 +6,7 @@
 
 import type { ContentBundle } from '@bible/engine'
 import { CARDS, CARD_POOL_START, CARD_UNLOCKS_BY_LEVEL, DECK_LIMIT, HERO_START_DECK } from './cards'
+import { HERO_CLASS_KITS } from './classes'
 import { VERSES } from './verses'
 import { AMBUSH_TABLE, ENCOUNTERS, ITEMS, WORLD_01_MAP } from './jericho/map'
 import { SCENES } from './jericho/scenes'
@@ -26,6 +27,7 @@ export function createContent(): ContentBundle {
   const bundle: ContentBundle = {
     heroStartDeck: HERO_START_DECK,
     heroGraceAbilities: HERO_GRACE_ABILITIES,
+    heroClassKits: HERO_CLASS_KITS,
     cards: CARDS,
     cardPoolStart: CARD_POOL_START,
     cardUnlocksByLevel: CARD_UNLOCKS_BY_LEVEL,
@@ -54,6 +56,9 @@ export function validateContent(b: ContentBundle): void {
   }
 
   for (const id of b.heroStartDeck) if (!b.cards[id]) err(`start deck references missing card "${id}"`)
+  for (const [cls, kit] of Object.entries(b.heroClassKits ?? {})) {
+    for (const id of kit.startDeck) if (!b.cards[id]) err(`class "${cls}" start deck references missing card "${id}"`)
+  }
 
   // card pool integrity: '+' targets and pool/unlock entries must resolve to real cards
   for (const c of Object.values(b.cards)) {

@@ -13,6 +13,7 @@ import {
   type Character,
   type PartyMember,
 } from '../state/character'
+import type { ClassId } from '../state/heroClasses'
 import { STAT_IDS, type StatId } from '../state/stats'
 import {
   defaultSettings,
@@ -59,7 +60,7 @@ export function reduce(state: GameState, cmd: Command): ReduceResult {
   switch (cmd.type) {
     // ---- meta / shell ----
     case 'createHero':
-      return createHero(state, cmd.id, cmd.name)
+      return createHero(state, cmd.id, cmd.name, cmd.classId)
     case 'deleteHero':
       return deleteHero(state, cmd.id)
     case 'selectHero':
@@ -228,12 +229,12 @@ function abandonRun(state: GameState): ReduceResult {
   ])
 }
 
-function createHero(state: GameState, id: string, name: string): ReduceResult {
+function createHero(state: GameState, id: string, name: string, classId?: ClassId): ReduceResult {
   const trimmed = name.trim()
   if (!trimmed) return reject(state, 'empty-name')
   if (state.profile.slots.some((s) => s.id === id)) return reject(state, 'duplicate-hero-id')
 
-  const base = createCharacter(id, trimmed, state.profile.nextCreateSeq)
+  const base = createCharacter(id, trimmed, state.profile.nextCreateSeq, classId)
   // Testing gimmick: a hero named "Enoch" is born at max level — Enoch "walked with God" (Gen 5:24).
   // Handy for exercising the level scaling (HP/damage) without grinding a run. His full card library is
   // unlocked at run time (see startRun + cards/pool effectivePool). Skill points are DERIVED from level,
@@ -280,8 +281,12 @@ function buildRunHero(character: Character, content: ContentBundle): { member: P
           .filter((c) => c.type === 'verse')
           .map((c) => c.id)
       : []
-  const startDeck = [...content.heroStartDeck, ...verseCards]
-  return { member: partyMemberFromCharacter(character, startDeck, content.heroGraceAbilities), startDeck }
+  // Per-class starter deck + grace (own cards + signature card per class); fall back to the shared
+  // default kit for a classless (test) hero or a class with no authored kit.
+  const kit = character.classId ? content.heroClassKits?.[character.classId] : undefined
+  const startDeck = [...(kit?.startDeck ?? content.heroStartDeck), ...verseCards]
+  const grace = kit?.graceAbilityIds ?? content.heroGraceAbilities
+  return { member: partyMemberFromCharacter(character, startDeck, grace), startDeck }
 }
 
 function startRun(

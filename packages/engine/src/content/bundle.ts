@@ -11,7 +11,15 @@ import type { EnemyScalingDef } from '../leveling/scaling'
 import type { Dialogue, MoralEvent, Scene, Story } from '../scene/types'
 import type { ItemDef } from '../inventory/types'
 import type { VerseChallenge } from '../verse/types'
+import type { ClassId } from '../state/heroClasses'
 import type { AssetRef, CardDefId, DialogueId, EncounterId, EventId, GraceAbilityId, I18nKey, ItemId, SceneId, StoryId } from '../types'
+
+/** A hero class's run-start kit (its own starter deck + grace abilities). Base stats + perks live in
+ *  the engine class table (heroClasses.ts); this is the content half (references authored card ids). */
+export interface HeroClassKit {
+  startDeck: CardDefId[]
+  graceAbilityIds: GraceAbilityId[]
+}
 
 /** A content-side enemy template; the encounter builder scales it to the hero's level/depth. */
 export interface EnemyTemplate {
@@ -66,8 +74,11 @@ export interface WorldContent {
 }
 
 export interface ContentBundle {
+  /** default starter deck / grace — used for classless (test) heroes and as the per-class fallback. */
   heroStartDeck: CardDefId[]
   heroGraceAbilities: GraceAbilityId[]
+  /** per-class run-start kits (deck + grace). A class missing here falls back to the defaults above. */
+  heroClassKits?: Record<ClassId, HeroClassKit>
   cards: Record<CardDefId, CardDef>
   /** cards available in the pool from level 1 (reward/shop draw from here). Defaults to []. */
   cardPoolStart?: CardDefId[]

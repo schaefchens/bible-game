@@ -3,7 +3,8 @@ import type { GameEvent, ReduceResult } from '../events/event'
 import { grantXp, POINTS_PER_LEVEL } from '../leveling/scaling'
 import { applySpiritEvent } from '../spirit/spirit'
 import { nextLevelUpPrompt, type GameState } from '../state/gameState'
-import type { Character, PartyMember } from '../state/character'
+import { memberMaxHp, type Character, type PartyMember } from '../state/character'
+import { classPerks } from '../state/heroClasses'
 import { canAddCopy, effectivePool, sampleCards, unlocksUpToLevel } from '../cards/pool'
 import { fork } from '../rng/rng'
 import type { CardDefId, MemberId } from '../types'
@@ -21,6 +22,31 @@ function writebackHp(party: PartyMember[], combat: CombatState): PartyMember[] {
     const c = combat.combatants[m.memberId]
     return c ? { ...m, currentHp: c.alive ? c.hp : 0 } : m
   })
+}
+
+/** Class perk (Green Pastures): after a WON battle, each SURVIVING member heals a fraction of its max HP.
+ *  Run once when leaving the reward (after writeback); dead members stay down. */
+function applyPostBattleHeal(party: PartyMember[]): PartyMember[] {
+  return party.map((m) => {
+    const pct = classPerks(m.classId).postBattleHealPct
+    if (!pct || m.currentHp <= 0) return m
+    const max = memberMaxHp(m)
+    return { ...m, currentHp: Math.min(max, m.currentHp + Math.round(max * pct)) }
+  })
+}
+
+/** Class perk (Shrewd Trade): the best rewardGoldPct among members who SURVIVED this fight multiplies
+ *  the shared purse. 1 = no bonus. (Co-op: a single Merchant boosts the whole party's gold.) */
+function partyGoldMult(state: GameState): number {
+  const run = state.run
+  const combat = state.combat
+  if (!run) return 1
+  let bonus = 0
+  for (const m of run.party) {
+    if (combat && combat.combatants[m.memberId]?.alive === false) continue
+    bonus = Math.max(bonus, classPerks(m.classId).rewardGoldPct ?? 0)
+  }
+  return 1 + bonus
 }
 
 const reject = (state: GameState, reason: string): ReduceResult => ({
@@ -167,7 +193,14 @@ function applyStep(state: GameState, result: CombatStep): ReduceResult {
           cardOptionsByMember[m.memberId] = picks
         }
         const cardOptions = cardOptionsByMember[run.heroMemberId] ?? []
-        nextCombat = { ...combat, reward: { ...combat.reward, cardOptionsByMember, cardOptions } }
+        // Class perk (Shrewd Trade): bake the Merchant's gold bonus into the money spoils NOW so the
+        // reward screen already shows the boosted amount (claimSpoil then grants exactly what's shown).
+        const goldMult = partyGoldMult(state)
+        const spoils =
+          goldMult === 1
+            ? combat.reward.spoils
+            : combat.reward.spoils.map((s) => (s.kind === 'money' ? { ...s, amount: Math.round((s.amount ?? 0) * goldMult) } : s))
+        nextCombat = { ...combat, reward: { ...combat.reward, cardOptionsByMember, cardOptions, spoils } }
       }
       break
     }
@@ -300,7 +333,8 @@ function leaveReward(state: GameState): ReduceResult {
   }
 
   // leave combat back to the map. Fixed-encounter nodes get cleared; backward random fights do not.
-  party = writebackHp(party, combat)
+  // Green Pastures (Shepherd) heals survivors AFTER the HP writeback — this is the "won a battle" moment.
+  party = applyPostBattleHeal(writebackHp(party, combat))
   const mv = run.world.movement
   let world = run.world
   if (mv.kind === 'inCombat') {

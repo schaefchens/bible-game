@@ -36,6 +36,9 @@ const CharacterSchema = z.object({
   // .default([]) so saves written before the card pool existed still validate.
   pool: z.array(z.string()).default([]),
   createdSeq: z.number(),
+  // Hero class. .default('shepherd') so pre-class saves validate AND those legacy pilgrims become the
+  // durable Shepherd (the intended fallback). New heroes always persist their chosen class.
+  classId: z.enum(['zealot', 'shepherd', 'merchant']).default('shepherd'),
 })
 
 const SlotSchema = z.object({ id: z.string(), character: CharacterSchema })

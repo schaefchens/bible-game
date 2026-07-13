@@ -21,6 +21,12 @@ export const CARDS: Record<string, CardDef> = {
   // maxCopies:1 — 0-cost +1 energy is classic infinite-combo fuel once draw/energy powers exist.
   focus: { id: 'focus', upgradeTo: 'focus_plus', type: 'skill', layer: 'flesh', cost: 0, target: 'none', nameKey: 'card.focus.name', textKey: 'card.focus.text', rarity: 'uncommon', maxCopies: 1, effects: [{ kind: 'gainEnergy', amount: 1 }] },
 
+  // --- class signature cards (seeded ONLY into their class's starter deck; rarity:'starter' keeps them
+  //     out of the reward/shop pool). One per class — the flavour anchor of each playstyle. ---
+  wrath: { id: 'wrath', type: 'attack', layer: 'flesh', cost: 2, target: 'enemy', nameKey: 'card.wrath.name', textKey: 'card.wrath.text', rarity: 'starter', effects: [{ kind: 'damage', amount: 14 }] }, // Zealot: a heavy, zealous blow
+  shepherds_staff: { id: 'shepherds_staff', type: 'skill', layer: 'flesh', cost: 1, target: 'self', nameKey: 'card.shepherds_staff.name', textKey: 'card.shepherds_staff.text', rarity: 'starter', effects: [{ kind: 'block', amount: 6 }, { kind: 'heal', amount: 3, target: 'self' }] }, // Shepherd: guard + tend
+  barter: { id: 'barter', type: 'skill', layer: 'flesh', cost: 1, target: 'none', nameKey: 'card.barter.name', textKey: 'card.barter.text', rarity: 'starter', effects: [{ kind: 'draw', count: 2 }] }, // Merchant: turn the deck over
+
   // --- card-manipulation skills (resolved via a "pick cards from a pile" modal in the UI) ---
   // "Iron sharpeneth iron" (Prov 27:17) — temper a chosen card into its '+' form for this battle.
   sharpen: { id: 'sharpen', upgradeTo: 'sharpen_plus', type: 'skill', layer: 'flesh', cost: 1, target: 'none', nameKey: 'card.sharpen.name', textKey: 'card.sharpen.text', descKey: 'card.sharpen.desc', rarity: 'uncommon', effects: [{ kind: 'hone', count: 1 }] },

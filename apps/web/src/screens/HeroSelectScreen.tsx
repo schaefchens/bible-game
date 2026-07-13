@@ -78,6 +78,7 @@ export function HeroSelectScreen() {
               <span className="seat-name">{slot.character.name}</span>
               <span className="seat-lvl">
                 {t('ui.common.level')} {slot.character.level}
+                {slot.character.classId ? ` · ${t(`ui.heroClass.${slot.character.classId}.name`)}` : ''}
                 {onRoad ? ` · ${t('ui.heroSelect.onRoad')}` : ''}
               </span>
             </button>

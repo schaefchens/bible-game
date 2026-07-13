@@ -1,6 +1,6 @@
 import { create, type StoreApi } from 'zustand'
 import { createContent } from '@bible/content'
-import { newGame, reduce, type Command, type GameEvent, type GameState, type Locale } from '@bible/engine'
+import { newGame, reduce, type ClassId, type Command, type GameEvent, type GameState, type Locale } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { i18n } from '../i18n'
 import type { LeanState } from '../net/protocol'
@@ -148,7 +148,7 @@ interface GameStore {
   /** drop the item / cancel the whole flow */
   clearItemInteraction: () => void
   dispatch: (cmd: Command) => void
-  createHero: (name: string) => void
+  createHero: (name: string, classId: ClassId) => void
   startRun: (characterId: string, worldId?: string) => void
   hydrate: () => Promise<void>
   resume: (characterId: string) => Promise<void>
@@ -260,7 +260,7 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ state: { ...newGame(), profile } })
   },
 
-  createHero: (name) => get().dispatch({ type: 'createHero', id: randomId(), name }),
+  createHero: (name, classId) => get().dispatch({ type: 'createHero', id: randomId(), name, classId }),
 
   startRun: (characterId, worldId = 'world-01') => {
     if (get().mpMode) return // co-op runs start via the server (net.startRun), never this SP path

@@ -2,6 +2,7 @@ import type { Row, Side } from '../combat/types'
 import type { ContentBundle } from '../content/bundle'
 import type { Verb } from '../scene/types'
 import type { Character } from '../state/character'
+import type { ClassId } from '../state/heroClasses'
 import type { ScreenId, Settings } from '../state/gameState'
 import type { StatId } from '../state/stats'
 import type {
@@ -28,7 +29,7 @@ import type {
  */
 export type Command =
   // ---- meta / shell ----
-  | { type: 'createHero'; id: CharacterId; name: string }
+  | { type: 'createHero'; id: CharacterId; name: string; classId?: ClassId }
   | { type: 'deleteHero'; id: CharacterId }
   | { type: 'selectHero'; id: CharacterId }
   | { type: 'updateSettings'; settings: Partial<Settings> }

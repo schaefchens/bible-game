@@ -7,6 +7,7 @@ import type { CardDef, CardInstance } from '../cards/types'
 import type { ContentBundle } from '../content/bundle'
 import { allocMult, deriveStats, dmgScale, enemyDamageScale, scaleEnemy } from '../leveling/scaling'
 import { allocPoints } from '../state/stats'
+import { classPerks } from '../state/heroClasses'
 import type { RngState } from '../rng/rng'
 import type { PartyMember } from '../state/character'
 import type { RunState } from '../state/gameState'
@@ -29,6 +30,8 @@ const ARCHETYPE_POWERS: Record<string, PowerInstance[]> = {
 
 function partyCombatant(m: PartyMember): Combatant {
   const stats = deriveStats(m.level, m.allocated, m.baseHp)
+  // class perk (Zeal): the Zealot opens every combat with Strength (flat bonus damage, scaled by level)
+  const zeal = classPerks(m.classId).startCombatStrength ?? 0
   return {
     id: m.memberId,
     faction: 'party',
@@ -45,7 +48,7 @@ function partyCombatant(m: PartyMember): Combatant {
     // per-type power × the dmg-allocation bonus (+1%/point); defend-allocation lifts block gained
     power: m.power * allocMult(allocPoints(m.allocated, 'dmg')),
     blockMult: allocMult(allocPoints(m.allocated, 'defend')),
-    statuses: [],
+    statuses: zeal > 0 ? [{ id: 'strength', stacks: zeal }] : [],
     memberId: m.memberId,
     contributesEnergy: m.contributesEnergy,
     graceAbilityIds: m.graceAbilityIds,

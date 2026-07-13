@@ -32,10 +32,23 @@ export {
   unspentPoints,
   totalSkillPoints,
   spentPoints,
+  characterBaseHp,
+  characterPower,
+  characterStartGold,
   type Character,
   type PartyMember,
   type MemberKind,
 } from './state/character'
+export {
+  HERO_CLASSES,
+  CLASS_IDS,
+  DEFAULT_CLASS_ID,
+  heroClassDef,
+  classPerks,
+  type ClassId,
+  type ClassPerks,
+  type HeroClassDef,
+} from './state/heroClasses'
 export {
   type StatId,
   type StatAllocation,
@@ -201,6 +214,7 @@ export {
   type EncounterDef,
   type EnemyTemplate,
   type AmbushTable,
+  type HeroClassKit,
 } from './content/bundle'
 export { enumerateWorldAssetRefs } from './content/enumerateAssets'
 

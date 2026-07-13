@@ -1387,3 +1387,22 @@ body.holding-item, body.holding-item * { cursor: none; }
 /* co-op: a teammate's mirrored pick modal is read-only (watch, don't touch) */
 .card-row.readonly { pointer-events: none; opacity: 0.96; }
 .pick-waiting { text-align: center; font-style: italic; margin: 0.6rem 0 0.2rem; }
+
+/* ---- hero class picker (hero creation "at the fire") ---- */
+.panel.narrow.hero-create { width: 560px; max-width: 92vw; }
+.class-choose { margin: 0.4rem 0 0.5rem; }
+.class-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 0.9rem; }
+.class-card {
+  display: flex; flex-direction: column; gap: 0.28rem; text-align: left;
+  background: rgba(0,0,0,0.32); border: 1px solid var(--panel-edge); border-radius: 10px;
+  padding: 0.7rem 0.65rem; color: var(--ink); cursor: pointer; transition: border-color 0.12s, background 0.12s, transform 0.08s;
+}
+.class-card:hover { background: rgba(0,0,0,0.42); border-color: var(--gold); }
+.class-card.selected { border-color: var(--gold-bright); background: rgba(216,185,98,0.12); box-shadow: 0 0 0 1px var(--gold-bright) inset; }
+.class-card .class-icon { font-size: 1.7rem; line-height: 1; }
+.class-card .class-name { color: var(--gold-bright); font-weight: 600; }
+.class-card .class-tagline { font-size: 0.82rem; font-style: italic; }
+.class-card .class-stats { font-size: 0.8rem; }
+.class-card .class-perk { font-size: 0.82rem; margin-top: 0.15rem; }
+@media (max-width: 560px) { .class-picker { grid-template-columns: 1fr; } }
+.char-perk { margin: -0.2rem 0 0.5rem; font-style: italic; }

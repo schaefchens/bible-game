@@ -40,9 +40,16 @@ export function CharacterModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="deck-modal-head">
-          <h3>🧍 {status.name} <span className="muted">· {t('ui.character.level')} {status.level}</span></h3>
+          <h3>
+            🧍 {status.name}{' '}
+            <span className="muted">
+              · {status.classId ? `${t(`ui.heroClass.${status.classId}.name`)} · ` : ''}
+              {t('ui.character.level')} {status.level}
+            </span>
+          </h3>
           <button className="hud-icon-btn" onClick={close} aria-label={t('ui.common.close')}>✕</button>
         </div>
+        {status.classId && <p className="muted char-perk">{t(`ui.heroClass.${status.classId}.perk`)}</p>}
 
         {/* XP progress */}
         <div className="char-xp">

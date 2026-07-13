@@ -1,5 +1,6 @@
 import type { CardDefId, CharacterId, GraceAbilityId, I18nKey, MemberId } from '../types'
 import { deriveStats, HP_UNIT, POINTS_PER_LEVEL } from '../leveling/scaling'
+import { type ClassId, DEFAULT_CLASS_ID, heroClassDef } from './heroClasses'
 import { allocPoints, emptyAllocation, STAT_IDS, type StatAllocation } from './stats'
 
 /** Default starting purse when a character defines no per-type `startGold`. */
@@ -33,24 +34,29 @@ export interface Character {
   pool: CardDefId[]
   /** creation order, for stable slot sorting */
   createdSeq: number
-  // ---- per-type base stats (optional; undefined → the default hero). These make future archetypes
-  //      (tank / glass-cannon / merchant) a pure data change — see the characterX accessors below. ----
-  /** base HP in level-1 units (scaled by hpScale); default HP_UNIT (50). */
+  /** the chosen class (Zealot / Shepherd / Merchant) — drives base stats + the passive perk + starter
+   *  deck. Undefined only on engine test fixtures (neutral baseline); persisted legacy saves default to
+   *  Shepherd on load (schema.ts). */
+  classId?: ClassId
+  // Legacy per-type stat overrides (pre-class saves never persisted these — the schema strips them —
+  // so they're effectively unused now that stats derive from classId; kept for a possible future
+  // per-hero override without a class change.)
   baseHp?: number
-  /** flesh-damage multiplier applied to this hero's card damage; default 1. */
   power?: number
-  /** starting purse for this hero (co-op pools every member's); default DEFAULT_START_GOLD. */
   startGold?: number
 }
 
-/** Base HP for a character (level-1 units), defaulting to the standard hero base. */
-export const characterBaseHp = (c: Pick<Character, 'baseHp'>): number => c.baseHp ?? HP_UNIT
-/** Flesh-damage multiplier for a character, defaulting to 1 (no change). */
-export const characterPower = (c: Pick<Character, 'power'>): number => c.power ?? 1
-/** Starting purse for a character, defaulting to DEFAULT_START_GOLD. */
-export const characterStartGold = (c: Pick<Character, 'startGold'>): number => c.startGold ?? DEFAULT_START_GOLD
+/** Base HP for a character (level-1 units): an explicit override, else the class base, else neutral 50. */
+export const characterBaseHp = (c: Pick<Character, 'baseHp' | 'classId'>): number =>
+  c.baseHp ?? (c.classId ? heroClassDef(c.classId).baseHp : HP_UNIT)
+/** Flesh-damage multiplier: an explicit override, else the class power, else neutral 1. */
+export const characterPower = (c: Pick<Character, 'power' | 'classId'>): number =>
+  c.power ?? (c.classId ? heroClassDef(c.classId).power : 1)
+/** Starting purse: an explicit override, else the class purse, else the neutral default. */
+export const characterStartGold = (c: Pick<Character, 'startGold' | 'classId'>): number =>
+  c.startGold ?? (c.classId ? heroClassDef(c.classId).startGold : DEFAULT_START_GOLD)
 
-export function createCharacter(id: CharacterId, name: string, createdSeq: number): Character {
+export function createCharacter(id: CharacterId, name: string, createdSeq: number, classId?: ClassId): Character {
   return {
     id,
     name,
@@ -62,6 +68,7 @@ export function createCharacter(id: CharacterId, name: string, createdSeq: numbe
     verseAttempts: {},
     pool: [],
     createdSeq,
+    classId,
   }
 }
 
@@ -91,6 +98,9 @@ export interface PartyMember {
   isHuman: boolean
   level: number
   allocated: StatAllocation
+  /** the hero's class — carried so combat/reward can read its perks without the Character (undefined for
+   *  companions / neutral test heroes). */
+  classId?: ClassId
   /** per-type base HP (level-1 units) — carried so combat/rest re-derive HP without the Character */
   baseHp: number
   /** per-type flesh-damage multiplier (1 = default) */
@@ -123,6 +133,7 @@ export function partyMemberFromCharacter(
     isHuman: true,
     level: character.level,
     allocated: { ...character.allocated },
+    classId: character.classId,
     baseHp,
     power: characterPower(character),
     currentHp: maxHp,

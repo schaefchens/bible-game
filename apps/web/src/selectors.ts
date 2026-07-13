@@ -812,6 +812,7 @@ export function xpProgress(totalXp: number): XpProgress {
 export interface HeroStatusView {
   memberId: string
   name: string
+  classId?: string
   level: number
   hp: number
   maxHp: number
@@ -846,6 +847,7 @@ export function selectHeroStatus(state: GameState, memberId?: string): HeroStatu
   return {
     memberId: member.memberId,
     name: member.displayName ?? member.nameKey ?? 'Hero',
+    classId: member.classId,
     level: member.level,
     hp: member.currentHp,
     maxHp: stats.maxHp,
