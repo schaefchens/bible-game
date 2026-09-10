@@ -1,0 +1,22 @@
+# /api — the co-op wake controller. Default-deny: of everything in this folder,
+# only the one endpoint the game actually calls over HTTP is reachable.
+#
+# Denied but still readable by PHP itself from disk (Apache authz does not
+# affect filesystem access):
+#   config.php                      the Hetzner Cloud API token and admin key
+#   spirit-game-last-activity.txt   the heartbeat timestamp
+#   spirit-game-server.lock         the flock file guarding server creation
+#
+# The heartbeat file is the one that matters here. In the old deployment it sat
+# in a directory with no .htaccess at all, so anyone could read when co-op was
+# last used — and the lock file's presence leaked the same thing.
+#
+# Deployed by scripts/deploy.sh from deploy/htaccess-api.
+
+Options -Indexes
+
+Require all denied
+
+<Files "fetch-game-server.php">
+  Require all granted
+</Files>

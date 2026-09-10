@@ -14,17 +14,27 @@
 # changed — cross-checked against the real remote file sizes so a file deleted
 # on the server comes back even though the manifest still lists it.
 #
+# The /api half
+# -------------
+# deploy/api/ holds the PHP wake controller for the on-demand co-op server. It
+# needs a Hetzner API token, so it is deployed only when deploy/api/config.php
+# exists (gitignored; copy config.php.example). Without it the site is exactly
+# what it is today — single-player, no backend — and the deploy says so rather
+# than shipping an admin endpoint nobody configured.
+#
 # Usage: scripts/deploy.sh [options]
 #
 #   --skip-build    upload the existing apps/web/dist as-is
 #   --force-all     ignore the manifest; re-upload every file
 #   --prune         delete remote files this build no longer produces
 #   --jobs N        parallel sftp connections (default 4)
+#   --no-api        skip /api even if it is configured
 #   --dry-run       print the plan; upload nothing
 #   --verify-only   run the post-deploy HTTP checks and exit
 #   -h, --help      this text
 #
-# Default: build, upload what changed, then verify.
+# Default: build, upload what changed, then verify. /api rides along whenever
+# deploy/api/config.php exists.
 
 set -euo pipefail
 
@@ -35,6 +45,9 @@ SITE_URL="https://walkinthespirit.games.schaefchens.de"
 DIST="apps/web/dist"
 ENV_FILE="sftp.env"
 MANIFEST_NAME=".deploy-manifest"
+API_DIR="/api"
+API_SRC="deploy/api"
+API_CONFIG="$API_SRC/config.php"
 
 # Uploaded last, after everything they reference is already in place. A client
 # that fetches a new index.html mid-deploy would otherwise 404 on its bundle.
@@ -48,7 +61,7 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 # shellcheck source=scripts/lib/sftp.sh
 . "$REPO_ROOT/scripts/lib/sftp.sh"
 
-DO_BUILD=1 FORCE_ALL=0 DO_PRUNE=0 DRY_RUN=0 VERIFY_ONLY=0 JOBS=4
+DO_BUILD=1 FORCE_ALL=0 DO_PRUNE=0 DRY_RUN=0 VERIFY_ONLY=0 JOBS=4 DO_API=1
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -56,9 +69,10 @@ while [ $# -gt 0 ]; do
     --force-all)   FORCE_ALL=1 ;;
     --prune)       DO_PRUNE=1 ;;
     --jobs)        shift; JOBS="${1:-4}" ;;
+    --no-api)      DO_API=0 ;;
     --dry-run)     DRY_RUN=1 ;;
     --verify-only) VERIFY_ONLY=1 ;;
-    -h|--help)     sed -n '2,29p' "$0" | sed 's/^#\{1,2\} \{0,1\}//'; exit 0 ;;
+    -h|--help)     sed -n '2,37p' "$0" | sed 's/^#\{1,2\} \{0,1\}//'; exit 0 ;;
     *)             die "unknown option: $1 (try --help)" ;;
   esac
   shift
@@ -282,6 +296,32 @@ upload_tail() {
   ok "entry points, .htaccess and manifest written"
 }
 
+# --- the /api half -------------------------------------------------------------
+
+api_configured() { [ "$DO_API" -eq 1 ] && [ -f "$API_CONFIG" ]; }
+
+# One serial connection: it is three small files, and config.php carries the
+# Hetzner token, so it is worth keeping out of the parallel shard logs.
+#
+# Deliberately NOT part of the manifest. The manifest describes the web build;
+# /api is a handful of files that change rarely and are cheap to re-put, and
+# folding a secret's hash into a file the server serves back is a bad trade.
+upload_api() {
+  info "Deploying $API_DIR ← $API_SRC"
+
+  local batch="$WORK/api.batch"
+  : > "$batch"
+  printf -- '-mkdir %s\n' "$API_DIR" >> "$batch"
+  # .htaccess first: until it lands, config.php would be a readable URL.
+  printf 'put %s %s/.htaccess\n' "$REPO_ROOT/deploy/htaccess-api" "$API_DIR" >> "$batch"
+  printf 'put %s %s/config.php\n' "$REPO_ROOT/$API_CONFIG" "$API_DIR" >> "$batch"
+  printf 'put %s %s/fetch-game-server.php\n' \
+    "$REPO_ROOT/$API_SRC/fetch-game-server.php" "$API_DIR" >> "$batch"
+
+  sftp_batch "$batch" || die "$API_DIR upload failed"
+  ok "wake controller deployed"
+}
+
 # --- prune -------------------------------------------------------------------
 
 prune() {
@@ -379,6 +419,18 @@ verify() {
   # into the game.
   check_status /some/deep/path 200 "SPA fallback"
 
+  # /api, when it is deployed at all. The secrets check is the important one:
+  # config.php holds a Hetzner token, and a 200 here means the token is being
+  # served to anyone who asks.
+  if api_configured; then
+    check_status "$API_DIR/config.php"                    403 "wake config denied"
+    check_status "$API_DIR/spirit-game-last-activity.txt" 403 "heartbeat file denied"
+    check_status "$API_DIR/"                              403 "no /api listing"
+    # GET with no key: reachable, and refusing. 403 is the endpoint answering,
+    # not Apache — a 404 would mean it never got deployed.
+    check_status "$API_DIR/fetch-game-server.php"         403 "wake endpoint live, key required"
+  fi
+
   [ "$failed" -eq 0 ] || die "$failed check(s) failed"
   info "All checks passed"
 }
@@ -401,6 +453,11 @@ if [ "$DRY_RUN" -eq 1 ]; then
   info "Dry run — $TOTAL file(s) would be uploaded to $SFTP_SERVER"
   sed 's|^|  |' "$WORK/upload"
   info "plus .htaccess (root + assets) and $MANIFEST_NAME"
+  if api_configured; then
+    info "plus $API_DIR: .htaccess, config.php, fetch-game-server.php"
+  elif [ "$DO_API" -eq 1 ]; then
+    info "$API_DIR would be skipped — no $API_CONFIG"
+  fi
   [ "$DO_PRUNE" -eq 1 ] && prune
   info "Dry run complete; nothing was uploaded"
   exit 0
@@ -418,6 +475,12 @@ grep -v -x -F -f <(printf '%s\n' "${ENTRY_FILES[@]}") "$WORK/upload" > "$WORK/up
 make_dirs
 upload_bulk
 upload_tail
+
+if api_configured; then
+  upload_api
+elif [ "$DO_API" -eq 1 ]; then
+  info "Skipping $API_DIR — no $API_CONFIG (co-op stays offline; see deploy/api/README.md)"
+fi
 
 [ "$DO_PRUNE" -eq 1 ] && prune
 

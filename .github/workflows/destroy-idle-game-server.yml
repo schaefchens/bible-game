@@ -1,0 +1,59 @@
+# Destroys the on-demand co-op server once it has been idle past the timeout.
+#
+# The wake endpoint tracks the last heartbeat; this only asks it to act on that.
+# `destroy-if-idle` is a no-op while players are connected, so running it every
+# ten minutes is safe — the worst case is paying for ten extra minutes of VPS.
+#
+# Carried over from the come-follow-me-website repo along with the endpoint
+# itself (see deploy/api/README.md). Two changes: the host, and the guard.
+# Nothing is deployed at /api yet, so an unguarded cron would fail every ten
+# minutes forever. The job checks for GAME_SERVER_ADMIN_KEY and exits cleanly
+# when it is absent, which means this switches itself on the moment the secret
+# is added — and stays quiet until then.
+
+name: Destroy idle game server
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  destroy-if-idle:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      # Override with a repository variable if the endpoint moves.
+      ENDPOINT: >-
+        ${{ vars.GAME_SERVER_ENDPOINT
+            || 'https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php' }}
+
+    steps:
+      - name: Skip when co-op is not configured
+        id: guard
+        env:
+          KEY: ${{ secrets.GAME_SERVER_ADMIN_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "GAME_SERVER_ADMIN_KEY is not set — co-op has no server to destroy."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Call idle destroy endpoint
+        if: steps.guard.outputs.run == 'true'
+        env:
+          KEY: ${{ secrets.GAME_SERVER_ADMIN_KEY }}
+        run: |
+          echo "Checking idle game server at $(date -u) UTC"
+          # --data-urlencode keeps the key out of the assembled command line and
+          # -G puts it back in the query string, where the endpoint expects it.
+          curl -fsSL -G -w '\nHTTP %{http_code}\n' \
+               -H 'User-Agent: GitHub-Actions' \
+               --data-urlencode 'action=destroy-if-idle' \
+               --data-urlencode "key=$KEY" \
+               "$ENDPOINT"

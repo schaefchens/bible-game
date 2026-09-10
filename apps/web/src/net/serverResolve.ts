@@ -10,11 +10,11 @@
 // DNS lookup before the same error. With nothing configured, wake() returns null without a
 // request and resolveServer() reports `ui.coop.errNoServer` at once.
 //
-// Set VITE_WAKE_ENDPOINT to turn co-op back on. The current host does run PHP (8.5 + curl, and
-// the sibling quiz project already serves a PHP backend from the same box), so a rewritten
-// controller could live at /api/ here; what it cannot host is the Node WS server the controller
-// boots. Native app builds need this too — they have no same-origin /ws to fall back to, and
-// whatever replaces the old origin allowlist has to admit capacitor://localhost.
+// The controller itself now lives in this repo at deploy/api/fetch-game-server.php, and the
+// deploy ships it to /api as soon as deploy/api/config.php exists. Once it does, set
+// VITE_WAKE_ENDPOINT to that URL and co-op is back. Native app builds need it too — they have
+// no same-origin /ws to probe — along with VITE_WS_URL and their origins in allowed_origins.
+// See deploy/api/README.md for what is still missing (a token, a WS host).
 const WAKE_ENDPOINT = (import.meta.env.VITE_WAKE_ENDPOINT as string | undefined) ?? ''
 const PROBE_TIMEOUT_MS = 3000
 const POLL_INTERVAL_MS = 3000

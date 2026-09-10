@@ -8,3 +8,11 @@ coverage/
 .vscode/
 *.tsbuildinfo
 sftp.env
+
+# Wake-controller secrets (Hetzner token, admin key) — never commit;
+# copy deploy/api/config.php.example to deploy/api/config.php
+deploy/api/config.php
+
+# Runtime state the wake controller writes next to itself on the server.
+deploy/api/spirit-game-last-activity.txt
+deploy/api/spirit-game-server.lock

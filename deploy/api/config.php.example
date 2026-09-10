@@ -1,0 +1,73 @@
+<?php
+/**
+ * Wake-controller configuration.
+ *
+ * Copy this file to config.php (same directory) and fill it in. config.php is
+ * gitignored and MUST NEVER be committed — it holds a Hetzner Cloud API token,
+ * which is full control of the cloud project.
+ *
+ * The previous version of this script carried its token as a literal default in
+ * the source, and that file is committed to a public repository. Do not
+ * reintroduce a fallback here: fetch-game-server.php refuses to run rather than
+ * guess, on purpose.
+ *
+ * Every value can also come from the environment (HCLOUD_TOKEN,
+ * GAME_SERVER_ADMIN_KEY); the environment wins over this file.
+ */
+
+return [
+    // --- secrets -------------------------------------------------------------
+
+    // Hetzner Cloud API token, project-scoped. Console → Security → API tokens.
+    'hcloud_token' => 'REPLACE_WITH_A_FRESH_HETZNER_CLOUD_TOKEN',
+
+    // Guards the GET actions (status, destroy-if-idle, destroy-now), which are
+    // reachable by anyone who can guess the URL. Generate with:
+    //   openssl rand -hex 32
+    // The old default was the literal string "s3cr3t". It was never changed.
+    'admin_key' => 'REPLACE_WITH_openssl_rand_hex_32',
+
+    // --- where the game lives ------------------------------------------------
+
+    // Browser origins allowed to call this endpoint. The web build's origin,
+    // plus the two a Capacitor webview sends (Android reports https://localhost,
+    // iOS capacitor://localhost) if the native apps are to reach co-op.
+    'allowed_origins' => [
+        'https://walkinthespirit.games.schaefchens.de',
+        // 'https://localhost',
+        // 'capacitor://localhost',
+    ],
+
+    // Handed back to the client once the server is up. The websocket URL is the
+    // one that matters — wsUrl()/serverResolve.ts connects to exactly this.
+    // Both need a DNS record pointing at the reserved primary IPv4 and a
+    // certificate; neither exists yet under the new domain.
+    'game_url' => 'https://walkinthespirit.games.schaefchens.de/',
+    'websocket_url' => 'wss://REPLACE_WITH_THE_WS_HOST/ws',
+
+    // --- the Hetzner resources this script creates ---------------------------
+    //
+    // Carried over from the old setup (komm-folge-mir-nach.de). VERIFY EACH ONE
+    // still exists in the project before trusting it — the snapshot in
+    // particular is what the server boots from, and an id that no longer
+    // resolves fails at creation time, not at deploy time.
+
+    'server_name' => 'spirit-game-server',
+    'server_type' => 'cpx12',
+    'location'    => 'fsn1',
+    'image'       => 406645289,   // snapshot id
+    'ssh_key'     => 'abraham@der-weg-des-herrn.de',
+    'firewall'    => 'firewall-spirit-game-server',
+
+    // Reserved so the DNS record keeps pointing at the same address across
+    // recreations. If these were released when the old domain went, new ones
+    // have to be reserved and the DNS updated.
+    'primary_ipv4_name' => 'primary_ip-139525751-spirit-game-server',
+    'primary_ipv6_name' => 'primary_ip-139525752-spirit-game-server',
+
+    // --- idle shutdown -------------------------------------------------------
+
+    // The server is destroyed once no heartbeat has arrived for this long. The
+    // client heartbeats every 5 min while co-op is open (net/client.ts).
+    'idle_destroy_after_seconds' => 3600,
+];

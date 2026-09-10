@@ -122,41 +122,48 @@ Co-op needs one more thing: a Capacitor build has no same-origin server, so
 
 ## Co-op is currently offline
 
-Co-op used to work like this: the browser POSTed
-`komm-folge-mir-nach.de/api/fetch-game-server.php`, that PHP script asked the
-Hetzner Cloud API whether the game server existed, created it from a snapshot if
-not, and answered `{status, websocketUrl}` until the client could connect. The
-same endpoint was the heartbeat (every 5 min from the client), and a cron hitting
-`?action=destroy-if-idle` destroyed the VPS after an hour of silence — cheap
-co-op, paid for by the session rather than the month.
+Co-op works like this: the browser POSTs `/api/fetch-game-server.php`, that PHP
+script asks the Hetzner Cloud API whether the game server exists, creates it
+from a snapshot if not, and answers `{status, websocketUrl}` until the client
+can connect. The same endpoint is the heartbeat, and a cron destroys the VPS
+after an hour of silence — co-op paid for by the session rather than the month.
 
-All of it is gone. `komm-folge-mir-nach.de` no longer resolves, which takes out
-both the wake endpoint and `game.komm-folge-mir-nach.de`, the `wss://` host it
-handed back. `fetch-game-server.php` was never in this repo — only the CORS
-snippet in `spirit-game-server-setup-instructions.md` §18 survives. Whether the
-Hetzner snapshot, the reserved Primary IPs and the API token still exist is a
-question for the Hetzner account, not this repo.
+That controller now lives in this repo at [`deploy/api/`](api/README.md),
+carried over from the `come-follow-me-website` repo where it used to serve
+`komm-folge-mir-nach.de`. The deploy ships it to `/api` automatically, but only
+once `deploy/api/config.php` exists — it needs a Hetzner token, and shipping an
+unconfigured admin endpoint would be worse than shipping nothing. Until then the
+deploy says it is skipping `/api` and the site stays single-player.
 
-So `VITE_WAKE_ENDPOINT` is unset by default and the client reports
-`ui.coop.errNoServer` immediately. Single-player is unaffected.
+What is missing, in the order it has to be solved:
 
-Three ways back:
+1. **A fresh Hetzner API token.** The old one is committed to a public
+   repository; treat it as compromised and rotate it. The ported script keeps
+   no fallback in source.
+2. **A real admin key.** The old default was the literal `s3cr3t` and was never
+   changed.
+3. **A WebSocket host.** `game.komm-folge-mir-nach.de` went with the domain, so
+   a new subdomain needs DNS pointing at the reserved primary IPv4, plus a
+   certificate.
+4. **Confirmation the Hetzner resources still exist** — the snapshot the server
+   boots from above all. A stale id fails when a player clicks Play Co-op, not
+   when you deploy.
 
-1. **Rehost the controller here.** This host runs PHP 8.5 with curl and a
-   writable document root — the sibling quiz project already serves a PHP
-   backend from the same box — so `/api/fetch-game-server.php` would work the
-   way it did before. The script has to be rewritten from the concept doc, and
-   it needs a Hetzner API token, a server snapshot, and a WS subdomain with a
-   certificate. Point `VITE_WAKE_ENDPOINT` at it.
-2. **Drop the wake step.** Run `apps/server` somewhere permanently and set
-   `VITE_WS_URL` to it. Simpler, and the only option that works from a Capacitor
-   build without a controller; costs a few euros a month instead of per session.
-3. **Leave it off.** Nothing else in the game depends on it.
+Then set, at build time:
 
-Whichever way: the old CORS allowlist was origin-based on the dead domain, so it
-needs the new host — and `capacitor://localhost` if the native apps are to reach
-co-op at all.
+```
+VITE_WAKE_ENDPOINT=https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php
+```
+
+The alternative, if on-demand is more machinery than it is worth: run
+`apps/server` somewhere permanently and point `VITE_WS_URL` at it. No
+controller, no snapshot, no cron — a few euros a month instead of per session,
+and the only option a Capacitor build can use without the endpoint.
+
+Either way, `allowed_origins` needs the new host, and `https://localhost` /
+`capacitor://localhost` if the native apps are to reach co-op.
 
 `spirit-game-server-setup-concept.md` and
 `spirit-game-server-setup-instructions.md` in the repo root describe the old
-setup. They are kept for the architecture, not the hostnames.
+VPS-side setup (nginx, certbot, git deploy). They are kept for the
+architecture, not the hostnames.
