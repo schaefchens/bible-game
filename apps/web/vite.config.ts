@@ -28,10 +28,24 @@ const gitSha =
 
 // Internal @bible/* packages ship TypeScript source; alias them so Vite transpiles them as app
 // source (rather than serving raw .ts from a node_modules symlink).
-// The production build is served under "/game/" (override via VITE_BASE); the dev server stays at "/".
-// `preview` mirrors the built base so the PWA (service worker scope, manifest) can be tested locally.
-export default defineConfig(({ command, isPreview }) => ({
-  base: process.env.VITE_BASE ?? (command === 'build' || isPreview ? '/game/' : '/'),
+//
+// The web build owns the domain root (walkinthespirit.games.schaefchens.de), so `base` is "/"
+// everywhere. It used to be "/game/" under the old hosting; nothing hardcodes either — every
+// asset URL goes through `base` (see src/asset.ts and setAssetBase in main.tsx).
+//
+// VITE_BASE overrides it. Capacitor is the reason it still exists: an Android/iOS build loads
+// index.html off the local filesystem, where an absolute "/" resolves to the device root and
+// every asset 404s. `npm run build:app` sets VITE_BASE=./ so URLs stay relative to the document.
+const BASE = process.env.VITE_BASE ?? '/'
+
+// Capacitor also has no use for a service worker — the native shell already serves the bundle
+// locally, and a second cache layer inside the webview only invents staleness bugs. `disable`
+// keeps the `virtual:pwa-register` module resolvable (as a no-op), so nothing has to be
+// conditionally imported in app code.
+const PWA_DISABLED = process.env.VITE_DISABLE_PWA === '1'
+
+export default defineConfig(() => ({
+  base: BASE,
   define: {
     // Build identity surfaced in Settings (see SettingsScreen). __GIT_SHA__ is injected by CI
     // (VITE_GIT_SHA), otherwise "dev". The actual update prompt is driven by the service worker.
@@ -42,6 +56,7 @@ export default defineConfig(({ command, isPreview }) => ({
   plugins: [
     react(),
     VitePWA({
+      disable: PWA_DISABLED,
       registerType: 'prompt',
       injectRegister: null, // we register manually via virtual:pwa-register (see pwa/useServiceWorker)
       // Static files (not part of the JS graph) to add to the precache so install/offline works.
@@ -50,7 +65,7 @@ export default defineConfig(({ command, isPreview }) => ({
         name: 'Walk in the Spirit',
         short_name: 'WalkSpirit',
         description: "A pilgrim's roguelike",
-        // Relative so they resolve against `base` (/ in dev, /game/ in prod) — never hardcode /game/.
+        // Relative so they resolve against `base` — never hardcode an absolute path here.
         start_url: '.',
         scope: '.',
         display: 'standalone',

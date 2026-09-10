@@ -1,0 +1,28 @@
+# /assets holds two different kinds of file, and they need opposite cache rules.
+#
+#   index-<hash>.js / .css   Vite output. The content hash is in the filename,
+#                            so a change always produces a new URL → immutable.
+#
+#   *.webp *.mp3 *.jpg       Game art and music, copied verbatim from
+#                            apps/web/public/assets. Stable names: replacing a
+#                            piece of art reuses its URL, so "immutable" here
+#                            would strand players on the old file forever.
+#                            A week is the compromise — the service worker
+#                            (CacheFirst, wis-images-v1 / wis-audio-v1) is what
+#                            actually makes repeat visits and offline instant.
+#
+# Deployed by scripts/deploy.sh from deploy/htaccess-assets.
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  <FilesMatch "-[A-Za-z0-9_-]{8,}\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  <FilesMatch "\.(webp|mp3|jpe?g|png|svg)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
+
+# Compression and MIME types are inherited from the root .htaccess.

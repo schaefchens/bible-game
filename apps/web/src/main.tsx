@@ -9,7 +9,8 @@ import { SwProvider } from './pwa/SwProvider'
 import { useGame } from './store/gameStore'
 import './styles.css'
 
-// Resolve registry asset URLs under the deployment base (so they work when served at "/game/").
+// Resolve registry asset URLs under the deployment base (see vite.config.ts — "/" on the web,
+// "./" for Capacitor).
 setAssetBase(import.meta.env.BASE_URL)
 initI18n('en')
 // Wire the co-op command transport into the game store (breaks the store↔net import cycle at boot).

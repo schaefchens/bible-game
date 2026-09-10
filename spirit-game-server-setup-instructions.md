@@ -1,5 +1,15 @@
 # Spirit Game Server Setup
 
+> **Historical — the hosting described here no longer exists.**
+>
+> `komm-folge-mir-nach.de` and `game.komm-folge-mir-nach.de` are gone, and with
+> them the wake endpoint and the on-demand VPS. The game now ships as a static
+> build to the **root** of https://walkinthespirit.games.schaefchens.de — see
+> [`deploy/README.md`](deploy/README.md) for how that works. Co-op is offline
+> until a WebSocket server exists again.
+>
+> This document is kept for the architecture, not the hostnames.
+
 This document describes the complete setup for the `spirit-game-server` deployment.
 
 The system consists of:

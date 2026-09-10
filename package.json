@@ -19,10 +19,15 @@
     "check:engine-no-react": "node scripts/check-engine-no-react.mjs",
     "build": "npm run build --workspace @bible/web",
     "dev": "npm run dev --workspace @bible/web",
+    "build:app": "VITE_BASE=./ VITE_DISABLE_PWA=1 npm run build --workspace @bible/web",
     "server": "npm run dev --workspace @bible/server",
     "server:start": "npm run start --workspace @bible/server",
     "verses:import": "node packages/i18n/scripts/importVerses.mjs",
-    "deploy:web:sftp": "cd apps/web/dist && printf '%s\\n' '-rm *' '-rm assets/*' 'mput *' 'mput assets/* assets/' 'bye' | sshpass -e sftp schaeff_2@www99.your-server.de"
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:dry": "bash scripts/deploy.sh --dry-run",
+    "deploy:fast": "bash scripts/deploy.sh --skip-build",
+    "deploy:full": "bash scripts/deploy.sh --force-all --prune",
+    "deploy:verify": "bash scripts/deploy.sh --verify-only"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.8",

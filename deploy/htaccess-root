@@ -1,0 +1,57 @@
+# Web root of Walk in the Spirit (walkinthespirit.games.schaefchens.de).
+#
+# Deployed by scripts/deploy.sh from deploy/htaccess-root — edit this template
+# in the repo, never the copy on the server, or the next deploy overwrites it.
+
+DirectoryIndex index.html
+Options -Indexes
+
+# Dotfiles are bookkeeping, not content: .htaccess itself, and .deploy-manifest
+# (the content hashes scripts/deploy.sh diffs against to upload incrementally).
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+# The host does not know these two, and gets them wrong in ways that are easy
+# to miss: .webp falls back to application/octet-stream (the browser still
+# renders it, but no image caching heuristics apply) and .webmanifest to
+# text/plain (Chrome then ignores the manifest and the PWA is not installable).
+<IfModule mod_mime.c>
+  AddType image/webp                     .webp
+  AddType application/manifest+json      .webmanifest
+  AddType audio/mpeg                     .mp3
+</IfModule>
+
+<IfModule mod_deflate.c>
+  # text/javascript matters: that is the Content-Type this host actually sends
+  # for .js, and AddOutputFilterByType matches on the response type. Listing
+  # only application/javascript silently leaves the main bundle uncompressed.
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml
+  AddOutputFilterByType DEFLATE text/javascript application/javascript
+  AddOutputFilterByType DEFLATE application/json application/manifest+json
+  AddOutputFilterByType DEFLATE image/svg+xml
+  # webp/mp3 are already compressed — running deflate over them burns CPU for
+  # nothing, so they are deliberately absent from the list above.
+</IfModule>
+
+<IfModule mod_headers.c>
+  # PWA entry points must always be revalidated. If a client keeps a stale
+  # index.html it boots asset hashes this deploy has already replaced, and the
+  # app dies on a 404 it cannot recover from.
+  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Single-page app: the build emits one index.html and no server-side routes, so
+# any path that is not a real file is served the app shell. The extension guard
+# keeps genuinely missing assets a 404 — without it a mistyped .webp would come
+# back as HTML with a 200 and fail somewhere far less obvious.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !\.[a-zA-Z0-9]{1,6}$
+  RewriteRule ^ index.html [L]
+</IfModule>

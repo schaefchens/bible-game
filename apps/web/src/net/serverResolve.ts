@@ -4,7 +4,14 @@
 // answers the default /ws directly, so we PROBE that first and only fall back to the wake endpoint
 // (production) when the default is unreachable.
 
-const WAKE_ENDPOINT = 'https://komm-folge-mir-nach.de/api/fetch-game-server.php'
+// Where that PHP endpoint lives. Deliberately unset by default: the old host
+// (komm-folge-mir-nach.de) is gone, and the current static host cannot run PHP or a Node
+// process, so there is no on-demand server to wake right now. With no endpoint configured
+// resolveServer() fails fast on `ui.coop.errNoServer` instead of firing requests at a dead
+// domain and making the player wait out the timeout. Set VITE_WAKE_ENDPOINT at build time to
+// turn co-op back on — the native app builds will need it too, since they cannot fall back to
+// a same-origin /ws.
+const WAKE_ENDPOINT = (import.meta.env.VITE_WAKE_ENDPOINT as string | undefined) ?? ''
 const PROBE_TIMEOUT_MS = 3000
 const POLL_INTERVAL_MS = 3000
 const MAX_POLL_MS = 6 * 60 * 1000 // give up waking after ~6 min
@@ -38,8 +45,10 @@ export interface WakeResponse {
 }
 
 /** POST the wake endpoint once (also refreshes the server's heartbeat). Returns the parsed body, or
- *  null on a network/parse error. The browser sets the Origin header itself (correct in production). */
+ *  null on a network/parse error — or immediately, without a request, when no endpoint is
+ *  configured. The browser sets the Origin header itself (correct in production). */
 export async function wake(signal?: AbortSignal): Promise<WakeResponse | null> {
+  if (!WAKE_ENDPOINT) return null
   try {
     const res = await fetch(WAKE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal })
     if (!res.ok) return null

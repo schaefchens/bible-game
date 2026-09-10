@@ -38,7 +38,7 @@ const JERICHO_BG = [
   'bg-boss-narrow-gate-sideview',
 ]
 
-// Deployment base, so asset URLs resolve under a subpath (e.g. served at "/game/"). The host app
+// Deployment base, so asset URLs resolve under a subpath or a relative base. The host app
 // sets this once at startup from its bundler base (Vite: import.meta.env.BASE_URL). Default "/".
 let assetBase = '/'
 export function setAssetBase(base: string): void {
@@ -132,7 +132,7 @@ const REGISTRY: Record<string, string> = {
   ...SPRITE_FILES,
 }
 
-/** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.webp" or "/game/assets/x.webp"). */
+/** Concrete URL for an AssetRef under the current base (e.g. "/assets/x.webp" or "./assets/x.webp"). */
 export function resolveAsset(ref: string | undefined): string | undefined {
   const file = ref ? REGISTRY[ref] : undefined
   return file ? `${assetBase}assets/${file}` : undefined

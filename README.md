@@ -42,11 +42,27 @@ npm run typecheck   # tsc across all packages
 npm run lint        # eslint (incl. the engine-purity boundary rule)
 npm run check:engine-no-react   # CI guard: engine imports no React/UI/storage
 npm run dev         # Vite dev server for the web app
-npm run build       # production build
+npm run build       # production build (web, served at "/")
+npm run build:app   # production build for Capacitor (relative base, no service worker)
 ```
 
 The headless integration sims (`packages/engine/src/sim`, `packages/content/src/*.integration.test.ts`)
 drive the entire slice through the reducer with no UI — the fastest way to exercise game logic.
+
+## Deploy
+
+The game is live at <https://walkinthespirit.games.schaefchens.de>.
+
+```bash
+cp sftp.env.example sftp.env   # credentials, gitignored
+npm run deploy                 # build → upload only what changed → verify
+npm run deploy:dry             # show the plan, upload nothing
+```
+
+It is a static SFTP deploy that diffs content hashes against a manifest in the
+web root, so the ~75 MB of art and music only moves when it actually changes.
+See [`deploy/README.md`](deploy/README.md) — including the Capacitor notes and
+why co-op is currently offline.
 
 ## The vertical slice
 

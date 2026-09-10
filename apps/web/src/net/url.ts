@@ -6,6 +6,7 @@ export function wsUrl(): string {
   const explicit = import.meta.env.VITE_WS_URL as string | undefined
   if (explicit) return explicit
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  // BASE_URL is '/' in dev and '/game/' in prod; the dev server proxies '/ws' to the Node server.
+  // BASE_URL is '/' for web builds; the dev server proxies '/ws' to the local Node server.
+  // A Capacitor build has no same-origin server at all and must set VITE_WS_URL.
   return `${proto}//${location.host}${import.meta.env.BASE_URL}ws`
 }
