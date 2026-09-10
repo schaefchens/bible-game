@@ -16,3 +16,5 @@ deploy/api/config.php
 # Runtime state the wake controller writes next to itself on the server.
 deploy/api/spirit-game-last-activity.txt
 deploy/api/spirit-game-server.lock
+deploy/api/admin-audit.log
+deploy/api/admin-audit.log.1

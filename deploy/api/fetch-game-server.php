@@ -98,6 +98,40 @@ function writeHeartbeat(): void {
 }
 
 /**
+ * Append one line to the audit log: server creations, and every admin action
+ * including the ones that were refused.
+ *
+ * This exists because the two failures that cost real money are both silent.
+ * A reaper cron calling with the wrong key still runs on schedule, still looks
+ * healthy from the outside, and simply never destroys anything — the bill is
+ * the only symptom, a month later. And a server created by someone poking the
+ * endpoint leaves no trace at all otherwise.
+ *
+ * Never log the key or the token. The log is denied over HTTP by .htaccess;
+ * read it over SFTP.
+ */
+function auditLog(string $event, string $detail = ''): void {
+    $file = __DIR__ . '/admin-audit.log';
+
+    // Cheap rotation. One line is well under 200 bytes and the busiest caller
+    // is a cron every few minutes, so this holds many months.
+    if (is_file($file) && filesize($file) > 262144) {
+        @rename($file, $file . '.1');
+    }
+
+    $line = sprintf(
+        "%s\t%s\t%s\t%s\t%s\n",
+        date(DATE_ATOM),
+        $_SERVER['REQUEST_METHOD'] ?? '-',
+        $event,
+        $detail !== '' ? $detail : '-',
+        $_SERVER['REMOTE_ADDR'] ?? '-'
+    );
+
+    @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
+}
+
+/**
  * A placeholder left in config.php is worse than an empty one: it looks
  * configured. Treat anything still carrying the template's REPLACE_ marker,
  * or the old literal "s3cr3t" admin key, as unset.
@@ -313,6 +347,7 @@ function requireAdminKey(): void {
     $key = (string) ($_GET['key'] ?? '');
 
     if (isPlaceholder($adminKey)) {
+        auditLog('admin-denied', 'admin key not configured');
         jsonResponse([
             'status' => 'error',
             'error' => 'Admin key is not configured',
@@ -320,6 +355,7 @@ function requireAdminKey(): void {
     }
 
     if (!hash_equals($adminKey, $key)) {
+        auditLog('admin-denied', ($_GET['action'] ?? 'status') . ' / bad key');
         jsonResponse([
             'status' => 'error',
             'error' => 'Unauthorized',
@@ -371,11 +407,15 @@ try {
         }
 
         if ($action === 'destroy-if-idle') {
-            jsonResponse(destroyServerIfIdle(false));
+            $result = destroyServerIfIdle(false);
+            auditLog('destroy-if-idle', (string) $result['status']);
+            jsonResponse($result);
         }
 
         if ($action === 'destroy-now') {
-            jsonResponse(destroyServerIfIdle(true));
+            $result = destroyServerIfIdle(true);
+            auditLog('destroy-now', (string) $result['status']);
+            jsonResponse($result);
         }
 
         jsonResponse([
@@ -424,6 +464,7 @@ try {
     }
 
     $createData = createServer();
+    auditLog('server-created', (string) ($createData['server']['id'] ?? '?'));
 
     jsonResponse([
         'status' => 'starting',
@@ -437,6 +478,7 @@ try {
         'heartbeat' => heartbeatPayload(),
     ]);
 } catch (Throwable $e) {
+    auditLog('error', $e->getMessage());
     jsonResponse([
         'status' => 'error',
         'error' => $e->getMessage(),

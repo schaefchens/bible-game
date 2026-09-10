@@ -6,6 +6,7 @@
 #   config.php                      the Hetzner Cloud API token and admin key
 #   spirit-game-last-activity.txt   the heartbeat timestamp
 #   spirit-game-server.lock         the flock file guarding server creation
+#   admin-audit.log                 server creations and admin actions, incl. refusals
 #
 # The heartbeat file is the one that matters here. In the old deployment it sat
 # in a directory with no .htaccess at all, so anyone could read when co-op was
