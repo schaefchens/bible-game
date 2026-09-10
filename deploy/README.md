@@ -116,53 +116,77 @@ That is `apps/web/dist` ready to be a Capacitor `webDir`. Two differences:
   resolves and no app code needs conditional imports.
 
 Co-op needs one more thing: a Capacitor build has no same-origin server, so
-`wsUrl()` cannot derive `wss://<host>/ws`. Set `VITE_WS_URL` (and
-`VITE_WAKE_ENDPOINT`, if the on-demand server comes back) at build time. See
+`wsUrl()` cannot derive `wss://<host>/ws`. Set `VITE_WS_URL` and
+`VITE_WAKE_ENDPOINT` at build time — the web build gets the latter from
+`.env.production`, which a native build does not inherit usefully. See
 `apps/web/.env.example`.
 
-## Co-op is currently offline
+## Co-op
 
-Co-op works like this: the browser POSTs `/api/fetch-game-server.php`, that PHP
+Co-op is **live**. The browser POSTs `/api/fetch-game-server.php`, that PHP
 script asks the Hetzner Cloud API whether the game server exists, creates it
 from a snapshot if not, and answers `{status, websocketUrl}` until the client
-can connect. The same endpoint is the heartbeat, and a cron destroys the VPS
-after an hour of silence — co-op paid for by the session rather than the month.
+can connect. The same endpoint is the heartbeat, and the VPS is destroyed after
+an hour of silence — co-op paid for by the session rather than the month.
 
-That controller now lives in this repo at [`deploy/api/`](api/README.md),
-carried over from the komm-folge-mir-nach website repo
-([christophmegusta/follow-me-forward](https://github.com/christophmegusta/follow-me-forward)),
-where it used to serve `komm-folge-mir-nach.de`. The deploy ships it to `/api` automatically, but only
-once `deploy/api/config.php` exists — it needs a Hetzner token, and shipping an
-unconfigured admin endpoint would be worse than shipping nothing. Until then the
-deploy says it is skipping `/api` and the site stays single-player.
+The pieces, and where they live:
 
-What is missing, in the order it has to be solved:
+| piece | where |
+| --- | --- |
+| wake controller / heartbeat / reaper | [`deploy/api/`](api/README.md), shipped to `/api` by the deploy |
+| its secrets (Hetzner token, admin key) | `deploy/api/config.php` — gitignored, never client-side |
+| the VPS's own config (nginx, boot, timers) | [`deploy/server/`](server/) via `provision.sh` |
+| the client's on-switch | `VITE_WAKE_ENDPOINT` in `apps/web/.env.production` |
 
-1. **A fresh Hetzner API token.** The old one is committed to a public
-   repository; treat it as compromised and rotate it. The ported script keeps
-   no fallback in source.
-2. **A real admin key.** The old default was the literal `s3cr3t` and was never
-   changed.
-3. **A WebSocket host.** `game.komm-folge-mir-nach.de` went with the domain, so
-   a new subdomain needs DNS pointing at the reserved primary IPv4, plus a
-   certificate.
-4. **Confirmation the Hetzner resources still exist** — the snapshot the server
-   boots from above all. A stale id fails when a player clicks Play Co-op, not
-   when you deploy.
+The WebSocket host is **walkinthespirit-coop.games.schaefchens.de**, dual-stack,
+with its own certificate. `VITE_WS_URL` is deliberately left unset for the web:
+the client probes the same-origin `/ws` first and otherwise connects to whatever
+`websocketUrl` the wake endpoint hands back, so the host is configured in one
+place instead of two that can disagree. Only Capacitor must set it, having no
+same-origin server to probe.
 
-Then set, at build time:
+A cold wake takes about **40 seconds** from the POST to a joinable room, most of
+it the VPS booting from the snapshot. The client shows the queue modal for the
+duration.
 
+### Operating it
+
+The endpoint doubles as the admin surface; every action is audit-logged and
+needs the admin key from `config.php`:
+
+```sh
+curl 'https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php?action=status&key=...'
 ```
-VITE_WAKE_ENDPOINT=https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php
-```
 
-The alternative, if on-demand is more machinery than it is worth: run
-`apps/server` somewhere permanently and point `VITE_WS_URL` at it. No
-controller, no snapshot, no cron — a few euros a month instead of per session,
-and the only option a Capacitor build can use without the endpoint.
+`action=destroy-now` kills the server immediately; `destroy-if-idle` is what the
+hourly webhosting cron calls, and the GitHub workflow is only a spare in case
+that cron stops firing. A bare `GET` with no key answers 403, which is the
+correct response and not a symptom.
 
-Either way, `allowed_origins` needs the new host, and `https://localhost` /
-`capacitor://localhost` if the native apps are to reach co-op.
+If co-op breaks, the order to check is: does the wake endpoint answer at all
+(config present? token still valid?), does the snapshot id still exist (a stale
+one fails when a player clicks Play Co-op, never at deploy time), does DNS still
+point at the reserved IPv4, and is `allowed_origins` current — it needs the game
+origin, plus `https://localhost` / `capacitor://localhost` for the native apps.
+
+### Why a version mismatch is about content, not commits
+
+The VPS resets itself to `origin/main` every minute (`deploy-bible-game.sh`),
+while the web bundle only moves when someone runs `npm run deploy`. The server is
+therefore *routinely* a few commits ahead of the deployed client, and that is
+normal — nothing is wrong with it.
+
+So the compatibility gate every client passes at join compares a **hash of the
+content bundle** (`contentHash` in `@bible/content`), not a git sha. Same cards,
+same rules, whatever commit built them. The git sha still rides along so a real
+mismatch can be reported as two concrete builds, and the server logs its own at
+startup. A gate on the sha would have refused co-op after every docs commit;
+until this was fixed it had the opposite fault, being switched off entirely, so
+a genuinely stale tab could join and quietly render a different game.
+
+Rebalance a card and the hash moves: deploy the web app and the server in the
+same session, or players on the old bundle are turned away — correctly, but
+they will have to reload to find that out.
 
 `spirit-game-server-setup-concept.md` and
 `spirit-game-server-setup-instructions.md` in the repo root describe the old

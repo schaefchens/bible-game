@@ -5,7 +5,7 @@
 import type { WebSocket } from 'ws'
 import { GAME_STATE_VERSION, heroMemberId, reduce, type Character } from '@bible/engine'
 import { createContent } from '@bible/content'
-import { SERVER_BUILD_HASH } from './env'
+import { SERVER_BUILD_HASH, SERVER_CONTENT_HASH } from './env'
 import type { ClientMsg, Compat } from './protocol'
 import { toLean } from './protocol'
 import {
@@ -41,8 +41,38 @@ export interface Session {
   pendingReq?: { code: string; id: string }
 }
 
-const compatible = (c: Compat): boolean =>
-  (SERVER_BUILD_HASH === 'dev' || c.buildHash === SERVER_BUILD_HASH) && c.stateVersion === GAME_STATE_VERSION
+/**
+ * null when this client may join, otherwise the reason it may not — named precisely enough to act on,
+ * because the player seeing it can only ever do one thing about it (reload) and deserves to know why.
+ *
+ * There is deliberately NO dev escape hatch here any more. The old gate compared git shas, which
+ * differ in dev for reasons that do not affect play, so it had to be switched off whenever the server
+ * had no sha — and in production it never had one, which left it switched off entirely. The content
+ * hash is identical in dev (client and server build the bundle from the same working tree), so the
+ * gate can simply always apply, and now catches the dev case it should: a card edited without
+ * reloading the page.
+ */
+function incompatibility(c: Compat): string | null {
+  if (c.stateVersion !== GAME_STATE_VERSION) {
+    return `save format ${String(c.stateVersion)}, server speaks ${GAME_STATE_VERSION}`
+  }
+  if (c.contentHash !== SERVER_CONTENT_HASH) {
+    const theirs = typeof c.contentHash === 'string' ? c.contentHash.slice(0, 8) : 'none'
+    return `content ${theirs} (build ${c.buildHash || 'unknown'}) but the server runs ${SERVER_CONTENT_HASH.slice(0, 8)} (build ${SERVER_BUILD_HASH}) — reload to pick up the current version`
+  }
+  return null
+}
+
+/** Send the mismatch error and report whether we did, so a handler can `if (rejected(...)) return`. */
+function rejected(ws: WebSocket, c: Compat): boolean {
+  const why = incompatibility(c)
+  if (why) {
+    // Also to the journal: a player who cannot join will say "it doesn't work", not read this out.
+    console.warn(`[bible-coop] turned away a client: ${why}`)
+    send(ws, { t: 'error', code: 'version-mismatch', reason: why })
+  }
+  return why !== null
+}
 
 const bind = (session: Session, room: Room, player: Player): void => {
   session.code = room.code
@@ -88,7 +118,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
 
   switch (msg.t) {
     case 'createParty': {
-      if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
+      if (rejected(ws, msg)) return
       const { room, player } = createRoom(Date.now(), SERVER_BUILD_HASH, { name: msg.name, ws }, { title: msg.title, visibility: msg.visibility, worldId: msg.worldId })
       bind(session, room, player)
       send(ws, { t: 'welcome', playerId: player.playerId, token: player.token, code: room.code })
@@ -106,7 +136,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
       // REQUEST to join a run in progress with your own hero. The host must accept before we add you —
       // so a party can turn away someone they'd rather not play with. We validate here, then park the
       // request and prompt the host; the actual add happens in 'joinDecision'.
-      if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
+      if (rejected(ws, msg)) return
       const room = getRoom(msg.code)
       if (!room) return send(ws, { t: 'error', code: 'no-room', reason: 'no such room' })
       if (room.phase !== 'inRun' || !room.lookingForMore) return send(ws, { t: 'error', code: 'not-recruiting', reason: 'game not recruiting' })
@@ -177,7 +207,7 @@ export function handleMessage(ws: WebSocket, raw: string, session: Session): voi
     }
 
     case 'joinParty': {
-      if (!compatible(msg)) return send(ws, { t: 'error', code: 'version-mismatch', reason: 'client/server build differ' })
+      if (rejected(ws, msg)) return
       const room = getRoom(msg.code)
       if (!room) return send(ws, { t: 'error', code: 'no-room', reason: 'no such room' })
       const res = addPlayer(room, msg.name, ws)

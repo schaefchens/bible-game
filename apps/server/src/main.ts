@@ -3,7 +3,7 @@
 // idle, fully-disconnected rooms (v1 keeps everything in memory — no disk persistence).
 
 import { WebSocketServer } from 'ws'
-import { PORT, ROOM_TTL_MS, SERVER_BUILD_HASH } from './env'
+import { PORT, ROOM_TTL_MS, SERVER_BUILD_HASH, SERVER_CONTENT_HASH } from './env'
 import { handleClose, handleMessage, type Session } from './handlers'
 import { sweepIdleRooms } from './rooms'
 
@@ -19,4 +19,8 @@ wss.on('connection', (ws) => {
 
 setInterval(() => sweepIdleRooms(Date.now(), ROOM_TTL_MS), 60_000)
 
-console.log(`[bible-coop] listening on :${PORT}  build=${SERVER_BUILD_HASH}`)
+// Both fingerprints, because the content hash is what clients are gated on and the sha is what a
+// human can act on. `build=dev` here means git could not be read in the checkout, not that this is dev.
+console.log(
+  `[bible-coop] listening on :${PORT}  build=${SERVER_BUILD_HASH}  content=${SERVER_CONTENT_HASH.slice(0, 8)}`,
+)

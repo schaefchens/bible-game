@@ -62,7 +62,7 @@ npm run deploy:dry             # show the plan, upload nothing
 It is a static SFTP deploy that diffs content hashes against a manifest in the
 web root, so the ~75 MB of art and music only moves when it actually changes.
 See [`deploy/README.md`](deploy/README.md) — including the Capacitor notes and
-why co-op is currently offline.
+how the on-demand co-op server is woken and reaped.
 
 ## The vertical slice
 

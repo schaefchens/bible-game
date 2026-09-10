@@ -3,6 +3,7 @@ import type { WebSocket } from 'ws'
 import { createCharacter, GAME_STATE_VERSION, heroMemberId } from '@bible/engine'
 import type { ServerMsg } from './protocol'
 import { handleClose, handleMessage, type Session } from './handlers'
+import { SERVER_CONTENT_HASH } from './env'
 
 /** A fake socket that records the ServerMsgs sent to it (no real network). */
 function conn() {
@@ -15,7 +16,9 @@ function conn() {
   return { ws, session, sent, last, say }
 }
 
-const compat = { buildHash: 'test', stateVersion: GAME_STATE_VERSION }
+// The gate compares content, not revisions, so a test client presents the server's own content hash.
+// There is no longer a 'dev' escape hatch to fall through (see handlers' incompatibility()).
+const compat = { buildHash: 'test', contentHash: SERVER_CONTENT_HASH, stateVersion: GAME_STATE_VERSION }
 /** createParty defaults (compat + a public game with no title, tutorial adventure) */
 const base = { ...compat, title: '', visibility: 'public' as const, worldId: 'world-01' }
 
@@ -240,6 +243,29 @@ describe('co-op server pipeline', () => {
     const c = conn()
     c.say({ t: 'createParty', name: 'A', ...base, stateVersion: GAME_STATE_VERSION + 99 })
     expect(c.last('error')?.code).toBe('version-mismatch')
+  })
+
+  it('rejects a client whose CONTENT differs, however current its build', () => {
+    const c = conn()
+    c.say({ t: 'createParty', name: 'A', ...base, contentHash: 'deadbeefdeadbeef' })
+    expect(c.last('error')?.code).toBe('version-mismatch')
+    // the message has to name both sides, or the player cannot tell a stale tab from a stale deploy
+    expect(c.last('error')?.reason).toContain('deadbeef')
+    expect(c.last('error')?.reason).toContain(SERVER_CONTENT_HASH.slice(0, 8))
+  })
+
+  it('rejects a client that presents no content hash at all (a build from before the gate)', () => {
+    const c = conn()
+    const { contentHash: _drop, ...noHash } = base
+    c.say({ t: 'createParty', name: 'A', ...noHash })
+    expect(c.last('error')?.code).toBe('version-mismatch')
+  })
+
+  it('lets a matching client in — the gate has no dev escape hatch left to hide behind', () => {
+    const c = conn()
+    c.say({ t: 'createParty', name: 'A', ...base })
+    expect(c.last('error')).toBeUndefined()
+    expect(c.last('welcome')?.code).toMatch(/^[A-Z0-9]{4}$/)
   })
 
   it('gates gameplay commands to in-run only', () => {

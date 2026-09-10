@@ -1,5 +1,5 @@
 import { create, type StoreApi } from 'zustand'
-import { createContent } from '@bible/content'
+import { contentHash, createContent } from '@bible/content'
 import { newGame, reduce, type ClassId, type Command, type GameEvent, type GameState, type Locale } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { i18n } from '../i18n'
@@ -9,6 +9,15 @@ import type { LeanState } from '../net/protocol'
 // state + the last event batch (for animation). Game logic lives entirely in the engine.
 
 const content = createContent()
+
+/**
+ * Fingerprint of the bundle above — the co-op compatibility gate (see @bible/content's hash.ts).
+ * Exposed from here so the net client gates on the SAME bundle this store renders broadcasts with,
+ * instead of hashing a second one built beside it. Lazy because single-player never asks, and the
+ * boot path should not pay for co-op.
+ */
+let fingerprint: string | undefined
+export const contentFingerprint = (): string => (fingerprint ??= contentHash(content))
 
 // How long the player-death cinematic holds on the battlefield (hero falls + the screen bleeds out)
 // before the game-over panel is revealed. Skipped entirely under reduced motion.

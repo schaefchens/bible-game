@@ -72,9 +72,12 @@ export interface PickPresence {
   selection: string[]
 }
 
-/** Compatibility fingerprint every client presents at join; must equal the server's own. */
+/** Compatibility fingerprint every client presents at join. `contentHash` is the gate — see
+ *  @bible/content's hash.ts. `buildHash` is carried for diagnostics only (it appears in the
+ *  mismatch message), because a git sha differs for reasons that have nothing to do with the cards. */
 export interface Compat {
   buildHash: string
+  contentHash: string
   stateVersion: number
 }
 

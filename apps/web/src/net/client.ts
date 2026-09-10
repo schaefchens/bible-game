@@ -7,16 +7,21 @@ import { GAME_STATE_VERSION, type Character } from '@bible/engine'
 import { saveStore } from '@bible/persistence'
 import { i18n } from '../i18n'
 import { sfxManager } from '../audio/sfxManager'
-import { setMpTransport, useGame } from '../store/gameStore'
+import { contentFingerprint, setMpTransport, useGame } from '../store/gameStore'
 import { clearSavedSession, loadSavedSession, myMemberId, useSession } from '../store/useSession'
 import type { ClientMsg, PeerActivity, PickPresence, ServerMsg, Visibility } from './protocol'
 import { heartbeat, probeWs, resolveReadyWsUrl, wake } from './serverResolve'
 import { Socket } from './socket'
 import { wsUrl } from './url'
 
-/** Baked at build time (vite.config define). In dev it is 'dev' and the server's gate is lenient. */
-const BUILD_HASH = (import.meta.env.VITE_GIT_SHA as string | undefined) ?? 'dev'
-const compat = { buildHash: BUILD_HASH, stateVersion: GAME_STATE_VERSION }
+// What we present at join. The gate is `contentHash` — the fingerprint of our content bundle, which
+// is what actually has to agree with the server's (see @bible/content's hash.ts). `buildHash` is the
+// revision, sent so a mismatch can be reported as two concrete builds rather than "incompatible".
+//
+// It reads __GIT_SHA__, the value vite.config.ts derives from git and defines. It used to read
+// `import.meta.env.VITE_GIT_SHA`, which nothing ever sets — the sha reaches the bundle as the define,
+// not as an env var — so every deployed client silently announced itself as 'dev'.
+const compat = () => ({ buildHash: __GIT_SHA__, contentHash: contentFingerprint(), stateVersion: GAME_STATE_VERSION })
 
 let socket: Socket | null = null
 /** the create/join message to send once the socket first opens (we connect lazily on the first action) */
@@ -141,6 +146,10 @@ function onMessage(msg: ServerMsg): void {
       session.setNotice(rejectionText(msg.reason))
       break
     case 'error':
+      // The player gets a localized, actionable line (reload to update). The server's own words name
+      // the two content hashes and the two builds, which means nothing to a player and everything to
+      // whoever deploys — so keep them in the one place an operator will think to look.
+      if (msg.code === 'version-mismatch') console.error('[coop] the server refused this build:', msg.reason)
       // a failed reconnect (stale token / room gone) → drop the saved session + fall back to the browser
       if (msg.code === 'bad-token' || msg.code === 'no-room') {
         clearSavedSession()
@@ -254,14 +263,14 @@ export const listGames = (): void => void socket?.send({ t: 'listGames' })
 // create/join carry no hero — the seat's hero is chosen in the lobby (chooseHero sets myCharacterId).
 export function createParty(name: string, opts: { title: string; visibility: Visibility; worldId: string }): void {
   const s = ensureConnected()
-  const msg: ClientMsg = { t: 'createParty', name, title: opts.title, visibility: opts.visibility, worldId: opts.worldId, ...compat }
+  const msg: ClientMsg = { t: 'createParty', name, title: opts.title, visibility: opts.visibility, worldId: opts.worldId, ...compat() }
   if (s.connected) s.send(msg)
   else pendingOnOpen = msg
 }
 
 export function joinParty(code: string, name: string): void {
   const s = ensureConnected()
-  const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, ...compat }
+  const msg: ClientMsg = { t: 'joinParty', code: code.toUpperCase(), name, ...compat() }
   if (s.connected) s.send(msg)
   else pendingOnOpen = msg
 }
@@ -269,7 +278,7 @@ export function joinParty(code: string, name: string): void {
 /** Join a run already IN PROGRESS (a recruiting "ongoing" game) with a chosen hero. */
 export async function joinRun(code: string, name: string, character: Character): Promise<void> {
   useSession.getState().setMyCharacterId(character.id)
-  const msg: ClientMsg = { t: 'joinRun', code: code.toUpperCase(), name, character, ...compat }
+  const msg: ClientMsg = { t: 'joinRun', code: code.toUpperCase(), name, character, ...compat() }
   if (await resolveServer()) {
     const s = ensureConnected()
     if (s.connected) s.send(msg)

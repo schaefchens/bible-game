@@ -45,8 +45,11 @@ export interface PickPresence {
   selection: string[]
 }
 
+/** Compatibility fingerprint presented at join. `contentHash` is what the server gates on (see
+ *  @bible/content's hash.ts); `buildHash` rides along so a mismatch can name the two revisions. */
 export interface Compat {
   buildHash: string
+  contentHash: string
   stateVersion: number
 }
 

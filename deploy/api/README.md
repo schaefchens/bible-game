@@ -8,26 +8,31 @@ It came from the komm-folge-mir-nach website repo
 where it lived at `public/api/fetch-game-server.php` and served
 `komm-folge-mir-nach.de`. The game owns it now.
 
-## Status: not deployed
+## Status: live
 
-The deploy skips `/api` entirely unless `deploy/api/config.php` exists. It does
-not, and three things have to be true before it should:
+`deploy/api/config.php` exists (gitignored) and the deploy ships this directory
+to `/api`, so co-op is on: `VITE_WAKE_ENDPOINT` in `apps/web/.env.production`
+points the client here, and the whole path — POST, snapshot boot, `wss://`,
+a room from the engine — has been walked end to end.
 
-1. **A fresh Hetzner Cloud API token.** The one in the old file is committed to
-   a public GitHub repository and must be treated as compromised — rotate it in
-   the Hetzner console rather than reusing it. This port has no fallback token
-   in source, and refuses to run unconfigured rather than guessing.
-2. **A real admin key.** The old default was the literal string `s3cr3t`, and it
-   was never changed. It guards `destroy-now`. `openssl rand -hex 32`.
-3. **A WebSocket host.** `wss://game.komm-folge-mir-nach.de/ws` is gone with its
-   domain. A new subdomain needs a DNS record pointing at the reserved primary
-   IPv4, and a certificate.
+The WebSocket host is `wss://walkinthespirit-coop.games.schaefchens.de/ws`,
+on the reserved primary IPv4, with its own certificate.
 
-Also worth checking before trusting the carried-over ids in
-`config.php.example`: whether the snapshot (`image`), the reserved primary IPs
-and the firewall still exist in the Hetzner project. A stale snapshot id fails
-at server-creation time, which is to say the first time a player clicks Play
-Co-op, not at deploy time.
+Two standing cautions, neither of them blocking:
+
+1. **The original file's Hetzner token is public.** It is committed to
+   [christophmegusta/follow-me-forward](https://github.com/christophmegusta/follow-me-forward)
+   and must be treated as dead — never restore an old `config.php` on the
+   strength of it working before. This port keeps no fallback token in source
+   and refuses to run on a placeholder.
+2. **The admin key guards `destroy-now`.** The old default was the literal
+   string `s3cr3t`. If you ever regenerate the config, `openssl rand -hex 32`,
+   and remember the key travels in a URL — it lands in access logs.
+
+The carried-over resource ids in `config.php.example` (the snapshot `image`, the
+reserved IPs, the firewall) are the thing most likely to rot: a stale snapshot id
+fails at server-creation time, which is the first time a player clicks Play
+Co-op, not at deploy time. `?action=status&key=…` is the cheap way to ask.
 
 ## How it works
 
