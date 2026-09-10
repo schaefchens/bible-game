@@ -4,13 +4,17 @@
 // answers the default /ws directly, so we PROBE that first and only fall back to the wake endpoint
 // (production) when the default is unreachable.
 
-// Where that PHP endpoint lives. Deliberately unset by default: the old host
-// (komm-folge-mir-nach.de) is gone, and the current static host cannot run PHP or a Node
-// process, so there is no on-demand server to wake right now. With no endpoint configured
-// resolveServer() fails fast on `ui.coop.errNoServer` instead of firing requests at a dead
-// domain and making the player wait out the timeout. Set VITE_WAKE_ENDPOINT at build time to
-// turn co-op back on — the native app builds will need it too, since they cannot fall back to
-// a same-origin /ws.
+// Where that PHP endpoint lives. Deliberately unset by default: komm-folge-mir-nach.de no
+// longer resolves at all, so both the wake endpoint and the wss:// host it handed back are
+// gone, and the script itself was never in this repo. Pointing at it would only cost a failed
+// DNS lookup before the same error. With nothing configured, wake() returns null without a
+// request and resolveServer() reports `ui.coop.errNoServer` at once.
+//
+// Set VITE_WAKE_ENDPOINT to turn co-op back on. The current host does run PHP (8.5 + curl, and
+// the sibling quiz project already serves a PHP backend from the same box), so a rewritten
+// controller could live at /api/ here; what it cannot host is the Node WS server the controller
+// boots. Native app builds need this too — they have no same-origin /ws to fall back to, and
+// whatever replaces the old origin allowlist has to admit capacitor://localhost.
 const WAKE_ENDPOINT = (import.meta.env.VITE_WAKE_ENDPOINT as string | undefined) ?? ''
 const PROBE_TIMEOUT_MS = 3000
 const POLL_INTERVAL_MS = 3000

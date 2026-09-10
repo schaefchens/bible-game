@@ -122,15 +122,40 @@ Co-op needs one more thing: a Capacitor build has no same-origin server, so
 
 ## Co-op is currently offline
 
-`apps/server` is a Node WebSocket server. Shared webhosting cannot run it, and
-the PHP endpoint that used to wake an on-demand Hetzner box lived on
-`komm-folge-mir-nach.de`, which is gone.
+Co-op used to work like this: the browser POSTed
+`komm-folge-mir-nach.de/api/fetch-game-server.php`, that PHP script asked the
+Hetzner Cloud API whether the game server existed, created it from a snapshot if
+not, and answered `{status, websocketUrl}` until the client could connect. The
+same endpoint was the heartbeat (every 5 min from the client), and a cron hitting
+`?action=destroy-if-idle` destroyed the VPS after an hour of silence — cheap
+co-op, paid for by the session rather than the month.
 
-`VITE_WAKE_ENDPOINT` is therefore unset by default, and the client fails fast on
-`ui.coop.errNoServer` instead of firing requests at a dead domain and making the
-player wait out a timeout. Single-player is unaffected. Point that variable at a
-new wake endpoint — or `VITE_WS_URL` at a permanently-running server — to bring
-co-op back; nothing else needs to change.
+All of it is gone. `komm-folge-mir-nach.de` no longer resolves, which takes out
+both the wake endpoint and `game.komm-folge-mir-nach.de`, the `wss://` host it
+handed back. `fetch-game-server.php` was never in this repo — only the CORS
+snippet in `spirit-game-server-setup-instructions.md` §18 survives. Whether the
+Hetzner snapshot, the reserved Primary IPs and the API token still exist is a
+question for the Hetzner account, not this repo.
+
+So `VITE_WAKE_ENDPOINT` is unset by default and the client reports
+`ui.coop.errNoServer` immediately. Single-player is unaffected.
+
+Three ways back:
+
+1. **Rehost the controller here.** This host runs PHP 8.5 with curl and a
+   writable document root — the sibling quiz project already serves a PHP
+   backend from the same box — so `/api/fetch-game-server.php` would work the
+   way it did before. The script has to be rewritten from the concept doc, and
+   it needs a Hetzner API token, a server snapshot, and a WS subdomain with a
+   certificate. Point `VITE_WAKE_ENDPOINT` at it.
+2. **Drop the wake step.** Run `apps/server` somewhere permanently and set
+   `VITE_WS_URL` to it. Simpler, and the only option that works from a Capacitor
+   build without a controller; costs a few euros a month instead of per session.
+3. **Leave it off.** Nothing else in the game depends on it.
+
+Whichever way: the old CORS allowlist was origin-based on the dead domain, so it
+needs the new host — and `capacitor://localhost` if the native apps are to reach
+co-op at all.
 
 `spirit-game-server-setup-concept.md` and
 `spirit-game-server-setup-instructions.md` in the repo root describe the old
