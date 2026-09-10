@@ -12,7 +12,7 @@
 # refresh. Re-snapshot afterwards, or every recreation starts from the old
 # state again.
 #
-#   scp deploy/server/{provision.sh,nginx-coop.conf} root@<ip>:/root/
+#   scp deploy/server/* root@<ip>:/root/
 #   ssh root@<ip> 'bash /root/provision.sh'
 #
 # Environment:
@@ -26,7 +26,8 @@ COOP_HOST="${COOP_HOST:-walkinthespirit-coop.games.schaefchens.de}"
 LE_EMAIL="${LE_EMAIL:-}"
 SKIP_CERT="${SKIP_CERT:-0}"
 
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/nginx-coop.conf"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC="$HERE/nginx-coop.conf"
 AVAILABLE=/etc/nginx/sites-available
 ENABLED=/etc/nginx/sites-enabled
 SITE=walkinthespirit-coop
@@ -94,6 +95,34 @@ else
     certbot delete --cert-name game.komm-folge-mir-nach.de --non-interactive || true
     ok "removed the dead game.komm-folge-mir-nach.de certificate"
   fi
+fi
+
+# --- boot / deploy scripts ---------------------------------------------------------
+
+# These live in the repo so the box is reproducible from it rather than only
+# from a snapshot. Both are rewritten every run, so a stale snapshot's copy is
+# replaced rather than merged with.
+info "Installing the boot and deploy scripts"
+for f in boot-update-bible-game.sh deploy-bible-game.sh; do
+  if [ -f "$HERE/$f" ]; then
+    install -m 755 "$HERE/$f" "/usr/local/bin/$f"
+    ok "installed $f"
+  else
+    printf '  \033[31m✗\033[0m %s not found next to this script\n' "$f"
+  fi
+done
+
+# --- certbot boot renew ------------------------------------------------------------
+
+info "Making the boot-time renewal prompt"
+DROPIN=/etc/systemd/system/certbot-boot-renew.service.d
+if [ -f "$HERE/systemd/certbot-boot-renew-nosleep.conf" ]; then
+  mkdir -p "$DROPIN"
+  install -m 644 "$HERE/systemd/certbot-boot-renew-nosleep.conf" "$DROPIN/nosleep.conf"
+  systemctl daemon-reload
+  ok "certbot-boot-renew will not sleep before renewing"
+else
+  printf '  \033[31m✗\033[0m systemd/certbot-boot-renew-nosleep.conf not found\n'
 fi
 
 # --- the service itself -----------------------------------------------------------

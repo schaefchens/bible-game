@@ -56,21 +56,37 @@ return [
     'server_name' => 'spirit-game-server',
     'server_type' => 'cpx12',
     'location'    => 'fsn1',
-    'image'       => 406645289,   // snapshot id
     'ssh_key'     => 'abraham@der-weg-des-herrn.de',
     'firewall'    => 'firewall-spirit-game-server',
+
+    // Snapshot the server boots from. Bump this after every provision.sh run
+    // that you re-snapshot, or recreations silently start from the old state.
+    //
+    // 430388620  spirit-game-server-20260910T154812Z  ← current
+    //            Everything provision.sh installs: the walkinthespirit-coop
+    //            vhost and its certificate, the boot/deploy scripts from
+    //            deploy/server/, and the certbot no-random-sleep drop-in.
+    //            Boots in ~21s; wake-to-ready measured at 42s.
+    // 430386111  spirit-game-server-20260910T153229Z
+    //            same, without the certbot drop-in.
+    // 406645289  spirit-game-server-initial
+    //            the original. Boots serving game.komm-folge-mir-nach.de with
+    //            a certificate for a domain that no longer resolves, so its
+    //            boot-time renewal attempt stalls for minutes. Only useful as
+    //            a floor to re-run provision.sh against.
+    'image'       => 430388620,
 
     // Reserved so the DNS record keeps pointing at the same address across
     // recreations. Both survived the move: the IPv4 is 167.233.229.238 and the
     // IPv6 /64 is 2a01:4f8:c015:b470::/64.
     'primary_ipv4_name' => 'primary_ip-139525751-spirit-game-server',
 
-    // Empty = IPv4 only, which is the current setup: there is no AAAA record
-    // for the co-op host. Assigning the IPv6 anyway would have the server
-    // advertise an address nothing resolves to, and a dual-stack client can
-    // then spend a connection timeout on it before falling back. Put the name
-    // back ('primary_ip-139525752-spirit-game-server') once the AAAA exists.
-    'primary_ipv6_name' => '',
+    // Empty = IPv4 only. Set, and the server is dual-stack — which it must be
+    // whenever an AAAA record exists for the co-op host, because the two have
+    // to agree. An AAAA with no listener behind it costs browsers a Happy
+    // Eyeballs fallback on every connect, and can fail a Let's Encrypt
+    // renewal outright: the CA resolves AAAA first and prefers it.
+    'primary_ipv6_name' => 'primary_ip-139525752-spirit-game-server',
 
     // --- idle shutdown -------------------------------------------------------
 
