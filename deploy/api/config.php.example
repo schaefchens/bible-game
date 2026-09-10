@@ -39,11 +39,12 @@ return [
     ],
 
     // Handed back to the client once the server is up. The websocket URL is the
-    // one that matters — wsUrl()/serverResolve.ts connects to exactly this.
-    // Both need a DNS record pointing at the reserved primary IPv4 and a
-    // certificate; neither exists yet under the new domain.
+    // one that matters — serverResolve.ts connects to exactly this string, so
+    // it has to match the certificate on the VPS or the wss:// handshake fails.
+    // The host needs an A record on the reserved primary IPv4 (167.233.229.238)
+    // and an AAAA on the reserved /64.
     'game_url' => 'https://walkinthespirit.games.schaefchens.de/',
-    'websocket_url' => 'wss://REPLACE_WITH_THE_WS_HOST/ws',
+    'websocket_url' => 'wss://walkinthespirit-coop.games.schaefchens.de/ws',
 
     // --- the Hetzner resources this script creates ---------------------------
     //
