@@ -61,10 +61,16 @@ return [
     'firewall'    => 'firewall-spirit-game-server',
 
     // Reserved so the DNS record keeps pointing at the same address across
-    // recreations. If these were released when the old domain went, new ones
-    // have to be reserved and the DNS updated.
+    // recreations. Both survived the move: the IPv4 is 167.233.229.238 and the
+    // IPv6 /64 is 2a01:4f8:c015:b470::/64.
     'primary_ipv4_name' => 'primary_ip-139525751-spirit-game-server',
-    'primary_ipv6_name' => 'primary_ip-139525752-spirit-game-server',
+
+    // Empty = IPv4 only, which is the current setup: there is no AAAA record
+    // for the co-op host. Assigning the IPv6 anyway would have the server
+    // advertise an address nothing resolves to, and a dual-stack client can
+    // then spend a connection timeout on it before falling back. Put the name
+    // back ('primary_ip-139525752-spirit-game-server') once the AAAA exists.
+    'primary_ipv6_name' => '',
 
     // --- idle shutdown -------------------------------------------------------
 

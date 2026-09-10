@@ -200,14 +200,19 @@ function createServer(): array {
     $primaryIps = hcloudGetAll('/primary_ips', 'primary_ips');
 
     $primaryIpv4 = findByName($primaryIps, $config['primary_ipv4_name']);
-    $primaryIpv6 = findByName($primaryIps, $config['primary_ipv6_name']);
 
     if (!$primaryIpv4) {
         throw new RuntimeException('Primary IPv4 not found: ' . $config['primary_ipv4_name']);
     }
 
-    if (!$primaryIpv6) {
-        throw new RuntimeException('Primary IPv6 not found: ' . $config['primary_ipv6_name']);
+    // IPv6 is optional. An address the server advertises but that has no AAAA
+    // record behind it is worse than no address: a dual-stack client may try it
+    // first and sit through a connection timeout before falling back.
+    $ipv6Name = (string) ($config['primary_ipv6_name'] ?? '');
+    $primaryIpv6 = $ipv6Name !== '' ? findByName($primaryIps, $ipv6Name) : null;
+
+    if ($ipv6Name !== '' && !$primaryIpv6) {
+        throw new RuntimeException('Primary IPv6 not found: ' . $ipv6Name);
     }
 
     $createBody = [
@@ -225,10 +230,9 @@ function createServer(): array {
         ],
         'public_net' => [
             'enable_ipv4' => true,
-            'enable_ipv6' => true,
+            'enable_ipv6' => $primaryIpv6 !== null,
             'ipv4' => $primaryIpv4['id'],
-            'ipv6' => $primaryIpv6['id'],
-        ],
+        ] + ($primaryIpv6 !== null ? ['ipv6' => $primaryIpv6['id']] : []),
         'labels' => [
             'app' => 'spirit-game',
             'managed_by' => 'php-wake-script',
