@@ -111,7 +111,33 @@ The two runtime files are written by PHP next to the script and are gitignored.
 
 ## Idle cron
 
-`.github/workflows/destroy-idle-game-server.yml`, every 10 minutes. It no-ops
-unless the repository secret `GAME_SERVER_ADMIN_KEY` is set, so it stays quiet
-until the endpoint is real. Hetzner Webhosting cron works equally well if you
-would rather not have GitHub holding the key.
+A **Hetzner Webhosting cron** calls this hourly and is the live reaper:
+
+```
+https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php?action=destroy-if-idle&key=<admin_key>
+```
+
+Hourly is the shortest interval that panel offers, and with a one-hour idle
+window that means an abandoned server lives up to two hours (~1.5 average).
+At €0.0219/h for a cpx12 that is about three cents a session, so the window is
+deliberately left at an hour rather than tightened: the client heartbeats every
+five minutes, browsers freeze timers in hidden tabs after about five, and rooms
+are in-memory, so a mistimed destroy loses everyone's run to save half a cent.
+
+`.github/workflows/destroy-idle-game-server.yml` is the same call as a spare,
+manual-only. Its schedule is commented out so it does not duplicate the cron.
+
+Verify either of them from `admin-audit.log` (see below) — a reaper calling
+with a stale key returns 403 forever while looking perfectly healthy from the
+outside.
+
+## Audit log
+
+`admin-audit.log`, next to the script, denied over HTTP and read over SFTP.
+One tab-separated line per server creation, per destroy attempt with its
+outcome, and per refused admin call: time, method, event, detail, caller IP.
+
+The caller IP is what makes it usable. The deploy's own verification does a
+keyless GET to assert the endpoint refuses unauthenticated access, so every
+deploy leaves an `admin-denied` line from the workstation; the cron's lines
+come from the host.

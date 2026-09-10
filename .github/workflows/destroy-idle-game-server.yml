@@ -4,18 +4,25 @@
 # `destroy-if-idle` is a no-op while players are connected, so running it every
 # ten minutes is safe — the worst case is paying for ten extra minutes of VPS.
 #
+# NOT the live reaper. A Hetzner Webhosting cron calls the same URL hourly —
+# hourly being the shortest interval that panel offers — and that is what
+# actually keeps the bill down. This workflow is the spare: a second reaper
+# would be harmless (destroy-if-idle is idempotent and only acts once the
+# heartbeat is stale), but two of them is one more thing to keep in sync.
+#
+# So the schedule is off and this is manual-only. Uncomment it if the
+# webhosting cron ever goes away, and add GAME_SERVER_ADMIN_KEY to the repo
+# secrets — without that the job exits cleanly rather than failing, so it stays
+# quiet either way.
+#
 # Carried over from the come-follow-me-website repo along with the endpoint
-# itself (see deploy/api/README.md). Two changes: the host, and the guard.
-# Nothing is deployed at /api yet, so an unguarded cron would fail every ten
-# minutes forever. The job checks for GAME_SERVER_ADMIN_KEY and exits cleanly
-# when it is absent, which means this switches itself on the moment the secret
-# is added — and stays quiet until then.
+# itself. See deploy/api/README.md.
 
 name: Destroy idle game server
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
+  # schedule:
+  #   - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
