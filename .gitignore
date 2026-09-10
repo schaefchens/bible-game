@@ -9,6 +9,12 @@ coverage/
 *.tsbuildinfo
 sftp.env
 
+# Vite writes this beside vite.config.ts while loading the TS config and removes it after. It is
+# untracked for the moments it exists, which is long enough for the config's OWN `git status` check
+# to see it and stamp every single build "-dirty" from a spotless tree — the build stamp in Settings
+# and the co-op buildHash both lied because of it. A crashed build also leaves one behind.
+vite.config.ts.timestamp-*.mjs
+
 # Wake-controller secrets (Hetzner token, admin key) — never commit;
 # copy deploy/api/config.php.example to deploy/api/config.php
 deploy/api/config.php
