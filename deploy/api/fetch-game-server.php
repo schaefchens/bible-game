@@ -13,7 +13,8 @@ declare(strict_types=1);
  * month. apps/web/src/net/serverResolve.ts is the client half; point
  * VITE_WAKE_ENDPOINT at this file's URL to switch it on.
  *
- * Ported from the come-follow-me-website repo, where it lived at
+ * Ported from the komm-folge-mir-nach website repo
+ * (github.com/christophmegusta/follow-me-forward), where it lived at
  * public/api/fetch-game-server.php and served komm-folge-mir-nach.de. Two
  * things changed in the move, both because that file is committed to a public
  * repository with a live Hetzner token in it:

@@ -15,8 +15,8 @@
 # secrets — without that the job exits cleanly rather than failing, so it stays
 # quiet either way.
 #
-# Carried over from the come-follow-me-website repo along with the endpoint
-# itself. See deploy/api/README.md.
+# Carried over with the endpoint itself from the komm-folge-mir-nach website
+# repo (github.com/christophmegusta/follow-me-forward). See deploy/api/README.md.
 
 name: Destroy idle game server
 

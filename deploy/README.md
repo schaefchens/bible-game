@@ -129,8 +129,9 @@ can connect. The same endpoint is the heartbeat, and a cron destroys the VPS
 after an hour of silence — co-op paid for by the session rather than the month.
 
 That controller now lives in this repo at [`deploy/api/`](api/README.md),
-carried over from the `come-follow-me-website` repo where it used to serve
-`komm-folge-mir-nach.de`. The deploy ships it to `/api` automatically, but only
+carried over from the komm-folge-mir-nach website repo
+([christophmegusta/follow-me-forward](https://github.com/christophmegusta/follow-me-forward)),
+where it used to serve `komm-folge-mir-nach.de`. The deploy ships it to `/api` automatically, but only
 once `deploy/api/config.php` exists — it needs a Hetzner token, and shipping an
 unconfigured admin endpoint would be worse than shipping nothing. Until then the
 deploy says it is skipping `/api` and the site stays single-player.

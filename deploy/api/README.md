@@ -3,9 +3,10 @@
 `fetch-game-server.php` boots the co-op server on demand and destroys it again
 when nobody is playing, so multiplayer costs a session rather than a month.
 
-It came from the `come-follow-me-website` repo, where it lived at
-`public/api/fetch-game-server.php` and served `komm-folge-mir-nach.de`. The game
-owns it now.
+It came from the komm-folge-mir-nach website repo
+([christophmegusta/follow-me-forward](https://github.com/christophmegusta/follow-me-forward)),
+where it lived at `public/api/fetch-game-server.php` and served
+`komm-folge-mir-nach.de`. The game owns it now.
 
 ## Status: not deployed
 
