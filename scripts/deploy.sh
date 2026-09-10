@@ -102,11 +102,19 @@ build_local_manifest() {
 # — shasum separates the two with exactly two spaces).
 manifest_paths() { sed 's|^[0-9a-f]\{64\}  ||' "$@"; }
 
-# "<path>\t<size>" for what is actually on the server right now. Only the two
-# directories the build writes to; a remote `ls` is one round trip each.
+# "<path>\t<size>" for what is actually on the server right now.
+#
+# The directory list comes from the build rather than being hardcoded to
+# / and /assets: `ls -l` is the only remote inventory there is, one round trip
+# per directory, and a build that grows a third one would otherwise lose its
+# cross-check without anyone noticing.
 build_remote_sizes() {
-  remote_file_sizes / | awk -F'\t' '{ printf "%s\t%s\n", $1, $2 }'
-  remote_file_sizes /assets | awk -F'\t' '{ printf "assets/%s\t%s\n", $1, $2 }'
+  local dir
+  remote_file_sizes /
+  while IFS= read -r dir; do
+    dir="${dir#./}"
+    remote_file_sizes "/$dir" | sed "s|^|$dir/|"
+  done < <(cd "$DIST" && find . -mindepth 1 -type d ! -name '.*' | LC_ALL=C sort)
 }
 
 # "<path>\t<size>" for the local build. BSD stat (macOS) and GNU stat (Linux/CI)
