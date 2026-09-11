@@ -1,6 +1,6 @@
-// Battle combatant "sprites": a real PNG per archetype (resolved from @bible/assets), with the old
+// Battle combatant "sprites": a real WebP per archetype (resolved from @bible/assets), with the old
 // emoji as an automatic fallback until art for that archetype is dropped in. UI-side only — the
-// engine stays art-agnostic (mirrors cardArt.ts). The PNGs are static; the combat screen's existing
+// engine stays art-agnostic (mirrors cardArt.ts). The images are static; the combat screen's existing
 // transforms (lunge/hit/block/heal/idle-breathe/bob/death) animate them via the .sprite-react wrapper.
 
 import { resolveAsset } from '@bible/assets'
@@ -27,7 +27,7 @@ export function heroClassSpriteUrl(classId?: string): string | undefined {
   return resolveAsset((classId && CLASS_SPRITE[classId]) || 'sprite/hero')
 }
 
-/** Emoji fallback (unchanged behaviour) until the PNG for an archetype is registered + present. */
+/** Emoji fallback (unchanged behaviour) until the image for an archetype is registered + present. */
 export function spriteEmoji(c: CombatantView): string {
   if (c.faction === 'party') return '🧍'
   if (c.isDemon) return '👹'

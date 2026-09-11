@@ -1,35 +1,38 @@
 # Walk in the Spirit
 
 A biblical roguelike card-battler (Slay-the-Spire-inspired) with an RPG leveling layer,
-FF7-style positional/party combat, a free bidirectional node map, Monkey-Island point-and-click
-node scenes, **Bible-verse cards** earned by filling gaps in real scripture, and a hidden
-**flesh-vs-spirit** system that is the real win condition — raw power alone cannot beat the late
-game; only walking in the Spirit (grace mechanics, moral choices, scripture) can.
+positional party combat, a free bidirectional node map, Monkey-Island point-and-click node
+scenes, **Bible-verse cards** earned by filling gaps in real scripture, and a hidden
+**Spirit** stat that decides whether those verses work at all. Raw damage clears the road;
+the miracles that break a hopeless fight only fire for a player who walks in the Spirit.
 
-**Milestone 1** delivers a fully unit-tested game engine plus a playable end-to-end vertical
-slice. Bilingual **EN/DE**.
+Three adventures, three hero classes, 2–3 player co-op, and an offline-capable PWA.
+Bilingual **EN/DE**. Live at <https://walkinthespirit.games.schaefchens.de>.
 
 ## Architecture
 
 A monorepo (npm workspaces) with a hard, CI-enforced boundary: the **engine** is a pure,
 deterministic, serializable state machine with **zero** React/DOM/storage imports. The UI only
-dispatches `Command`s and renders `GameState` + animates `GameEvent`s.
+dispatches `Command`s and renders `GameState` + animates `GameEvent`s. The co-op server runs the
+*same* engine on Node — which is why there is no second rules implementation to keep in sync.
 
 ```
 packages/
   engine/       pure-TS engine: RNG, leveling, combat, spirit, verse, map, scenes, reducer
-  content/      the real M1 content bundle (cards, encounters, scenes, events, verses, world)
+  content/      the content bundle (cards, encounters, scenes, events, verses, three worlds)
   i18n/         EN/DE message bundles
   persistence/  IndexedDB save store (zod-validated SaveFile + migrations)
   assets/       AssetRef → URL registry (programmatic placeholders otherwise)
 apps/
-  web/          React + Vite UI (Zustand bridge, i18next, Framer Motion)
+  web/          React + Vite UI (Zustand bridge, i18next, Framer Motion, PWA)
+  server/       authoritative co-op WebSocket server (ws + tsx), reusing @bible/engine
 ```
 
 - **Engine contract:** one public `reduce(state, cmd) => { state, events }`, plus
   `serialize`/`deserialize`. Combat/world/spirit/verse are internal sub-reducers.
 - **Determinism:** a seeded `xoshiro128**` PRNG stored in state (JSON-safe number tuple),
-  threaded through the reducer; `fork(label)` for independent sub-streams.
+  threaded through the reducer; `fork(label)` for independent sub-streams, so adding a roll in
+  one domain never shifts another's sequence.
 - **Self-contained saves:** a run embeds its immutable `ContentBundle`, so `reduce` stays pure
   and saves don't break on content changes.
 
@@ -37,21 +40,60 @@ apps/
 
 ```bash
 npm install
-npm test            # vitest (engine + content + persistence) — ~126 tests
+npm test            # vitest (engine + content + persistence + web) — 401 tests, 45 files
 npm run typecheck   # tsc across all packages
 npm run lint        # eslint (incl. the engine-purity boundary rule)
 npm run check:engine-no-react   # CI guard: engine imports no React/UI/storage
-npm run dev         # Vite dev server for the web app
+npm run dev         # Vite dev server for the web app (proxies /ws to :8787)
+npm run server      # the co-op server, locally, on :8787
 npm run build       # production build (web, served at "/")
 npm run build:app   # production build for Capacitor (relative base, no service worker)
 ```
 
 The headless integration sims (`packages/engine/src/sim`, `packages/content/src/*.integration.test.ts`)
-drive the entire slice through the reducer with no UI — the fastest way to exercise game logic.
+drive whole runs through the reducer with no UI — the fastest way to exercise game logic.
+
+## The game
+
+**Three adventures**, picked on the world-select screen and unlocked in order:
+
+| world | id | shape |
+| --- | --- | --- |
+| Beside Still Waters | `world-02` | the tutorial — a short, gentle walk that teaches the verbs |
+| The Road to Jericho | `world-01` | the Good-Samaritan road: scenes, dialogue, a shop, the Accuser at the Narrow Gate |
+| The Valley of Elah | `world-03` | a 26-node combat gauntlet ending at Goliath |
+
+Both full adventures are gated behind the tutorial (`completedWorlds`).
+
+**Heroes** are permanent and created "at the fire" as one of three classes — Zealot (glass
+cannon, opens combat with Strength), Shepherd (tank, heals after every win), Merchant (rich,
++50% reward gold). Each brings its own starter deck and a signature card, and each levels to 99,
+spending skill points into hp / dmg / defend.
+
+**Combat** is one currency: HP, damage, and block. There is no defense stat and no damage cap —
+block from cards is the only mitigation. Level growth is non-linear and split (HP ×100 over 99
+levels, damage ×50) and enemies are bracketed a decade behind the hero, so leveling buys a real
+but bounded edge. Statuses (poison, weak, vulnerable, strength, dexterity), persistent powers
+(the Armor of God), scaling payoffs and per-archetype enemy AI with synergy auras give the deck
+its depth.
+
+**Spirit** is the hidden layer. It is never shown as a number; it rises from mercy, prayer and
+scripture and collapses when you kill a human who could have been freed. It does exactly one
+thing mechanically: it scales the verse cards. At zero they do nothing. At full they banish a
+foe outright (*Not by might* — Zech 4:6), shield the party (Phil 4:6), or open your eyes to the
+demon standing behind a human captive (2 Kings 6:17) so Mercy can free them instead of killing
+them. That is the whole thesis: the fight in front of you is not the real one.
+
+**Deckbuilding** runs the usual loop — card rewards after a win, a shop node, and honing a card
+at a fireplace (`+` → `++` → `+++`). The run deck is ephemeral; verse cards and event-granted
+cards persist on the hero.
+
+**Co-op** (2–3 players) is server-authoritative: everyone brings their own hero, decks merge
+into one shared hand, and the Node server runs the same `reduce` as the client. See
+[`deploy/README.md`](deploy/README.md#co-op) — the production server boots on demand and is
+reaped when idle.
 
 ## Deploy
-
-The game is live at <https://walkinthespirit.games.schaefchens.de>.
 
 ```bash
 cp sftp.env.example sftp.env   # credentials, gitignored
@@ -60,15 +102,6 @@ npm run deploy:dry             # show the plan, upload nothing
 ```
 
 It is a static SFTP deploy that diffs content hashes against a manifest in the
-web root, so the ~75 MB of art and music only moves when it actually changes.
+web root, so the ~70 MB of art and music only moves when it actually changes.
 See [`deploy/README.md`](deploy/README.md) — including the Capacitor notes and
 how the on-demand co-op server is woken and reaped.
-
-## The vertical slice
-
-Start → create a permanent hero → the Forest Road map → a point-and-click house (take a key) →
-a beast fight → a fireplace (rest / pray / **study a verse** via gap-fill) → a key-gated edge →
-the **thief mini-boss**: use **Sight** to reveal the demon behind the captive and destroy it with
-spiritual damage (the human is freed — a peaceful, righteous victory), **or** brute-force the
-human (a heavy Spirit penalty, no righteous loot). Spiritual cards **fizzle at low Spirit**. Runs
-save and resume.

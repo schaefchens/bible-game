@@ -1,14 +1,21 @@
 # Spirit Game Server Setup
 
-> **Historical — the hosting described here no longer exists.**
+> **Historical — the hostnames here are dead; the architecture is live.**
 >
-> `komm-folge-mir-nach.de` and `game.komm-folge-mir-nach.de` are gone, and with
-> them the wake endpoint and the on-demand VPS. The game now ships as a static
-> build to the **root** of https://walkinthespirit.games.schaefchens.de — see
-> [`deploy/README.md`](deploy/README.md) for how that works. Co-op is offline
-> until a WebSocket server exists again.
+> `komm-folge-mir-nach.de` and `game.komm-folge-mir-nach.de` are gone. The same
+> design was rebuilt on new hosts and is **running**: the game ships to the root
+> of https://walkinthespirit.games.schaefchens.de, co-op answers at
+> `wss://walkinthespirit-coop.games.schaefchens.de/ws`, and the on-demand VPS is
+> woken and reaped exactly as described below.
 >
-> This document is kept for the architecture, not the hostnames.
+> For anything you intend to *run*, use the in-repo sources instead — they are
+> the ones that are deployed and kept current:
+>
+> - [`deploy/README.md`](deploy/README.md) — the static deploy, caching, Capacitor
+> - [`deploy/api/README.md`](deploy/api/README.md) — the wake controller, cron, admin actions
+> - [`deploy/server/`](deploy/server/) — the VPS's own nginx/boot/git-deploy config, via `provision.sh`
+>
+> This document is kept for the *why*, not the hostnames or the commands.
 
 This document describes the complete setup for the `spirit-game-server` deployment.
 

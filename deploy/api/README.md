@@ -56,9 +56,10 @@ browser                        this file                     Hetzner Cloud
 
 The same POST is the heartbeat — the client repeats it every 5 minutes while
 co-op is open (`apps/web/src/net/client.ts`). A cron calls
-`?action=destroy-if-idle` every 10 minutes, and once the last heartbeat is older
-than `idle_destroy_after_seconds` (1 h) the VPS is deleted. The primary IPs stay
-reserved, so the DNS record keeps pointing at the right address next time.
+`?action=destroy-if-idle` hourly (see **Idle cron** below), and once the last
+heartbeat is older than `idle_destroy_after_seconds` (1 h) the VPS is deleted.
+The primary IPs stay reserved, so the DNS record keeps pointing at the right
+address next time.
 
 `flock` around the whole request is what stops two players clicking Play Co-op
 at the same moment from creating two servers.
@@ -67,14 +68,15 @@ at the same moment from creating two servers.
 
 `apps/web/src/net/serverResolve.ts`. It probes the same-origin `/ws` first (that
 is the dev path, where `npm run server` answers directly) and only falls back to
-this endpoint. Switch it on with:
+this endpoint, which `apps/web/.env.production` already points here:
 
 ```
 VITE_WAKE_ENDPOINT=https://walkinthespirit.games.schaefchens.de/api/fetch-game-server.php
 ```
 
-Unset — the current state — `wake()` returns null without a request and the
-client reports `ui.coop.errNoServer` immediately.
+Leave it unset for a build that should have no co-op server: `wake()` then
+returns null without a request and the client reports `ui.coop.errNoServer`
+immediately, rather than waiting out a timeout.
 
 Native builds need it too, plus `VITE_WS_URL`: a Capacitor webview has no
 same-origin `/ws` to probe. It also sends `Origin: https://localhost` (Android)

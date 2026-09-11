@@ -45,14 +45,14 @@ export function setAssetBase(base: string): void {
   assetBase = base || '/'
 }
 
-// Battle character sprites, keyed by combatant archetype. Drop a matching transparent PNG into
+// Battle character sprites, keyed by combatant archetype. Drop a matching transparent WebP into
 // apps/web/public/assets and it renders; until then the combat screen falls back to emoji.
 const SPRITE_FILES: Record<string, string> = {
   'sprite/hero': 'sprite-hero.webp',
   // hero class sprites (Shepherd reuses sprite/hero — the default-hero art is the shepherd).
   'sprite/zealot': 'sprite-zealot.webp',
-  'sprite/merchant': 'sprite-merchant.webp', // art pending → 404 → emoji fallback until dropped in
-  'sprite/companion': 'sprite-companion.webp',
+  'sprite/merchant': 'sprite-merchant.webp',
+  'sprite/companion': 'sprite-companion.webp', // art pending → 404 → emoji fallback until dropped in
   'sprite/thief': 'sprite-thief.webp',
   'sprite/robber': 'sprite-robber.webp',
   'sprite/bandit': 'sprite-bandit.webp',
