@@ -181,7 +181,7 @@ chown bible:bible /var/www
 Clone the public repository:
 
 ```bash
-sudo -u bible git clone https://github.com/scharfmedia/bible-game.git /var/www/bible-game
+sudo -u bible git clone https://github.com/schaefchens/bible-game.git /var/www/bible-game
 cd /var/www/bible-game
 sudo -u bible npm ci
 ```

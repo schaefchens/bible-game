@@ -14,12 +14,12 @@ import type {
 } from '../types'
 import type { GateExpr } from '../map/types'
 
-/** The Monkey-Island verb set. Milestone 1 implements observe / take / use; the rest get a
- *  generic localized refusal line (the model supports them for later). `goTo` is a navigation
- *  action: on a hotspot that hides a path it reveals + travels to that map node (see `goToNode`). */
+/** The Monkey-Island verb set. Resolution is verb-agnostic: a hotspot runs whichever verbs it
+ *  authors an `Interaction` for, and any other verb falls through to the generic localized refusal
+ *  line `verb.refusal.<verb>` (scene/resolve.ts). Content uses observe / talk / take / use / pull /
+ *  goTo today; the rest are authorable without an engine change. `goTo` is a navigation action: on
+ *  a hotspot that hides a path it reveals + travels to that map node (see `goToNode`). */
 export type Verb = 'observe' | 'talk' | 'take' | 'pull' | 'push' | 'use' | 'open' | 'close' | 'goTo' | 'give'
-
-export const M1_VERBS: readonly Verb[] = ['observe', 'take', 'use']
 
 /** Every verb, for the radial verb coin — the player may try any action (unsupported ones simply
  *  return a refusal line). Order is the fan layout, clockwise from the top. */

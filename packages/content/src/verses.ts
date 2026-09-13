@@ -26,8 +26,10 @@ const idxOf = (text: string, word: string): number =>
   tokenize(text).findIndex((t) => t.replace(/[^A-Za-zÀ-ÿ]/g, '').toLowerCase() === word.toLowerCase())
 
 export const VERSES: Record<string, VerseChallenge> = {
-  // First in the record so the fireplace `study` (offers the first un-owned verse) surfaces Sight
-  // early, before the demon-binding fights. Earns the "Open My Eyes" reveal card.
+  // Earns the "Open My Eyes" reveal card. Sight is meant to arrive BEFORE the demon-binding fights,
+  // and what decides that is where its FRAGMENT drops (jericho `tollGate`, and the first demon-bound
+  // fight in Elah) — not this record's order: the fireplace `study` lists the fragments the hero
+  // actually holds and the player picks one (FireplaceScreen), so ordering here is cosmetic.
   '2kings_6_17': {
     id: '2kings_6_17',
     ref: { book: '2 Kings', chapter: 6, verse: 17 },

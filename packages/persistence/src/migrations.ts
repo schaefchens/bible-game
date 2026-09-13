@@ -1,8 +1,8 @@
 import { CURRENT_SCHEMA_VERSION, SaveFileSchema, type SaveFile } from './schema'
 
-// Ordered migration steps vN → vN+1. None exist yet (v1 is the first), but the chain is in place
-// so a future breaking change adds one step + a frozen-fixture test. Unknown future versions are
-// refused rather than silently corrupting a save.
+// Ordered migration steps vN → vN+1. One exists: v1→v2, the flesh card-id rename below. A future
+// breaking change adds another step + a frozen-fixture test. Unknown future versions are refused
+// rather than silently corrupting a save.
 
 type Migration = (raw: Record<string, unknown>) => Record<string, unknown>
 

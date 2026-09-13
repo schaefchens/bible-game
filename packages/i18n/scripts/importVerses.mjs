@@ -1,6 +1,6 @@
 // Verse importer (dev tool — NOT part of the game runtime). Fetches public-domain verse text and
-// prints it as normalized JSON for authoring VerseChallenge content. Milestone 1's two verses are
-// hand-authored in @bible/content; this script is the path to scale that up.
+// prints it as normalized JSON for authoring VerseChallenge content. The four shipped verses are
+// hand-authored in @bible/content (src/verses.ts); this script is the path to scale that up.
 //
 // Sources (public domain):
 //   - KJV (English):       https://github.com/aruljohn/Bible-kjv  (per-book JSON, MIT repo)

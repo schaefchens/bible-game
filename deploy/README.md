@@ -35,7 +35,7 @@ number of parallel SFTP connections, default 4).
 
 ## Why it uploads incrementally
 
-The build is ~75 MB, and all but about a megabyte of that is game art and music
+The build is ~68 MB, and all but about a megabyte of that is game art and music
 copied verbatim from `apps/web/public/assets`. Those filenames are stable —
 they change when someone replaces a piece of art, not on every build. Pushing
 all of it every time would make a one-line copy fix a fifteen-minute deploy.

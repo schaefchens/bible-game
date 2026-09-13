@@ -185,7 +185,7 @@ export type {
   DialogueChoice,
   Story,
 } from './scene/types'
-export { M1_VERBS, VERBS } from './scene/types'
+export { VERBS } from './scene/types'
 export type {
   InventoryState,
   ItemDef,

@@ -109,7 +109,7 @@ This port is not exposed directly to the public internet. Public access goes thr
 The application source code is stored in GitHub:
 
 ```txt
-https://github.com/scharfmedia/bible-game
+https://github.com/schaefchens/bible-game
 ```
 
 The VPS updates itself from `origin/main` on boot and also checks regularly for Git changes.

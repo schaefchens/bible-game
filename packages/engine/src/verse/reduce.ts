@@ -15,10 +15,11 @@ export const MAX_VERSE_ATTEMPTS = 3
  * Verse gap-fill sub-reducer. Validates the player's words against the real verse (current locale).
  * On success the verse card materializes into the permanent collection + the run deck and Spirit
  * rises (earnVerse). On a wrong answer the player keeps trying — but only MAX_VERSE_ATTEMPTS times:
- * the 3rd miss LOSES the scripture (recorded permanently so it is no longer offered when studying;
- * must be re-acquired later). The miss count lives on the CHARACTER (verseAttempts), not the
- * transient prompt — so cancelling the modal (verse/cancel) and re-studying RESUMES the count rather
- * than handing out a fresh 3. Cancelling itself spends no attempt; only wrong submissions do.
+ * the 3rd miss destroys the Scripture Fragment being studied. That is NOT a permanent card-lock —
+ * another fragment (dropped or bought) lets you try the same verse again. The miss count lives on
+ * the CHARACTER (verseAttempts), not the transient prompt — so cancelling the modal (verse/cancel)
+ * and re-studying RESUMES the count rather than handing out a fresh 3. Cancelling itself spends no
+ * attempt; only wrong submissions do.
  */
 export function reduceVerse(state: GameState, cmd: Command): ReduceResult {
   const run = state.run

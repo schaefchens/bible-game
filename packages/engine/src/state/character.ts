@@ -22,8 +22,9 @@ export interface Character {
   allocated: StatAllocation
   /** verse cards permanently earned (carry across runs) */
   ownedVerseCardIds: CardDefId[]
-  /** verse cards lost by failing the gap-fill 3× — no longer offered when studying; must be
-   *  re-acquired (a future "buy/find" path). Permanent like ownedVerseCardIds. */
+  /** VESTIGIAL — nothing writes this. A 3rd failed gap-fill once meant a permanent card-lock; it
+   *  now only destroys the Scripture Fragment (verse/reduce.ts), so another fragment lets you retry.
+   *  Kept because it is in the persisted save schema; reduce.test.ts asserts it stays empty. */
   lostVerseCardIds: CardDefId[]
   /** failed gap-fill attempts so far, per verse card. PERSISTENT (not on the transient prompt) so
    *  cancelling the modal and re-studying resumes the count instead of resetting to a fresh 3. */

@@ -40,7 +40,7 @@ apps/
 
 ```bash
 npm install
-npm test            # vitest (engine + content + persistence + web) — 401 tests, 45 files
+npm test            # vitest (engine, content, persistence, web, server) — 401 tests, 45 files
 npm run typecheck   # tsc across all packages
 npm run lint        # eslint (incl. the engine-purity boundary rule)
 npm run check:engine-no-react   # CI guard: engine imports no React/UI/storage
@@ -60,7 +60,7 @@ drive whole runs through the reducer with no UI — the fastest way to exercise 
 | world | id | shape |
 | --- | --- | --- |
 | Beside Still Waters | `world-02` | the tutorial — a short, gentle walk that teaches the verbs |
-| The Road to Jericho | `world-01` | the Good-Samaritan road: scenes, dialogue, a shop, the Accuser at the Narrow Gate |
+| The Road to Jericho | `world-01` | the Good-Samaritan road: scenes, dialogue, two shops, the Accuser at the Narrow Gate |
 | The Valley of Elah | `world-03` | a 26-node combat gauntlet ending at Goliath |
 
 Both full adventures are gated behind the tutorial (`completedWorlds`).
@@ -73,16 +73,20 @@ spending skill points into hp / dmg / defend.
 **Combat** is one currency: HP, damage, and block. There is no defense stat and no damage cap —
 block from cards is the only mitigation. Level growth is non-linear and split (HP ×100 over 99
 levels, damage ×50) and enemies are bracketed a decade behind the hero, so leveling buys a real
-but bounded edge. Statuses (poison, weak, vulnerable, strength, dexterity), persistent powers
-(the Armor of God), scaling payoffs and per-archetype enemy AI with synergy auras give the deck
-its depth.
+but bounded edge. Statuses (poison, weak, vulnerable, strength, dexterity, bound), persistent
+powers (the Armor of God), scaling payoffs and per-archetype enemy AI with synergy auras give the
+deck its depth.
 
 **Spirit** is the hidden layer. It is never shown as a number; it rises from mercy, prayer and
 scripture and collapses when you kill a human who could have been freed. It does exactly one
-thing mechanically: it scales the verse cards. At zero they do nothing. At full they banish a
-foe outright (*Not by might* — Zech 4:6), shield the party (Phil 4:6), or open your eyes to the
-demon standing behind a human captive (2 Kings 6:17) so Mercy can free them instead of killing
-them. That is the whole thesis: the fight in front of you is not the real one.
+thing mechanically: it scales the four verse cards. At zero they do nothing. At full they banish
+a foe outright (*Not by might* — Zech 4:6), shield (Phil 4:6) or heal (Luke 10:27) the party, or
+open your eyes to the demon standing behind a human captive (2 Kings 6:17) so Mercy can free them
+instead of killing them. That is the whole thesis: the fight in front of you is not the real one.
+
+You earn one by carrying a **Scripture Fragment** — dropped by a fight, or bought — to a fire and
+typing the missing words of the real verse from memory or from an open Bible. Checking is tolerant
+of case, punctuation and umlauts in both languages; three wrong answers loses the fragment.
 
 **Deckbuilding** runs the usual loop — card rewards after a win, a shop node, and honing a card
 at a fireplace (`+` → `++` → `+++`). The run deck is ephemeral; verse cards and event-granted

@@ -88,10 +88,9 @@ const REGISTRY: Record<string, string> = {
   'music/inn': 'bg-music-inn.mp3',
   'music/sleep': 'bg-music-sleep.mp3', // one-shot cue (~10s) for the sleep cinematic
   'music/startup': 'bg-music-startup.mp3', // calm ambient bed under the studio-logo intro (StartupSequence)
-  // Registered + available; not yet assigned to any node/encounter (wire later as needed).
-  'music/battle-intense': 'bg-music-battle-intense.mp3',
-  'music/battle-calm': 'bg-music-battle-calm.mp3',
-  'music/prayer': 'bg-music-prayer.mp3',
+  'music/battle-intense': 'bg-music-battle-intense.mp3', // every Elah encounter's battleMusic
+  'music/battle-calm': 'bg-music-battle-calm.mp3', // registered + available; not assigned to any node/encounter yet
+  'music/prayer': 'bg-music-prayer.mp3', // the prayer cinematic (musicManager.setPraying), not a map/battle track
   // Combat SFX (one-shots). Played by sfxManager; gated on audioMode !== 'off', scaled by audioVolume.
   'sfx/strike-1': 'sfx-strike-1.mp3',
   'sfx/strike-2': 'sfx-strike-2.mp3',
