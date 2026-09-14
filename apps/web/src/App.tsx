@@ -28,6 +28,7 @@ import { CharacterModal } from './components/CharacterModal'
 import { InventoryLayer } from './components/InventoryLayer'
 import { GlobalHotkeys } from './components/GlobalHotkeys'
 import { UpdateBanner } from './components/UpdateBanner'
+import { InstallCard } from './components/InstallCard'
 import { StartupSequence } from './components/StartupSequence'
 import { ChatOverlay } from './components/ChatOverlay'
 import { LobbyOverlay } from './components/LobbyOverlay'
@@ -135,6 +136,10 @@ export function App() {
 
       {/* System-level (unscaled, viewport-anchored) — readable regardless of the game's scale. */}
       <UpdateBanner />
+
+      {/* The ?install=1 deep link's card (renders nothing on a normal visit). Above the co-op
+          overlays; the studio intro is suppressed for such a launch, see main.tsx. */}
+      <InstallCard />
 
       {/* Co-op multiplayer UI — viewport-anchored (unscaled). Chat (press t) + party status while in a
           run; the lobby modal for create/join. All render nothing unless a co-op session is active. */}

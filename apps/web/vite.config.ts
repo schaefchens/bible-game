@@ -65,7 +65,10 @@ export default defineConfig(() => ({
         name: 'Walk in the Spirit',
         short_name: 'WalkSpirit',
         description: "A pilgrim's roguelike",
-        // Relative so they resolve against `base` — never hardcode an absolute path here.
+        // Relative so they resolve against the MANIFEST's url (i.e. the deployment base) — never
+        // hardcode an absolute path here. It must also stay free of query parameters: a start_url
+        // carrying `?install=1` would reopen the installer on every launch of the installed app
+        // (see src/pwa/installPrompt.ts).
         start_url: '.',
         scope: '.',
         display: 'standalone',

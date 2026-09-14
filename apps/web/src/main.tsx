@@ -1,6 +1,10 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { setAssetBase } from '@bible/assets'
+// FIRST local import on purpose (breaking the alphabetical order below): importing this module
+// latches a `?install=1` deep link and strips the parameter out of the URL before any other module
+// gets a chance to touch it. See pwa/installPrompt.ts.
+import { installIntentPending } from './pwa/installPrompt'
 import { App } from './App'
 import { initI18n } from './i18n'
 import { installViewportMetrics } from './lib/appHeight'
@@ -23,6 +27,11 @@ void useGame
   .getState()
   .hydrate()
   .finally(() => {
+    // A visitor who followed the install link came for the installer, not for the studio logo —
+    // and the intro is a full-viewport overlay (z:1000) that would hide the install card entirely.
+    // hydrate() has just armed `booting` from the setting, so this is the moment to un-arm it.
+    if (installIntentPending()) useGame.getState().endBoot()
+
     createRoot(document.getElementById('root')!).render(
       <React.StrictMode>
         <SwProvider>

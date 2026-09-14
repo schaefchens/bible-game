@@ -7,7 +7,10 @@ scenes, **Bible-verse cards** earned by filling gaps in real scripture, and a hi
 the miracles that break a hopeless fight only fire for a player who walks in the Spirit.
 
 Three adventures, three hero classes, 2–3 player co-op, and an offline-capable PWA.
-Bilingual **EN/DE**. Live at <https://walkinthespirit.games.schaefchens.de>.
+Bilingual **EN/DE**. Live at <https://walkinthespirit.games.schaefchens.de> — and
+`?install=1` on that URL (for QR codes and "install the app" links) opens the browser's
+own install dialog; see `apps/web/src/pwa/installPrompt.ts` for why that takes more than
+one call to `prompt()`.
 
 ## Architecture
 
@@ -40,7 +43,7 @@ apps/
 
 ```bash
 npm install
-npm test            # vitest (engine, content, persistence, web, server) — 401 tests, 45 files
+npm test            # vitest (engine, content, persistence, web, server) — 414 tests, 46 files
 npm run typecheck   # tsc across all packages
 npm run lint        # eslint (incl. the engine-purity boundary rule)
 npm run check:engine-no-react   # CI guard: engine imports no React/UI/storage

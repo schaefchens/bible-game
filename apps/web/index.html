@@ -18,6 +18,20 @@
          flashes white — the studio intro and the app are dark. */
       html, body { margin: 0; background: #000; }
     </style>
+    <script>
+      /* Catch `beforeinstallprompt` before the app bundle exists. The module script below is
+         DEFERRED, so on a warm visit Chrome can fire this event while the document is still being
+         parsed — minutes of debugging if you only listen from React. Park it here; the app adopts
+         whatever is parked (and keeps its own listener, because Chrome re-fires the event whenever
+         installability is re-evaluated). preventDefault() suppresses Chrome's mini-infobar so the
+         app alone decides when to ask. Feature is driven by the ?install=1 deep link —
+         see src/pwa/installPrompt.ts, which explains the whole timing dance. */
+      window.__wisInstallEvent = null
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault()
+        window.__wisInstallEvent = e
+      })
+    </script>
   </head>
   <body>
     <div id="root"></div>
