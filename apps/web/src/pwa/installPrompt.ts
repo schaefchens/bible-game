@@ -7,7 +7,9 @@
 //      who arrives *via* the link therefore has none to spend and Chrome answers with
 //      `NotAllowedError: The prompt() method must be called with a user gesture`. That refusal is the
 //      NORMAL path, not a failure: the zero-tap attempt is opportunistic, and the card's one-tap
-//      button — calling prompt() straight out of a click handler — is what actually works.
+//      button — calling prompt() straight out of a click handler — is what actually works. The same
+//      goes for a 'dismissed' outcome from that attempt: only the button's dialog can carry a real
+//      "no", so an unprompted dismissal must not close the card.
 //  (2) `beforeinstallprompt` can fire BEFORE this bundle runs (module scripts are deferred, so on a
 //      warm visit the event lands while the document is still parsing). An inline script in
 //      index.html catches it and parks it on `window`; we adopt whatever is parked…
@@ -251,7 +253,7 @@ function onEventAvailable(): void {
 async function attemptAuto(): Promise<void> {
   if (autoAttempted || !deferred) return
   autoAttempted = true
-  applyResult(await promptInstall())
+  applyResult(await promptInstall(), false)
 }
 
 /** The card's button. Synchronous entry into prompt() — do not make this async (1). */
@@ -259,10 +261,12 @@ export function requestInstall(): void {
   if (useInstallCard.getState().busy) return
   const result = promptInstall()
   useInstallCard.setState({ busy: true })
-  void result.then(applyResult)
+  void result.then((outcome) => applyResult(outcome, true))
 }
 
-function applyResult(result: PromptResult): void {
+/** `userInitiated` distinguishes the card's button from the opportunistic zero-tap attempt — it is
+ *  the difference between an answer the visitor gave and one they never saw. */
+function applyResult(result: PromptResult, userInitiated: boolean): void {
   // 'done' is terminal: a straggling result (a spent event, a second call) must never turn the
   // "installed" confirmation back into a card asking them to install.
   if (flowEnded || useInstallCard.getState().mode === 'done') return
@@ -271,8 +275,13 @@ function applyResult(result: PromptResult): void {
       showDone()
       break
     case 'dismissed':
-      // They just answered the real dialog with "no" — don't ask again.
-      endInstallFlow()
+      // Only a dialog they actually opened can carry a "no". The zero-tap attempt can equally come
+      // back 'dismissed' with nothing ever shown — Chrome declining to raise the dialog is
+      // indistinguishable from here — and closing on that leaves a deep-linked visitor with no card
+      // at all, which is exactly the bug this link exists to avoid. Fall back to the card instead;
+      // the event is spent either way, so what is left is the written instructions.
+      if (userInitiated) endInstallFlow()
+      else useInstallCard.setState({ mode: deferred ? 'button' : 'howto', busy: false })
       break
     case 'needsGesture':
       // The expected answer to the zero-tap attempt: the event is untouched, so offer the button.

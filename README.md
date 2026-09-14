@@ -43,7 +43,7 @@ apps/
 
 ```bash
 npm install
-npm test            # vitest (engine, content, persistence, web, server) — 414 tests, 46 files
+npm test            # vitest (engine, content, persistence, web, server) — 416 tests, 46 files
 npm run typecheck   # tsc across all packages
 npm run lint        # eslint (incl. the engine-purity boundary rule)
 npm run check:engine-no-react   # CI guard: engine imports no React/UI/storage

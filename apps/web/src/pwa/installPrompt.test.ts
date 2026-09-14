@@ -177,7 +177,31 @@ describe('the prompt lifecycle (the parts only Chrome can really do)', () => {
     expect(evt.promptCalls).toHaveBeenCalledTimes(2)
   })
 
-  it('closes without asking again when they answer the real dialog with no', async () => {
+  it('stays closed after that answer, even if another event arrives', async () => {
+    const evt = fakeEvent('refuse', 'dismissed')
+    park(evt)
+    const mod = await loadAt('/?install=1')
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
+    mod.requestInstall()
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
+
+    window.dispatchEvent(fakeEvent('refuse'))
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
+  })
+
+  it('keeps the card up when the zero-tap attempt comes back dismissed unasked', async () => {
+    // Chrome can resolve the gesture-less attempt as 'dismissed' without ever showing a dialog.
+    // Treating that as the visitor's answer would close the card on a deep link that exists purely
+    // to install — they must still be left with a way in.
+    const evt = fakeEvent('dismissed')
+    park(evt)
+    const mod = await loadAt('/?install=1')
+
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('howto'))
+    expect(evt.promptCalls).toHaveBeenCalledTimes(1)
+  })
+
+  it('does close for good when they dismiss the dialog they opened themselves', async () => {
     const evt = fakeEvent('refuse', 'dismissed')
     park(evt)
     const mod = await loadAt('/?install=1')
@@ -186,10 +210,6 @@ describe('the prompt lifecycle (the parts only Chrome can really do)', () => {
     mod.requestInstall()
     await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
     expect(mod.installIntentPending()).toBe(false)
-
-    // A late event must not reopen the card after that answer.
-    window.dispatchEvent(fakeEvent('refuse'))
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
   })
 
   it('upgrades written instructions back to the real button on a late event (trap 3)', async () => {
