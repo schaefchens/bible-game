@@ -249,10 +249,25 @@ function onEventAvailable(): void {
 }
 
 /** The zero-tap attempt. Guarded by a module flag so StrictMode's double mount cannot fire it
- *  twice. It is EXPECTED to come back 'needsGesture' — that is why the card exists (1). */
+ *  twice, and by transient activation so it can never cost more than it can win.
+ *
+ *  Calling prompt() without a gesture does NOT reliably throw. Chromium may instead RESOLVE
+ *  userChoice with 'dismissed' having shown the visitor nothing at all — and that resolution
+ *  consumes the single-use event, so the card is left with no button to offer and falls back to
+ *  written instructions on a browser that could have installed in one tap. Observed on the live
+ *  site, and reported from Brave desktop after an uninstall/reinstall.
+ *
+ *  So: only spend the event when the page actually holds transient activation (which, arriving via
+ *  a link, it never does — activation does not survive a navigation). Otherwise go straight to the
+ *  button, event intact. `navigator.userActivation` is Chromium-only, as is beforeinstallprompt, so
+ *  anything that fires the event can answer the question. */
 async function attemptAuto(): Promise<void> {
   if (autoAttempted || !deferred) return
   autoAttempted = true
+  if (!navigator.userActivation?.isActive) {
+    useInstallCard.setState({ mode: 'button', busy: false })
+    return
+  }
   applyResult(await promptInstall(), false)
 }
 
@@ -339,7 +354,11 @@ export function startInstallFlow(): void {
   // 'waiting' renders nothing. Either an event shows up (the button) or the deadline passes (3).
   useInstallCard.setState({ mode: 'waiting' })
   deadlineTimer = window.setTimeout(() => {
-    if (useInstallCard.getState().mode === 'waiting') useInstallCard.setState({ mode: 'howto' })
+    if (useInstallCard.getState().mode !== 'waiting') return
+    // Worth saying out loud: "no button, only instructions" has two very different causes — the
+    // browser never offered an event (this one), or one was offered and spent.
+    console.info('[pwa] install: no beforeinstallprompt within %dms — showing written instructions', EVENT_DEADLINE_MS)
+    useInstallCard.setState({ mode: 'howto' })
   }, EVENT_DEADLINE_MS)
 
   // If the inline <head> script already parked one, this spends it immediately (1).

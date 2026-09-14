@@ -138,61 +138,53 @@ const withInstallApi = (): void => {
   Object.defineProperty(window, 'onbeforeinstallprompt', { configurable: true, writable: true, value: null })
 }
 
+/** Chromium exposes transient activation here; a visitor arriving on a link never has it. */
+const setActivation = (isActive: boolean): void => {
+  Object.defineProperty(navigator, 'userActivation', {
+    configurable: true,
+    value: { isActive, hasBeenActive: isActive },
+  })
+}
+
 describe('the prompt lifecycle (the parts only Chrome can really do)', () => {
   beforeEach(withInstallApi)
 
   afterEach(() => {
     delete (window as { onbeforeinstallprompt?: unknown }).onbeforeinstallprompt
+    delete (navigator as { userActivation?: unknown }).userActivation
     window.__wisInstallEvent = null
     vi.useRealTimers()
   })
 
-  it('adopts an event parked by the inline <head> script and keeps it when refused (traps 1 + 2)', async () => {
+  it('adopts an event parked by the inline <head> script without spending it (traps 1 + 2)', async () => {
+    // The deep-link case: no transient activation, because it does not survive the navigation.
+    // prompt() here cannot succeed and may silently consume the single-use event, so it is not
+    // called at all — the card goes straight to the button that can actually install.
+    const evt = fakeEvent('dismissed')
+    park(evt)
+    const mod = await loadAt('/?install=1')
+
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
+    expect(evt.promptCalls).not.toHaveBeenCalled()
+    expect(window.__wisInstallEvent).toBeNull() // adopted, not left parked for a second owner
+  })
+
+  it('does take the zero-tap attempt when the page really holds activation', async () => {
+    setActivation(true)
     const evt = fakeEvent('refuse')
     park(evt)
     const mod = await loadAt('/?install=1')
 
-    // The zero-tap attempt is made and refused — NotAllowedError leaves the event usable, so the
-    // card offers the button rather than falling back to written instructions.
+    // NotAllowedError leaves the event usable, so the button is still offered.
     await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
     expect(evt.promptCalls).toHaveBeenCalledTimes(1)
-    expect(window.__wisInstallEvent).toBeNull() // adopted, not left parked for a second owner
   })
 
-  it('installs from a click and then discards the single-use event (trap 5)', async () => {
-    const evt = fakeEvent('refuse', 'accepted') // zero-tap refused, the click succeeds
-    park(evt)
-    const mod = await loadAt('/?install=1')
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
-
-    mod.requestInstall()
-    mod.requestInstall() // a second click must not open a second dialog
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('done'))
-    expect(evt.promptCalls).toHaveBeenCalledTimes(2) // the auto attempt + exactly one click
-
-    // The event was discarded on accept, so a further click cannot even reach prompt() (which
-    // would throw InvalidStateError) — and no straggling result may disturb the confirmation.
-    mod.requestInstall()
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('done'))
-    expect(evt.promptCalls).toHaveBeenCalledTimes(2)
-  })
-
-  it('stays closed after that answer, even if another event arrives', async () => {
-    const evt = fakeEvent('refuse', 'dismissed')
-    park(evt)
-    const mod = await loadAt('/?install=1')
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
-    mod.requestInstall()
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
-
-    window.dispatchEvent(fakeEvent('refuse'))
-    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
-  })
-
-  it('keeps the card up when the zero-tap attempt comes back dismissed unasked', async () => {
-    // Chrome can resolve the gesture-less attempt as 'dismissed' without ever showing a dialog.
-    // Treating that as the visitor's answer would close the card on a deep link that exists purely
-    // to install — they must still be left with a way in.
+  it('keeps the card up when an attempt comes back dismissed unasked', async () => {
+    // Chromium can resolve the attempt as 'dismissed' without ever showing a dialog. Treating that
+    // as the visitor's answer would close a card that exists purely to install — and the event is
+    // spent by then, so what is left to offer is the written instructions.
+    setActivation(true)
     const evt = fakeEvent('dismissed')
     park(evt)
     const mod = await loadAt('/?install=1')
@@ -201,8 +193,26 @@ describe('the prompt lifecycle (the parts only Chrome can really do)', () => {
     expect(evt.promptCalls).toHaveBeenCalledTimes(1)
   })
 
-  it('does close for good when they dismiss the dialog they opened themselves', async () => {
-    const evt = fakeEvent('refuse', 'dismissed')
+  it('installs from a click and then discards the single-use event (trap 5)', async () => {
+    const evt = fakeEvent('accepted')
+    park(evt)
+    const mod = await loadAt('/?install=1')
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
+
+    mod.requestInstall()
+    mod.requestInstall() // a second click must not open a second dialog
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('done'))
+    expect(evt.promptCalls).toHaveBeenCalledTimes(1)
+
+    // The event was discarded on accept, so a further click cannot even reach prompt() (which
+    // would throw InvalidStateError) — and no straggling result may disturb the confirmation.
+    mod.requestInstall()
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('done'))
+    expect(evt.promptCalls).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes for good when they dismiss the dialog they opened themselves', async () => {
+    const evt = fakeEvent('dismissed')
     park(evt)
     const mod = await loadAt('/?install=1')
     await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('button'))
@@ -210,6 +220,10 @@ describe('the prompt lifecycle (the parts only Chrome can really do)', () => {
     mod.requestInstall()
     await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
     expect(mod.installIntentPending()).toBe(false)
+
+    // And a later event must not reopen it after that answer.
+    window.dispatchEvent(fakeEvent('refuse'))
+    await vi.waitFor(() => expect(mod.useInstallCard.getState().mode).toBe('hidden'))
   })
 
   it('upgrades written instructions back to the real button on a late event (trap 3)', async () => {
